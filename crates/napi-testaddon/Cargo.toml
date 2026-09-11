@@ -1,0 +1,34 @@
+# A Node addon that exists to consume `extendedresearch-napi` the way a package
+# binding does, so the macros are expanded and registered in a real consumer
+# and the TypeScript is run against a real addon.
+#
+# `test/addon.test.mjs` loads the built library into Node. Nothing here ships.
+#
+# **`test = false`**: a `cdylib` leaves the Node-API symbols to the process
+# that loads it, and on Linux and macOS a test harness, which is an executable,
+# cannot link against symbols nothing supplies. The tests are Node's.
+[package]
+name = "extendedresearch-napi-testaddon"
+version = "0.0.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+test = false
+doctest = false
+
+[lints]
+workspace = true
+
+[dependencies]
+extendedresearch-abi = { path = "../abi" }
+extendedresearch-napi = { path = "../napi" }
+napi = { version = "3", default-features = false, features = ["napi6"] }
+napi-derive = "3"
+
+[build-dependencies]
+napi-build = "2"
