@@ -79,6 +79,18 @@ guard::contain(|| drop(unsafe { borrow::reclaim(stream) }));
 
 The crate documentation states each rule with its reason.
 
+## Using it
+
+Depend on this repository, pinned to a commit:
+
+```toml
+[dependencies]
+extendedresearch-abi = { git = "https://github.com/extendedresearch/foundation", rev = "<commit>" }
+```
+
+The repository is public, so this needs no credential. Nothing is published to
+crates.io yet.
+
 ## Status
 
 This is 0.0.0, and nothing in it is frozen: a name, a code or a signature can

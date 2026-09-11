@@ -10,15 +10,43 @@ Shared Rust code that ranvier, ca3 and eres depend on. One crate today:
 | `crates/abi` | `extendedresearch-abi`. Error codes, the only module that dereferences a caller's pointer, the measure-then-copy buffer shape, the panic guard, the table behind an enumeration's `_count`/`_at`/`_name`, the calling side a Rust binding uses, and a conformance kit a library runs against its own exports. It exports no `extern "C"` symbol; each library still writes its own functions, handles, header and version constant. The crate docs in `crates/abi/src/lib.rs` state every convention and are the reference for them |
 | `Cargo.toml` | The workspace. `[workspace.lints]` repeats the levels ranvier, ca3 and eres set, plus `undocumented_unsafe_blocks` |
 | `.github/workflows/ci.yml` | Format, lints, tests on the current stable and on the MSRV, and Miri over the pointer-handling tests |
-| `.github/workflows/release.yml` | Publishes `extendedresearch-abi` to crates.io when a `v*` tag naming the manifest's version is pushed, after running all of `ci.yml`. Needs a `CARGO_REGISTRY_TOKEN` secret |
 
 ## How the packages reach it
 
-**By a crates.io release, and no other way.** Each package refuses a
-dependency that resolves through a sibling checkout, over git, or with a
-credential, so a path or git dependency on this repository would break the
-package's own rule. That is why no member sets `publish = false`, and why a
-crate here is public once released.
+**As a git dependency on this public repository, pinned to a commit:**
+
+```toml
+extendedresearch-abi = { git = "https://github.com/extendedresearch/foundation", rev = "<40-character commit>" }
+```
+
+The repository is public, so resolving it needs no credential and no secret in
+any package's CI. A `rev` is as fixed as a registry version: the lockfile
+records the commit, and only an edit to the manifest moves it. A branch or a
+tag would move under an unchanged manifest at the next `cargo update`, so
+neither is used.
+
+**This is the one dependency from outside its own tree that a core package
+takes.** ranvier and plugins check that nothing in `Cargo.lock` resolves over
+git. That check becomes "nothing resolves over git except this repository,
+pinned to a commit":
+
+```bash
+grep 'source = "git' Cargo.lock \
+  | grep -cvE '^source = "git\+https://github\.com/extendedresearch/foundation\?rev=[0-9a-f]{40}#[0-9a-f]{40}"$'
+# 0
+```
+
+**Two packages pinning different commits put two copies of this crate in one
+build**, and Cargo treats them as different crates. Nothing from here crosses a
+package boundary today — the codes are plain `i32` and the helpers are
+functions — so the copies coexist. A package that exposes one of this crate's
+types in its own public API ties every package built beside it to the same
+commit.
+
+**crates.io is for when the API is settled.** Until then nothing is published
+and no version is spent: a package moves by changing its `rev`. A crate with a
+git dependency cannot itself be published to crates.io, and no core package is
+today.
 
 **A crate lands here when two packages need the same runtime code.** A crate
 with one consumer belongs in that consumer's repository.
@@ -42,16 +70,15 @@ Not built, or not decided:
   | library-specific | -16 and below | -3, -5, -6, -9, -10, -11 |
 
   Which side moves is open.
-- **Nothing is published yet, and nothing is versioned.** Every crate stays at
-  `0.0.0` until a package can use it end to end, and no version moves before
-  then. No code, name or signature is frozen until that first version is
-  complete. The crates are published to crates.io and the repository is
-  public.
+- **Nothing is published, and nothing is versioned.** Every crate stays at
+  `0.0.0`, and packages pin a commit rather than a version. No code, name or
+  signature is frozen until the first version is complete.
 - **Where shared tooling lives** — the lint table, the decision-record checker,
   the step that fails CI when zero tests ran — is undecided. None of it is here.
-- **ca3's decision 0004 §1** allows a crates.io dependency but not "a
-  dependency on another repository in this ecosystem". Read literally, that
-  excludes this crate for ca3.
+- **Each package's own rules still forbid this dependency.** ranvier's and
+  plugins' `CONTEXT.md` allow no git source at all, and ca3's decision 0004 §1
+  forbids "a dependency on another repository in this ecosystem". Each needs
+  the one exception above written in before that package adopts this crate.
 
 ## Conventions that cause bugs when broken
 
