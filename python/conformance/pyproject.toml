@@ -1,0 +1,25 @@
+# A development tool, installed into a package's test environment:
+#
+#     pip install "extendedresearch-conformance @ git+https://github.com/extendedresearch/foundation@<commit>#subdirectory=python/conformance"
+#
+# It depends on nothing outside the standard library. `tomllib` is why the
+# floor is 3.11.
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "extendedresearch-conformance"
+version = "0.0.0"
+description = "Run every language binding of a package through one set of cases and compare them with each other and with the C header."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+dependencies = []
+
+[project.scripts]
+extendedresearch-conformance = "extendedresearch_conformance.run:entry"
+
+[tool.setuptools.packages.find]
+where = ["src"]

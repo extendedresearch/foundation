@@ -1,0 +1,75 @@
+{
+  "families": [
+    {
+      "id": "color",
+      "header_prefix": "FIX_COLOR_",
+      "contract_prefix": "COLOR_"
+    }
+  ],
+  "cases": [
+    {
+      "id": "statuses",
+      "kind": "statuses",
+      "distinct": [
+        {
+          "label": "busy and gone stay two codes",
+          "codes": ["FIX_ERR_BUSY", "FIX_ERR_GONE"]
+        }
+      ],
+      "absent": [
+        {
+          "label": "no cancellation status exists yet",
+          "pattern": "CANCEL",
+          "why": "A recorded gap. Closing it must be seen."
+        }
+      ]
+    },
+    {
+      "id": "version",
+      "kind": "scenario",
+      "reads": {
+        "linked": {
+          "alpha": "abi.linked",
+          "beta": "abi.linked",
+          "gamma": "abi.linked",
+          "abi": "abi_version"
+        },
+        "greeting": {
+          "alpha": "greeting",
+          "beta": "greeting",
+          "gamma": "greeting"
+        },
+        "clock": {
+          "alpha": "clock",
+          "beta": "clock",
+          "gamma": "clock",
+          "compare": "positive"
+        }
+      }
+    },
+    {
+      "id": "error_busy",
+      "kind": "errors",
+      "outcomes": [
+        {
+          "why": "The object was busy.",
+          "alpha": { "type": "BusyError", "mro": ["BusyError", "FixError"], "code": "FIX_ERR_BUSY" },
+          "beta": { "type": "BusyError", "mro": ["BusyError", "FixError"], "code": "FIX_ERR_BUSY" },
+          "gamma": { "type": "BusyError", "mro": ["BusyError", "FixError"], "code": "FIX_ERR_BUSY" }
+        }
+      ]
+    },
+    {
+      "id": "error_gone",
+      "kind": "errors",
+      "outcomes": [
+        {
+          "why": "The object was gone.",
+          "alpha": { "type": "GoneError", "mro": ["GoneError", "FixError"], "code": "FIX_ERR_GONE" },
+          "beta": { "type": "GoneError", "mro": ["GoneError", "FixError"], "code": "FIX_ERR_GONE" },
+          "gamma": { "type": "GoneError", "mro": ["GoneError", "FixError"], "code": "FIX_ERR_GONE" }
+        }
+      ]
+    }
+  ]
+}
