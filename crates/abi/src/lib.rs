@@ -48,11 +48,19 @@
 //! the way a binding does, and panics with the rule that was broken. A library
 //! calls it from its own tests.
 //!
-//! # Calling a library from a binding
+//! # Where each binding meets a package
 //!
-//! [`binding`] is the other side of the boundary: what a binding written in
-//! Rust — over PyO3, napi-rs, or a .NET host — does to read an answer and to
-//! turn a code into its language's error. It needs no `unsafe`.
+//! A package's core is safe Rust whose error type implements
+//! [`codes::AbiError`]. Its Python and Node bindings call that core directly
+//! and convert the error with `extendedresearch-pyo3` and
+//! `extendedresearch-napi`; no pointer and no handle crosses between them. A
+//! thin C adapter per package serves .NET and C callers: it is the only code
+//! that calls [`borrow`], one documented call per `unsafe` block, and
+//! [`codes::status`] turns each core `Result` into the code it answers.
+//!
+//! [`binding`] is the other side of that C adapter as Rust sees it: what the
+//! package's C-ABI tests and conformance drivers do to read an answer and a
+//! code. It needs no `unsafe`.
 
 pub mod binding;
 #[allow(unsafe_code)]

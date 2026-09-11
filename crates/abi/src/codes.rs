@@ -110,6 +110,121 @@ pub const fn name(code: i32) -> Option<&'static str> {
     }
 }
 
+/// The contract a package's own error type implements, so every binding layer
+/// above it reads one shape.
+///
+/// A package's core is safe Rust that answers `Result<T, E>`. Its Python and
+/// Node bindings call the core directly and turn `E` into their language's
+/// error; its C adapter turns `E` into the `int32_t` a C caller reads. All
+/// three need the same two facts from `E`, and this trait is where they come
+/// from:
+///
+/// - [`code`](Self::code) is the value the C ABI answers. A boundary failure
+///   answers this module's constant ([`ERR_NULL`], [`ERR_UTF8`], …). A domain
+///   failure answers the package's own constant, at or below [`DOMAIN_FLOOR`].
+///   It is always negative: an error that answered zero would read as success.
+/// - [`name`](Self::name) is that constant's name, exactly as the header
+///   spells it: `ERR_NULL` for a boundary code (the name [`name`] answers), and
+///   the package's own name, such as `CA3_ERR_TRUNCATED`, for a domain code.
+///
+/// `Display` is the sentence a person reads. It says what happened; the code
+/// and the name say which failure it was, and a caller branches on those.
+///
+/// [`conformance::error_codes`](crate::conformance::error_codes) checks a
+/// package's declared domain codes, and
+/// [`conformance::errors`](crate::conformance::errors) checks its error values
+/// against them.
+///
+/// ```
+/// use std::fmt;
+/// use extendedresearch_abi::codes::{self, AbiError};
+///
+/// pub const THING_ERR_REFUSED: i32 = -16;
+///
+/// #[derive(Debug)]
+/// pub enum ThingError {
+///     NotUtf8,
+///     Refused(String),
+/// }
+///
+/// impl fmt::Display for ThingError {
+///     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+///         match self {
+///             Self::NotUtf8 => f.write_str("the name was not UTF-8"),
+///             Self::Refused(why) => write!(f, "refused: {why}"),
+///         }
+///     }
+/// }
+///
+/// impl AbiError for ThingError {
+///     fn code(&self) -> i32 {
+///         match self {
+///             Self::NotUtf8 => codes::ERR_UTF8,
+///             Self::Refused(_) => THING_ERR_REFUSED,
+///         }
+///     }
+///     fn name(&self) -> &'static str {
+///         match self {
+///             Self::NotUtf8 => "ERR_UTF8",
+///             Self::Refused(_) => "THING_ERR_REFUSED",
+///         }
+///     }
+/// }
+///
+/// assert_eq!(ThingError::Refused("full".into()).code(), -16);
+/// ```
+pub trait AbiError: std::fmt::Display {
+    /// The negative `int32_t` the C ABI answers for this failure.
+    fn code(&self) -> i32;
+
+    /// The name of the constant [`code`](Self::code) is, as the header spells
+    /// it.
+    fn name(&self) -> &'static str;
+}
+
+/// Turn a core call's `Result` into the status a C adapter answers.
+///
+/// `Ok` hands the value to `deliver`, which writes it to the caller's
+/// out-parameter and answers a status of its own — [`OK`], or the code a
+/// copy-out call answered. `Err` answers the error's [`AbiError::code`].
+///
+/// ```
+/// use extendedresearch_abi::codes::{self, AbiError};
+/// # use std::fmt;
+/// # struct Full;
+/// # impl fmt::Display for Full {
+/// #     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result { f.write_str("full") }
+/// # }
+/// # impl AbiError for Full {
+/// #     fn code(&self) -> i32 { -16 }
+/// #     fn name(&self) -> &'static str { "THING_ERR_FULL" }
+/// # }
+///
+/// let mut slot = 0u32;
+/// assert_eq!(codes::status(Ok::<u32, Full>(7), |v| { slot = v; codes::OK }), codes::OK);
+/// assert_eq!(slot, 7);
+/// assert_eq!(codes::status(Err::<u32, Full>(Full), |_| codes::OK), -16);
+/// ```
+///
+/// **An error whose code is not negative answers [`ERR_STATE`]**, so a defect
+/// in an error type cannot read as success to `if (rc < 0)`.
+/// [`conformance::errors`](crate::conformance::errors) is the test that finds
+/// such a type before a caller does.
+#[must_use]
+pub fn status<T, E, F>(result: Result<T, E>, deliver: F) -> i32
+where
+    E: AbiError,
+    F: FnOnce(T) -> i32,
+{
+    match result {
+        Ok(value) => deliver(value),
+        Err(error) => match error.code() {
+            code if code < 0 => code,
+            _ => ERR_STATE,
+        },
+    }
+}
+
 /// What a boundary code means, as a sentence a binding can put in an error.
 ///
 /// `None` for [`OK`] and for any domain code, for the reason [`name`] gives.
@@ -183,6 +298,47 @@ mod tests {
         }
         assert_eq!(describe(OK), None);
         assert_eq!(describe(DOMAIN_FLOOR), None);
+    }
+
+    struct Failing(i32);
+
+    impl std::fmt::Display for Failing {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(f, "failed with {}", self.0)
+        }
+    }
+
+    impl AbiError for Failing {
+        fn code(&self) -> i32 {
+            self.0
+        }
+        fn name(&self) -> &'static str {
+            "TEST_ERR"
+        }
+    }
+
+    #[test]
+    fn status_delivers_a_value_and_answers_what_delivery_answered() {
+        let mut slot = None;
+        let answered = status(Ok::<_, Failing>(5u8), |value| {
+            slot = Some(value);
+            ERR_RANGE
+        });
+        assert_eq!(slot, Some(5));
+        assert_eq!(answered, ERR_RANGE, "a copy-out refusal must pass through");
+    }
+
+    #[test]
+    fn status_answers_an_error_s_own_code() {
+        assert_eq!(status(Err::<(), _>(Failing(ERR_UTF8)), |()| OK), ERR_UTF8);
+        assert_eq!(status(Err::<(), _>(Failing(-40)), |()| OK), -40);
+    }
+
+    #[test]
+    fn status_never_answers_success_for_an_error() {
+        for code in [OK, 1, i32::MAX] {
+            assert_eq!(status(Err::<(), _>(Failing(code)), |()| OK), ERR_STATE);
+        }
     }
 
     #[test]

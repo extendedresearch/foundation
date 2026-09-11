@@ -14,13 +14,13 @@ depending on it changes nothing a C caller sees.
 
 | Module | For | What it does |
 |---|---|---|
-| `codes` | both sides | `int32_t` codes: zero is success, `-1` to `-15` are boundary failures any library has, and `-16` and below are the library's own |
+| `codes` | both sides | `int32_t` codes: zero is success, `-1` to `-15` are boundary failures any library has, and `-16` and below are the library's own. `AbiError` is the trait a package's error type implements so every binding reads its code and name; `status` turns a core `Result` into the code a C adapter answers |
 | `borrow` | the library | Every read of a caller's pointer: handles, out-parameters, strings, arrays, and the copy-out calls. The only module that writes `unsafe` |
 | `buffer` | the library | Measure-then-copy: a null destination measures, a short buffer answers `ERR_RANGE` with the size it needed |
 | `guard` | the library | A panic answers `ERR_PANIC` instead of unwinding into C, including inside a `_destroy` |
 | `enumeration` | the library | The table behind `_count`, `_at` and `_name`, so a binding loops over values instead of transcribing them |
-| `binding` | the binding | Reading a measure-then-copy answer, re-measuring if it grew between calls, and naming a failure code |
-| `conformance` | the library's tests | Drives the library's exports through raw pointers, the way a binding does, and panics naming the rule a function broke |
+| `binding` | C-ABI tests and conformance drivers | Reading a measure-then-copy answer from Rust, re-measuring if it grew between calls, and naming a failure code. The Python and Node bindings call the package's Rust core instead |
+| `conformance` | the library's tests | Drives the library's exports through raw pointers, the way a binding does, and panics naming the rule a function broke. Checks the library's table of domain codes, and its error values against that table |
 
 ## An exported function, and a binding reading it
 

@@ -1,11 +1,16 @@
-//! The calling side: what a binding written in Rust does to use a library that
-//! follows these conventions.
+//! The calling side: what Rust code does to use a library through its C ABI.
 //!
-//! A Python binding over PyO3 and a Node binding over napi-rs are Rust code
-//! calling the library's exported functions. For every variable-length answer
-//! each one measures, allocates and copies, and for every failure it turns a
-//! code into its language's error. ranvier's two bindings each wrote those
-//! helpers; these are one shared form of them.
+//! **The Python and Node bindings do not use this.** They call a package's
+//! safe Rust core directly and convert its [`AbiError`](crate::codes::AbiError)
+//! with `extendedresearch-pyo3` and `extendedresearch-napi`, so no pointer
+//! crosses between them and the core. What calls the C ABI from Rust is a
+//! package's tests of its own C adapter, and the drivers that exercise that
+//! adapter the way a .NET or C caller would. For every variable-length answer
+//! each one measures, allocates and copies, and for every failure it reads a
+//! code; these are the shared form of those helpers.
+//!
+//! The .NET form of the same reading is `ExtendedResearch.Interop`, carried by
+//! `extendedresearch-interop-sources`.
 //!
 //! **One case neither of those handled: an answer that grows between the
 //! measuring call and the copying one.** A name changed by another thread in
