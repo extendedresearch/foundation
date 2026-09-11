@@ -1,0 +1,66 @@
+# A suite that did not run is not a suite that passed. `cargo test` exits 0
+# with nothing to run, and an `#[ignore]`d test lands in a column nothing
+# reads. This reads the captured output of `cargo test` and fails the job when:
+#
+# - no `test result:` line was printed at all,
+# - the `passed` counts sum to zero, or
+# - the `ignored` counts sum to more than zero, unless `fail-on-ignored` is
+#   `false`.
+#
+# Capture the log with `set -o pipefail; cargo test ... 2>&1 | tee cargo-test.log`
+# in the step before, so a failing test still fails that step.
+#
+# Used by foundation's own `ci.yml` as `uses: ./.github/actions/prove-tests-ran`;
+# another repository refers to it as
+# `extendedresearch/foundation/.github/actions/prove-tests-ran@<commit>`.
+name: Prove the tests ran
+description: Fail when a cargo test log shows no result line, zero passed tests, or ignored tests.
+
+inputs:
+  log:
+    description: Path to the captured output of `cargo test`.
+    required: true
+  fail-on-ignored:
+    description: Fail when any test was ignored. `true` or `false`.
+    required: false
+    default: "true"
+
+runs:
+  using: composite
+  steps:
+    - name: Prove the tests ran
+      shell: bash
+      env:
+        LOG: ${{ inputs.log }}
+        FAIL_ON_IGNORED: ${{ inputs.fail-on-ignored }}
+      run: |
+        set -euo pipefail
+        if [ ! -f "$LOG" ]; then
+          echo "::error::$LOG does not exist, so there is no evidence any test ran."
+          exit 1
+        fi
+        read -r passed failed ignored <<<"$(
+          awk '/^test result:/ {p+=$4; f+=$6; i+=$8} END {print p+0, f+0, i+0}' "$LOG"
+        )"
+        echo "passed=$passed failed=$failed ignored=$ignored"
+        if ! grep -q '^test result:' "$LOG"; then
+          echo "::error::The run printed no test-result line at all."
+          exit 1
+        fi
+        if [ "$passed" -eq 0 ]; then
+          echo "::error::Zero tests ran. cargo test exits 0 when it has nothing to run."
+          exit 1
+        fi
+        case "$FAIL_ON_IGNORED" in
+          true)
+            if [ "$ignored" -ne 0 ]; then
+              echo "::error::$ignored test(s) are #[ignore]d, so they did not run and could not fail. Say why in the diff and change this step in the same commit."
+              exit 1
+            fi
+            ;;
+          false) ;;
+          *)
+            echo "::error::fail-on-ignored is '$FAIL_ON_IGNORED'; it takes true or false."
+            exit 1
+            ;;
+        esac

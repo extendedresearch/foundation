@@ -58,27 +58,12 @@ jobs:
 
       # A suite that did not run is not a suite that passed. `cargo test` exits 0
       # with nothing to run, and an `#[ignore]`d test lands in a column nothing
-      # reads. The same step ranvier, eres and plugins carry.
+      # reads. The action is the step ranvier, eres and plugins carry inline,
+      # written once so they can refer to it by commit.
       - name: Prove the tests ran
-        shell: bash
-        run: |
-          set -euo pipefail
-          read -r passed failed ignored <<<"$(
-            awk '/^test result:/ {p+=$4; f+=$6; i+=$8} END {print p+0, f+0, i+0}' cargo-test.log
-          )"
-          echo "passed=$passed failed=$failed ignored=$ignored"
-          if ! grep -q '^test result:' cargo-test.log; then
-            echo "::error::The run printed no test-result line at all."
-            exit 1
-          fi
-          if [ "$passed" -eq 0 ]; then
-            echo "::error::Zero tests ran. cargo test exits 0 when it has nothing to run."
-            exit 1
-          fi
-          if [ "$ignored" -ne 0 ]; then
-            echo "::error::$ignored test(s) are #[ignore]d, so they did not run and could not fail. Say why in the diff and change this step in the same commit."
-            exit 1
-          fi
+        uses: ./.github/actions/prove-tests-ran
+        with:
+          log: cargo-test.log
 
   # `rust-version` is a promise to every consumer, and nothing else here builds
   # on 1.85. A newer API used by accident compiles on stable and fails only for
