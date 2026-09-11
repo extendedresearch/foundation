@@ -23,11 +23,17 @@ namespace ExtendedResearch.Interop
     /// <item><term>ERR_PANIC</term><description><see cref="AbiPanicException"/></description></item>
     /// <item><term>anything else</term><description><see cref="AbiException"/></description></item>
     /// </list>
+    /// <para>A failure of the binding rather than of the library is
+    /// <see cref="AbiBindingException"/> unless the binding-failure hook
+    /// answers otherwise. Every such failure goes through
+    /// <see cref="BindingFailure(string, Exception?)"/>, so a package that
+    /// passes the hook never lets an internal type reach its callers.</para>
     /// </remarks>
     internal sealed class AbiErrors
     {
         private readonly Dictionary<int, string> _domain;
         private readonly Func<int, string, string, Exception?>? _raise;
+        private readonly Func<string, string, Exception?, Exception?>? _bindingFailure;
 
         /// <param name="prefix">The prefix every constant of the package begins with, such as <c>RANVIER</c>.</param>
         /// <param name="domainCodes">Every domain code with its full constant name.</param>
@@ -36,10 +42,18 @@ namespace ExtendedResearch.Interop
         /// the message. Answer an exception to raise it, or null for the
         /// default mapping.
         /// </param>
+        /// <param name="bindingFailure">
+        /// Consulted for every failure of the binding — an answer that was not
+        /// UTF-8, did not fit or kept growing, or a version mismatch — with
+        /// <see cref="BindingCode"/>, the message, and the exception that
+        /// caused it or null. Answer an exception to raise it, or null for
+        /// <see cref="AbiBindingException"/>.
+        /// </param>
         public AbiErrors(
             string prefix,
             IEnumerable<KeyValuePair<int, string>> domainCodes,
-            Func<int, string, string, Exception?>? raise = null)
+            Func<int, string, string, Exception?>? raise = null,
+            Func<string, string, Exception?, Exception?>? bindingFailure = null)
         {
             Prefix = prefix;
             _domain = new Dictionary<int, string>();
@@ -48,6 +62,7 @@ namespace ExtendedResearch.Interop
                 _domain.Add(entry.Key, entry.Value);
             }
             _raise = raise;
+            _bindingFailure = bindingFailure;
         }
 
         /// <summary>The prefix this translation was made with.</summary>
@@ -109,12 +124,20 @@ namespace ExtendedResearch.Interop
         }
 
         /// <summary>A failure of the binding rather than of the library.</summary>
-        public AbiBindingException BindingFailure(string detail) =>
-            new AbiBindingException(BindingCode, detail);
+        public Exception BindingFailure(string detail) => BindingFailure(detail, null);
 
-        /// <summary>A failure of the binding, caused by <paramref name="inner"/>.</summary>
-        public AbiBindingException BindingFailure(string detail, Exception inner) =>
-            new AbiBindingException(BindingCode, detail, inner);
+        /// <summary>A failure of the binding, caused by <paramref name="inner"/> when it is not null.</summary>
+        public Exception BindingFailure(string detail, Exception? inner)
+        {
+            var raised = _bindingFailure?.Invoke(BindingCode, detail, inner);
+            if (raised != null)
+            {
+                return raised;
+            }
+            return inner == null
+                ? new AbiBindingException(BindingCode, detail)
+                : new AbiBindingException(BindingCode, detail, inner);
+        }
 
         /// <summary>
         /// Throw unless the library implements exactly the ABI version the
