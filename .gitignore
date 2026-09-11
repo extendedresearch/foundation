@@ -2,3 +2,5 @@
 Cargo.lock
 __pycache__/
 *.py[cod]
+bin/
+obj/
