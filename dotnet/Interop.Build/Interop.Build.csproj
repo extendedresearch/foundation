@@ -1,0 +1,27 @@
+<!--
+  Compiles ExtendedResearch.Interop on its own for both targets a package
+  builds it for, with warnings as errors and the C# 8 a netstandard2.1
+  consumer defaults to. It produces nothing a package uses: each package
+  compiles the sources into its own assembly.
+
+      dotnet build dotnet/Interop.Build
+-->
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>netstandard2.1;net8.0</TargetFrameworks>
+    <LangVersion>8.0</LangVersion>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <IsPackable>false</IsPackable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!-- Internal types carry XML docs for the reader, not for a published API. -->
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="../Interop/*.cs" />
+  </ItemGroup>
+
+</Project>

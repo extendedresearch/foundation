@@ -1,4 +1,5 @@
-//! Checks a library runs against its own exported functions.
+//! Checks a library runs against its own exported functions, and against its
+//! own error codes.
 //!
 //! Each function here drives one exported function the way a binding does —
 //! through raw pointers, with buffers a binding would allocate — and panics
@@ -29,7 +30,9 @@
 
 use std::ffi::c_char;
 
-use crate::codes::{ERR_NULL, ERR_RANGE, OK, name};
+use crate::codes::{
+    self, AbiError, DOMAIN_FLOOR, ERR_NULL, ERR_RANGE, OK, is_boundary, is_domain, name,
+};
 
 /// A byte no conforming function writes on its own, so a write past the answer
 /// shows.
@@ -273,6 +276,86 @@ where
     F: FnOnce(*mut T),
 {
     destroy(std::ptr::null_mut());
+}
+
+/// Check a package's table of its own error codes, and return it.
+///
+/// `declared` is every domain code the package's header defines, with the
+/// constant's name: `&[(CA3_ERR_TRUNCATED, "CA3_ERR_TRUNCATED")]`. The boundary
+/// codes are this crate's and do not belong in it.
+///
+/// # Panics
+///
+/// When any of these fails, each a rule in [`crate::codes`]:
+///
+/// - Every code is at or below [`DOMAIN_FLOOR`], so it cannot collide with a
+///   boundary code this crate adds later.
+/// - No two entries share a code, and no two share a name.
+/// - Every name is non-empty and is not a boundary code's name.
+pub fn error_codes<'a>(declared: &'a [(i32, &'a str)]) -> &'a [(i32, &'a str)] {
+    for (at, (code, name)) in declared.iter().enumerate() {
+        assert!(
+            is_domain(*code),
+            "{name} is {code}, above DOMAIN_FLOOR ({DOMAIN_FLOOR}); a package numbers its own codes from {DOMAIN_FLOOR} down",
+        );
+        assert!(!name.is_empty(), "the code {code} has an empty name");
+        let boundary = (DOMAIN_FLOOR + 1..0).any(|b| codes::name(b) == Some(*name));
+        assert!(
+            !boundary,
+            "{name} is a boundary code's name and cannot name the domain code {code}"
+        );
+        for (other_code, other_name) in declared.iter().skip(at + 1) {
+            assert!(
+                code != other_code,
+                "{name} and {other_name} are both {code}"
+            );
+            assert!(
+                name != other_name,
+                "{name} is declared twice, as {code} and as {other_code}"
+            );
+        }
+    }
+    declared
+}
+
+/// Check a package's error values against its declared codes.
+///
+/// Pass one value of every variant the error type has; `declared` is the table
+/// [`error_codes`] accepted.
+///
+/// # Panics
+///
+/// When a value breaks any of these:
+///
+/// - Its code is negative.
+/// - A boundary code carries the name [`codes::name`] gives it.
+/// - A domain code is in `declared`, under the same name.
+pub fn errors<E, I>(values: I, declared: &[(i32, &str)])
+where
+    E: AbiError,
+    I: IntoIterator<Item = E>,
+{
+    for value in values {
+        let (code, name) = (value.code(), value.name());
+        assert!(code < 0, "`{value}` answers {code}, which reads as success");
+        if is_boundary(code) {
+            assert_eq!(
+                codes::name(code),
+                Some(name),
+                "`{value}` answers the boundary code {code} under the name {name}"
+            );
+            continue;
+        }
+        match declared.iter().find(|(known, _)| *known == code) {
+            Some((_, known)) => assert_eq!(
+                *known, name,
+                "`{value}` answers {code} as {name}, and the table names {code} {known}"
+            ),
+            None => panic!(
+                "`{value}` answers {name} ({code}), which the package's table does not declare"
+            ),
+        }
+    }
 }
 
 fn expect(actual: i32, expected: i32, rule: &str) {

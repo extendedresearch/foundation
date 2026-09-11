@@ -1,0 +1,33 @@
+# A small C library that follows every convention in `extendedresearch-abi`,
+# built so the .NET interop sources and the Rust conformance kit have a real
+# library to call. Nothing here ships.
+#
+# It is laid out the way a package is: a safe core (`Counter`, `CounterError`),
+# and a C adapter over it whose only `unsafe` is one call into
+# `extendedresearch_abi::borrow` per block.
+#
+# **This is the second crate in the workspace that allows `unsafe_code`**, at
+# the top of `src/lib.rs`: exporting a symbol takes `#[unsafe(no_mangle)]`,
+# which the `unsafe_code` lint reports, and the adapter's calls into `borrow`
+# are `unsafe` blocks. `crates/abi/tests/discipline.rs` still holds for
+# `crates/abi`, which it reads.
+[package]
+name = "extendedresearch-abi-testlib"
+version = "0.0.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[lib]
+name = "extendedresearch_abi_testlib"
+# `cdylib` for .NET to load; `rlib` so this crate's own tests call the same
+# functions through the conformance kit.
+crate-type = ["cdylib", "rlib"]
+
+[lints]
+workspace = true
+
+[dependencies]
+extendedresearch-abi = { path = "../abi" }

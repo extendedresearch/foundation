@@ -1,0 +1,31 @@
+<!--
+  Runs ExtendedResearch.Interop against crates/abi-testlib on net8.0.
+
+      cargo build -p extendedresearch-abi-testlib
+      dotnet test dotnet/Interop.Tests
+
+  The library is read from target/debug unless EXTENDEDRESEARCH_TESTLIB names
+  the built file. dotnet/Interop.Build compiles the same sources for
+  netstandard2.1, which has no runtime to test on.
+-->
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="../Interop/*.cs" LinkBase="Interop" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5" />
+  </ItemGroup>
+
+</Project>
