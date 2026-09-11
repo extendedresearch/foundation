@@ -1,0 +1,29 @@
+# The conventions every C ABI in this ecosystem obeys, as code.
+#
+# **This crate holds no domain.** It exports no `extern "C"` function of its
+# own, because the functions belong to whichever library is being bound —
+# a container reader, a runtime, a validator. What it holds is the part that
+# was going to be written three times and drift twice: the shape of a
+# measure-then-copy call, the places a caller's pointer is dereferenced, the
+# codes a caller checks, and a conformance kit that fails when a boundary stops
+# obeying any of it.
+#
+# `unsafe_code` is denied by the workspace and allowed on `mod borrow` alone
+# (`src/lib.rs`). This crate exports no symbol, so it needs no
+# `#[unsafe(no_mangle)]`, and the compiler can hold the boundary rather than a
+# grep. `tests/discipline.rs` fails if a second `allow` appears.
+[package]
+name = "extendedresearch-abi"
+version = "0.0.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "The conventions a C ABI obeys so that every language binding sits on one boundary."
+categories = ["api-bindings", "development-tools::ffi"]
+keywords = ["ffi", "abi", "bindings", "conventions"]
+
+[lints]
+workspace = true
+
+[dependencies]

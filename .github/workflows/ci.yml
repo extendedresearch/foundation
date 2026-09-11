@@ -1,0 +1,117 @@
+name: ci
+
+# Every pull request, not only those into `main`: a pull request with no checks
+# reads as one that passed.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Nothing here writes.
+permissions:
+  contents: read
+
+# Every job is a check with no side effect, so an obsolete run has nothing left
+# to finish.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+# Toolchains come from `rustup`, which the runner image already carries, so no
+# job depends on a third-party action staying available. The same choice as
+# `ecosystem` and `eres`.
+jobs:
+  check:
+    name: check (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      # Windows and macOS as well as Linux: the consumers of `crates/abi` load a
+      # native library on all three, and pointer width and allocator behaviour
+      # are exactly what differs.
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install toolchain
+        shell: bash
+        run: |
+          rustup toolchain install stable --profile minimal --component rustfmt,clippy
+          rustup default stable
+      - name: Format
+        run: cargo fmt --all --check
+      - name: Lint
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: Docs
+        env:
+          RUSTDOCFLAGS: -D warnings
+        run: cargo doc --workspace --no-deps
+      - name: Test
+        shell: bash
+        run: |
+          set -o pipefail
+          cargo test --workspace 2>&1 | tee cargo-test.log
+
+      # A suite that did not run is not a suite that passed. `cargo test` exits 0
+      # with nothing to run, and an `#[ignore]`d test lands in a column nothing
+      # reads. The same step ranvier, eres and plugins carry.
+      - name: Prove the tests ran
+        shell: bash
+        run: |
+          set -euo pipefail
+          read -r passed failed ignored <<<"$(
+            awk '/^test result:/ {p+=$4; f+=$6; i+=$8} END {print p+0, f+0, i+0}' cargo-test.log
+          )"
+          echo "passed=$passed failed=$failed ignored=$ignored"
+          if ! grep -q '^test result:' cargo-test.log; then
+            echo "::error::The run printed no test-result line at all."
+            exit 1
+          fi
+          if [ "$passed" -eq 0 ]; then
+            echo "::error::Zero tests ran. cargo test exits 0 when it has nothing to run."
+            exit 1
+          fi
+          if [ "$ignored" -ne 0 ]; then
+            echo "::error::$ignored test(s) are #[ignore]d, so they did not run and could not fail. Say why in the diff and change this step in the same commit."
+            exit 1
+          fi
+
+  # `rust-version` is a promise to every consumer, and nothing else here builds
+  # on 1.85. A newer API used by accident compiles on stable and fails only for
+  # the consumer who pinned the older toolchain.
+  msrv:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install toolchain
+        run: rustup toolchain install 1.85 --profile minimal
+      - name: Test
+        run: cargo +1.85 test --workspace
+
+  # The one check an ordinary test run cannot make. `borrow` makes references
+  # from a caller's pointers, and whether that is sound over uninitialised
+  # memory is a property of the abstract machine rather than of the output, so
+  # a test passes either way. Miri interprets the tests and fails on undefined
+  # behaviour.
+  #
+  # **The nightly is pinned**, because Miri ships only with nightly and an
+  # unpinned one moves under an unchanged tree. Move the date deliberately.
+  #
+  # The discipline test and the doctests are left out: Miri's isolation refuses
+  # the file reads the first does, and neither touches a pointer.
+  miri:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install toolchain
+        run: rustup toolchain install nightly-2026-09-11 --profile minimal --component miri,rust-src
+      - name: Test under Miri
+        run: >-
+          cargo +nightly-2026-09-11 miri test -p extendedresearch-abi
+          --lib --test borrow --test buffer --test conformance

@@ -1,0 +1,32 @@
+# The shared code ranvier, ca3 and eres depend on.
+#
+# **Everything here is published to crates.io, because that is the only way the
+# packages can depend on it.** Each of them refuses a dependency resolved through
+# a sibling checkout, over git, or with a credential, so a crate here reaches
+# them as a registry release or not at all. `publish = false` is therefore absent
+# from every member.
+#
+# **A crate lands here when two packages need the same runtime code**, not
+# before. A crate with one consumer belongs in that consumer's repository.
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+
+[workspace.package]
+edition = "2024"
+rust-version = "1.85"
+license = "Apache-2.0"
+repository = "https://github.com/extendedresearch/foundation"
+
+# The same levels ranvier, ca3 and eres set, so code moved between them reads the
+# same. `undocumented_unsafe_blocks` is the one addition, and it only fires in a
+# crate that writes `unsafe`.
+[workspace.lints.rust]
+unsafe_code = "deny"
+missing_docs = "warn"
+
+[workspace.lints.clippy]
+unwrap_used = "warn"
+expect_used = "warn"
+indexing_slicing = "warn"
+undocumented_unsafe_blocks = "warn"
