@@ -13,6 +13,7 @@ use pyo3::prelude::*;
 exceptions! {
     /// Every exception `_thing` raises.
     pub family ThingExceptions in _thing;
+    prefix "THING";
     base ThingError: "Anything thing refused.";
     panic PanicError: "A panic was caught; thing's state is unknown.";
     exception RefusedError(ThingError): "Thing refused the request.";
@@ -34,7 +35,9 @@ fn _thing(module: &Bound<'_, PyModule>) -> PyResult<()> {
 ```
 
 `exceptions!` expands in your crate, so each extension module owns one copy of
-its exception classes. The crate documentation lists which code raises which
+its exception classes. `prefix` is what your header's constants begin with:
+a boundary failure's message reads `THING_ERR_RANGE: …`, as it does from your
+Node and .NET bindings. The crate documentation lists which code raises which
 exception and gives the short-name rule `int_enum` applies.
 
 ## pyo3 version

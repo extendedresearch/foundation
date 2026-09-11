@@ -73,22 +73,53 @@ fn binding_and_unknown_tokens_are_derived_from_the_prefix() {
     );
 }
 
+fn owned(rows: &[(&str, i32)]) -> Vec<(String, i32)> {
+    rows.iter()
+        .map(|(name, value)| ((*name).to_owned(), *value))
+        .collect()
+}
+
 #[test]
-fn the_status_table_is_ok_then_boundary_then_domain() {
-    let table = TOKENS.status_table(&[(DOMAIN_FLOOR, "THING_ERR_FULL")]);
-    let expected: Vec<(String, i32)> = [
-        ("THING_OK", codes::OK),
-        ("THING_ERR_NULL", codes::ERR_NULL),
-        ("THING_ERR_RANGE", codes::ERR_RANGE),
-        ("THING_ERR_UTF8", codes::ERR_UTF8),
-        ("THING_ERR_PANIC", codes::ERR_PANIC),
-        ("THING_ERR_STATE", codes::ERR_STATE),
-        ("THING_ERR_FULL", DOMAIN_FLOOR),
-    ]
-    .into_iter()
-    .map(|(name, value)| (name.to_owned(), value))
-    .collect();
-    assert_eq!(table, expected);
+fn the_status_table_is_ok_then_the_declared_boundary_codes_then_domain() {
+    // `ERR_STATE` is left out, as a package whose header omits it would.
+    let table = TOKENS.status_table(
+        &[
+            codes::ERR_NULL,
+            codes::ERR_RANGE,
+            codes::ERR_UTF8,
+            codes::ERR_PANIC,
+        ],
+        &[(DOMAIN_FLOOR, "THING_ERR_FULL")],
+    );
+    assert_eq!(
+        table,
+        owned(&[
+            ("THING_OK", codes::OK),
+            ("THING_ERR_NULL", codes::ERR_NULL),
+            ("THING_ERR_RANGE", codes::ERR_RANGE),
+            ("THING_ERR_UTF8", codes::ERR_UTF8),
+            ("THING_ERR_PANIC", codes::ERR_PANIC),
+            ("THING_ERR_FULL", DOMAIN_FLOOR),
+        ])
+    );
+}
+
+#[test]
+fn a_whole_status_table_names_each_code_once_and_an_unnamed_code_not_at_all() {
+    let whole = [
+        (codes::OK, "THING_OK"),
+        (codes::ERR_NULL, "THING_ERR_NULL"),
+        (DOMAIN_FLOOR, "THING_ERR_FULL"),
+    ];
+    let table = TOKENS.status_table(&[codes::ERR_NULL, -9], &whole);
+    assert_eq!(
+        table,
+        owned(&[
+            ("THING_OK", codes::OK),
+            ("THING_ERR_NULL", codes::ERR_NULL),
+            ("THING_ERR_FULL", DOMAIN_FLOOR),
+        ])
+    );
 }
 
 #[test]

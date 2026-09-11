@@ -43,7 +43,7 @@
 
 use std::fmt::Display;
 
-use extendedresearch_abi::codes::{self, AbiError, DOMAIN_FLOOR};
+use extendedresearch_abi::codes::{self, AbiError};
 use napi::bindgen_prelude::BigInt;
 use napi::{Error, Status};
 
@@ -88,13 +88,11 @@ impl Tokens {
     /// A boundary name (`ERR_NULL`, `OK`) gains the prefix; a name that already
     /// carries it (`CA3_ERR_TRUNCATED`) is unchanged. [`AbiError::name`] answers
     /// the first kind for boundary codes and the second for domain codes, so
-    /// this is the one step between them.
+    /// this is the one step between them. It is
+    /// `extendedresearch_abi::codes::token`, which the pyo3 layer applies too.
     #[must_use]
     pub fn token(&self, name: &str) -> String {
-        match name.strip_prefix(self.prefix) {
-            Some(rest) if rest.starts_with('_') => name.to_owned(),
-            _ => format!("{}_{name}", self.prefix),
-        }
+        codes::token(self.prefix, name)
     }
 
     /// The token for something the binding could not do, rather than a
@@ -117,20 +115,33 @@ impl Tokens {
         vec![self.binding_token(), self.unknown_token()]
     }
 
-    /// Every status the package can answer, as `(token, value)`: `OK`, each
-    /// boundary code foundation names, then `domain` in the order given.
+    /// Every status the package's header declares, as `(token, value)`: `OK`,
+    /// each code in `boundary`, then each domain code in `domain`, in the
+    /// order given.
+    ///
+    /// `boundary` lists the boundary codes the header declares, which need not
+    /// be all of them: a package that never answers `ERR_STATE` leaves it out
+    /// of its header and out of here, and `statusCodes()` then does not report
+    /// it. A code foundation has no name for is skipped.
     ///
     /// `domain` is the table the package passes to
-    /// `extendedresearch_abi::conformance::error_codes`.
+    /// `extendedresearch_abi::conformance::error_codes`. An entry that is not a
+    /// domain code is skipped, so a table listing every status can be passed
+    /// whole without naming a boundary code twice.
     #[must_use]
-    pub fn status_table(&self, domain: &[(i32, &str)]) -> Vec<(String, i32)> {
+    pub fn status_table(&self, boundary: &[i32], domain: &[(i32, &str)]) -> Vec<(String, i32)> {
         let mut table = vec![(self.token("OK"), codes::OK)];
         table.extend(
-            (DOMAIN_FLOOR + 1..0)
-                .rev()
-                .filter_map(|code| codes::name(code).map(|name| (self.token(name), code))),
+            boundary
+                .iter()
+                .filter_map(|&code| codes::name(code).map(|name| (self.token(name), code))),
         );
-        table.extend(domain.iter().map(|(code, name)| (self.token(name), *code)));
+        table.extend(
+            domain
+                .iter()
+                .filter(|(code, _)| codes::is_domain(*code))
+                .map(|(code, name)| (self.token(name), *code)),
+        );
         table
     }
 
@@ -218,17 +229,21 @@ impl<T, E: AbiError> Report<T> for Result<T, E> {
 /// Export `statusCodes()` and `bindingCodes()` from the consuming crate.
 ///
 /// ```text
+/// use extendedresearch_abi::codes::{ERR_NULL, ERR_PANIC, ERR_RANGE, ERR_UTF8};
+///
 /// static TOKENS: extendedresearch_napi::Tokens = extendedresearch_napi::Tokens::new("CA3");
-/// extendedresearch_napi::status_exports!(TOKENS, ca3::ERROR_CODES);
+/// const BOUNDARY_CODES: &[i32] = &[ERR_NULL, ERR_RANGE, ERR_UTF8, ERR_PANIC];
+/// extendedresearch_napi::status_exports!(TOKENS, BOUNDARY_CODES, ca3::ERROR_CODES);
 /// ```
 ///
 /// Defines a `#[napi(object)] StatusCode { value, name }`,
 /// `statusCodes(): StatusCode[]` from [`Tokens::status_table`], and
 /// `bindingCodes(): string[]` from [`Tokens::binding_codes`]. `ts/errors.ts`
-/// builds its set of codes from the two.
+/// builds its set of codes from the two. The boundary codes are the ones the
+/// package's header declares, as [`Tokens::status_table`] describes.
 #[macro_export]
 macro_rules! status_exports {
-    ($tokens:expr, $domain:expr $(,)?) => {
+    ($tokens:expr, $boundary:expr, $domain:expr $(,)?) => {
         /// One status the package can answer.
         #[::napi_derive::napi(object)]
         pub struct StatusCode {
@@ -238,12 +253,12 @@ macro_rules! status_exports {
             pub name: ::std::string::String,
         }
 
-        /// Every status this build knows: `OK`, the boundary codes, and the
-        /// package's own.
+        /// Every status the package's header declares: `OK`, its boundary
+        /// codes, and its own.
         #[::napi_derive::napi]
         pub fn status_codes() -> ::std::vec::Vec<StatusCode> {
             $tokens
-                .status_table($domain)
+                .status_table($boundary, $domain)
                 .into_iter()
                 .map(|(name, value)| StatusCode { value, name })
                 .collect()

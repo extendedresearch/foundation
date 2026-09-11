@@ -110,6 +110,31 @@ pub const fn name(code: i32) -> Option<&'static str> {
     }
 }
 
+/// A constant's name as a package's header spells it.
+///
+/// A boundary name, as [`name`] answers it, gains the package's prefix:
+/// `ERR_NULL` becomes `CA3_ERR_NULL`. A name that already carries the prefix
+/// and an underscore, as a domain name does, comes back unchanged. So the step
+/// applies to any name [`AbiError::name`] answers, and applying it twice
+/// changes nothing. Every binding layer spells a failure with it.
+///
+/// ```
+/// use extendedresearch_abi::codes::token;
+///
+/// assert_eq!(token("CA3", "ERR_NULL"), "CA3_ERR_NULL");
+/// assert_eq!(token("CA3", "CA3_ERR_TRUNCATED"), "CA3_ERR_TRUNCATED");
+/// assert_eq!(token("CA3", "OK"), "CA3_OK");
+/// // A name that merely starts with the same letters is not the prefix.
+/// assert_eq!(token("CA3", "CA30_ERR_X"), "CA3_CA30_ERR_X");
+/// ```
+#[must_use]
+pub fn token(prefix: &str, name: &str) -> String {
+    match name.strip_prefix(prefix) {
+        Some(rest) if rest.starts_with('_') => name.to_owned(),
+        _ => format!("{prefix}_{name}"),
+    }
+}
+
 /// The contract a package's own error type implements, so every binding layer
 /// above it reads one shape.
 ///
@@ -123,9 +148,11 @@ pub const fn name(code: i32) -> Option<&'static str> {
 ///   answers this module's constant ([`ERR_NULL`], [`ERR_UTF8`], …). A domain
 ///   failure answers the package's own constant, at or below [`DOMAIN_FLOOR`].
 ///   It is always negative: an error that answered zero would read as success.
-/// - [`name`](Self::name) is that constant's name, exactly as the header
-///   spells it: `ERR_NULL` for a boundary code (the name [`name`] answers), and
-///   the package's own name, such as `CA3_ERR_TRUNCATED`, for a domain code.
+/// - [`name`](Self::name) is that constant's name: `ERR_NULL` for a boundary
+///   code (the name [`name`] answers, which every library shares), and the
+///   package's own name, such as `CA3_ERR_TRUNCATED`, for a domain code.
+///   [`token`] turns either into the header's spelling (`CA3_ERR_NULL`), and
+///   every binding layer reports that.
 ///
 /// `Display` is the sentence a person reads. It says what happened; the code
 /// and the name say which failure it was, and a caller branches on those.
@@ -177,8 +204,9 @@ pub trait AbiError: std::fmt::Display {
     /// The negative `int32_t` the C ABI answers for this failure.
     fn code(&self) -> i32;
 
-    /// The name of the constant [`code`](Self::code) is, as the header spells
-    /// it.
+    /// The name of the constant [`code`](Self::code) is: unprefixed for a
+    /// boundary code, the package's full name for a domain code. [`token`]
+    /// gives the header's spelling of either.
     fn name(&self) -> &'static str;
 }
 

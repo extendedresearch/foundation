@@ -111,17 +111,6 @@ Built, with the check that shows it beside each:
 
 Not built, or not decided:
 
-- **No package depends on this yet.** ranvier has its own `crates/abi` with a
-  different numbering and is moving onto this one; ca3 and eres have none.
-
-  | Code | here | ranvier today |
-  |---|---|---|
-  | NULL | -1 | -1 |
-  | RANGE | -2 | -4 |
-  | UTF8 | -3 | -2 |
-  | PANIC | -4 | -8 |
-  | STATE | -5 | none |
-  | library-specific | -16 and below | -3, -5, -6, -9, -10, -11 |
 - **Nothing is published, and nothing is versioned.** Every crate stays at
   `0.0.0`, and packages pin a commit rather than a version. No code, name or
   signature is frozen until the first version is complete.
@@ -131,10 +120,11 @@ Not built, or not decided:
 - **Where the rest of the shared tooling lives** — the lint table, the
   decision-record checker — is undecided. The zero-tests step and the
   conformance runner are here.
-- **Each package's own rules still forbid this dependency.** ranvier's and
-  plugins' `CONTEXT.md` allow no git source at all, and ca3's decision 0004 §1
-  forbids "a dependency on another repository in this ecosystem". Each needs
-  the one exception above written in before that package adopts this.
+- **No enumeration of a library's statuses crosses the C ABI.** A .NET
+  binding writes its domain codes down and checks them against the header in a
+  test. An enumeration trio over the status table (`_status_count`, `_at`,
+  `_name`, the shape `Enumeration` already serves) would let it read them, and
+  is not decided.
 
 ## Conventions that cause bugs when broken
 
@@ -159,10 +149,16 @@ Not built, or not decided:
   from `-16` down.** A code added to the boundary range by a library collides
   with the next one added here. `conformance::error_codes` checks a library's
   table.
-- **`AbiError::name` is the header's spelling, unprefixed for boundary codes.**
-  A boundary error answers `ERR_NULL`; a domain error answers its full name,
-  `CA3_ERR_TRUNCATED`. The napi and .NET layers add the package prefix to the
-  first kind (`CA3_ERR_NULL`).
+- **`AbiError::name` is unprefixed for boundary codes, and every binding
+  reports the header's spelling.** A boundary error answers `ERR_NULL`; a
+  domain error answers its full name, `CA3_ERR_TRUNCATED`. `codes::token` adds
+  the package prefix to the first kind (`CA3_ERR_NULL`) and leaves the second
+  alone, and all three layers apply it: napi's `Tokens`, the pyo3 family's
+  required `prefix`, and `AbiErrors` in .NET. A layer that skipped it would
+  report a name no header declares.
+- **A package's `statusCodes()` reports the boundary codes its header
+  declares**, which it passes to `status_exports!`; foundation naming a code
+  does not put it in a package's table.
 - **pyo3 and napi move in lockstep with every consumer.** `pyo3-ffi` declares
   `links = "python"`, so a consumer on a different pyo3 series fails to resolve.
   `napi-sys` declares no `links`, so a consumer on a different napi series
