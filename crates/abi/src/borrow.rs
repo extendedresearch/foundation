@@ -33,6 +33,7 @@ use std::mem::MaybeUninit;
 
 use crate::buffer;
 use crate::codes::{ERR_NULL, ERR_RANGE, ERR_UTF8};
+use crate::enumeration::Enumeration;
 
 /// Hand a value across the boundary as an opaque handle.
 ///
@@ -155,6 +156,53 @@ pub unsafe fn slice<'a, T>(values: *const T, len: u64) -> Result<&'a [T], i32> {
     // SAFETY: valid for `len` elements is the caller's promise, and an
     // allocation that valid is no larger than `isize::MAX` bytes.
     Ok(unsafe { std::slice::from_raw_parts(values, len) })
+}
+
+/// `_count` for an [`Enumeration`]: how many values it holds.
+///
+/// # Safety
+///
+/// `out_count` must be null, or valid for writing one `u32`.
+#[must_use]
+pub unsafe fn enumeration_count(table: &Enumeration, out_count: *mut u32) -> i32 {
+    // SAFETY: the caller's promise above, passed on unchanged.
+    let out_count = unsafe { out(out_count) };
+    table.count(out_count)
+}
+
+/// `_at` for an [`Enumeration`]: the value at `index`, or [`ERR_RANGE`] past the
+/// end.
+///
+/// # Safety
+///
+/// `out_value` must be null, or valid for writing one `i32`.
+#[must_use]
+pub unsafe fn enumeration_at(table: &Enumeration, index: u32, out_value: *mut i32) -> i32 {
+    // SAFETY: the caller's promise above, passed on unchanged.
+    let out_value = unsafe { out(out_value) };
+    table.at(index, out_value)
+}
+
+/// `_name` for an [`Enumeration`]: the contract's name for `value`, in the
+/// measure-then-copy shape, or [`ERR_RANGE`] for a value the table does not
+/// hold.
+///
+/// # Safety
+///
+/// As [`fill_text`].
+#[must_use]
+pub unsafe fn enumeration_name(
+    table: &Enumeration,
+    value: i32,
+    destination: *mut c_char,
+    capacity: u64,
+    out_len: *mut u64,
+) -> i32 {
+    let Some(name) = table.name_of(value) else {
+        return ERR_RANGE;
+    };
+    // SAFETY: the caller's promise above, passed on unchanged.
+    unsafe { fill_text(name, destination, capacity, out_len) }
 }
 
 /// Answer a byte run into a caller's buffer, or measure it.

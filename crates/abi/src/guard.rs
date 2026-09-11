@@ -37,3 +37,34 @@ where
 {
     catch_unwind(AssertUnwindSafe(body)).unwrap_or(ERR_PANIC)
 }
+
+/// Run the body of an exported function that answers nothing — a `_destroy` —
+/// and keep a panic inside it from crossing.
+///
+/// Answers whether the body finished. A `_destroy` has no channel to report a
+/// panic through, so the panic is swallowed; the alternative is an abort of the
+/// host, from a finalizer thread, at a time no test reproduces. Dropping a
+/// handle's contents runs arbitrary `Drop` code, which is where such a panic
+/// comes from.
+///
+/// ```
+/// use extendedresearch_abi::{borrow, guard};
+///
+/// struct Thing;
+///
+/// // Stands in for a library's `extern "C" fn thing_destroy(thing: *mut Thing)`.
+/// fn thing_destroy(thing: *mut Thing) {
+///     // SAFETY: the caller's handle came from `into_handle` and is destroyed once.
+///     guard::contain(|| drop(unsafe { borrow::reclaim(thing) }));
+/// }
+///
+/// thing_destroy(borrow::into_handle(Thing));
+/// thing_destroy(std::ptr::null_mut()); // null-tolerant
+/// assert!(!guard::contain(|| panic!("a Drop that panics")));
+/// ```
+pub fn contain<F>(body: F) -> bool
+where
+    F: FnOnce(),
+{
+    catch_unwind(AssertUnwindSafe(body)).is_ok()
+}

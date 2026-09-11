@@ -15,12 +15,12 @@
 //! | | |
 //! |---|---|
 //! | **Handles** | Opaque pointers. The header declares a tag and never a field, so nothing above can compute a size or an offset. [`borrow::into_handle`] hands one out; [`borrow::reclaim`] takes it back |
-//! | **Ownership** | The library allocates and the library frees. Every `_create` has a `_destroy`; every `_destroy` is null-tolerant, non-blocking, and callable from any thread, because .NET runs them on a finalizer thread in an order nothing controls |
+//! | **Ownership** | The library allocates and the library frees. Every `_create` has a `_destroy`; every `_destroy` is null-tolerant, non-blocking, and callable from any thread, because .NET runs them on a finalizer thread in an order nothing controls. [`guard::contain`] keeps a panic inside one from crossing |
 //! | **Errors** | `int32_t` return codes, values through out-parameters, zero success, negative failure. No `errno`-style global. [`codes`] splits the negative range between the boundary and the library |
 //! | **Variable-length data** | Copied into a buffer the caller allocated. A null destination measures. `*out_len` never counts a string's terminator and `capacity` always must. See [`buffer`] |
 //! | **Strings** | UTF-8, null-terminated. In: borrowed for the call, and not-UTF-8 is [`codes::ERR_UTF8`] rather than a lossy conversion. Out: the buffer shape above |
 //! | **Panics** | Caught at the boundary by [`guard::guard`] and answered as [`codes::ERR_PANIC`], because an unwind into C aborts a process that belongs to somebody else |
-//! | **Enumerations** | Named `int32_t` constants, never a C `enum`, for codes and parameters alike. The width of a C enum is implementation-defined |
+//! | **Enumerations** | Named `int32_t` constants, never a C `enum`, for codes and parameters alike, because the width of a C enum is implementation-defined. Beside each set, `_count`, `_at` and `_name` functions, so a binding loops over the library's values rather than transcribing them. See [`enumeration`] |
 //! | **Threading** | Distinct handles from distinct threads. One handle from one thread at a time unless the library documents an exception. A `_destroy` races nothing |
 //! | **Version** | Each library exports a `uint32_t` ABI version, compared for **equality** against the value in the header the binding was built with. The conventions are an ownership contract, not a feature set a later version is a superset of |
 //!
@@ -47,10 +47,24 @@
 //! [`conformance`] drives a library's exported functions through raw pointers,
 //! the way a binding does, and panics with the rule that was broken. A library
 //! calls it from its own tests.
+//!
+//! # Calling a library from a binding
+//!
+//! [`binding`] is the other side of the boundary: what a binding written in
+//! Rust — over PyO3, napi-rs, or a .NET host — does to read an answer and to
+//! turn a code into its language's error. It needs no `unsafe`.
 
+pub mod binding;
 #[allow(unsafe_code)]
 pub mod borrow;
 pub mod buffer;
 pub mod codes;
 pub mod conformance;
+pub mod enumeration;
 pub mod guard;
+
+// The README's example is the crates.io page's first code a reader sees; this
+// runs it as a doctest so it cannot drift from the crate.
+#[cfg(doctest)]
+#[doc = include_str!("../README.md")]
+struct ReadmeExample;

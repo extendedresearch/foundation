@@ -21,6 +21,11 @@
 //! A check that only ran the ordinary path would pass a function that counted
 //! the terminator in `*out_len`, or wrote one byte past `capacity`. These run
 //! the edges, which is where each of those defects lives.
+//!
+//! **Each check takes closures, so pass an `extern "C"` function wrapped in
+//! one:** `|d, c, l| thing_name(d, c, l)`. Rust implements the closure traits
+//! only for Rust-ABI functions, and a call bound to a handle —
+//! `|d, c, l| stream_name(stream, d, c, l)` — needs a closure anyway.
 
 use std::ffi::c_char;
 
@@ -173,6 +178,101 @@ where
         "a null out_len must be refused",
     );
     needed
+}
+
+/// Check an enumeration's `_count`, `_at` and `_name`, and return every value
+/// with its name, in `_at` order.
+///
+/// A library compares what this returns against its own contract, in both
+/// directions — a value the contract declares and the enumeration lacks, and a
+/// value the enumeration invents — because only the library knows its contract.
+///
+/// # Panics
+///
+/// When any of these fails, each a rule in [`crate::enumeration`]:
+///
+/// - `_count` answers [`OK`] and at least one value; a null `out_count` is
+///   [`ERR_NULL`].
+/// - `_at` answers [`OK`] below the count and [`ERR_RANGE`] at it; a null
+///   `out_value` is [`ERR_NULL`].
+/// - `_name` passes [`text_answer`] for every enumerated value, and answers
+///   [`ERR_RANGE`] for a value that is not enumerated.
+/// - No value, and no name, is enumerated twice.
+pub fn enumeration<C, A, N>(mut count: C, mut at: A, mut name: N) -> Vec<(i32, String)>
+where
+    C: FnMut(*mut u32) -> i32,
+    A: FnMut(u32, *mut i32) -> i32,
+    N: FnMut(i32, *mut c_char, u64, *mut u64) -> i32,
+{
+    let mut total = 0u32;
+    expect(count(&raw mut total), OK, "_count must succeed");
+    assert!(
+        total > 0,
+        "_count answered zero; an enumeration with no values enumerates nothing"
+    );
+    expect(
+        count(std::ptr::null_mut()),
+        ERR_NULL,
+        "a null out_count must be refused",
+    );
+
+    let mut entries: Vec<(i32, String)> = Vec::new();
+    for index in 0..total {
+        let mut value = 0i32;
+        expect(
+            at(index, &raw mut value),
+            OK,
+            "_at must succeed below the count",
+        );
+        let text = text_answer(|destination, capacity, out_len| {
+            name(value, destination, capacity, out_len)
+        });
+        if let Some((_, first)) = entries.iter().find(|(seen, _)| *seen == value) {
+            panic!("the value {value} is enumerated twice, as {first} and as {text}");
+        }
+        assert!(
+            entries.iter().all(|(_, seen)| *seen != text),
+            "the name {text} is enumerated twice"
+        );
+        entries.push((value, text));
+    }
+
+    let mut past = 0i32;
+    expect(
+        at(total, &raw mut past),
+        ERR_RANGE,
+        "_at at the count must be refused",
+    );
+    expect(
+        at(0, std::ptr::null_mut()),
+        ERR_NULL,
+        "a null out_value must be refused",
+    );
+
+    let unknown = [i32::MIN, i32::MAX, -9_999, 9_999]
+        .into_iter()
+        .find(|candidate| entries.iter().all(|(value, _)| value != candidate));
+    if let Some(unknown) = unknown {
+        let mut needed = 0u64;
+        expect(
+            name(unknown, std::ptr::null_mut(), 0, &raw mut needed),
+            ERR_RANGE,
+            "_name for a value that is not enumerated must be refused",
+        );
+    }
+    entries
+}
+
+/// Check that a `_destroy` accepts null, which is what lets a finalizer call it
+/// on a field it already cleared.
+///
+/// A `_destroy` that dereferences null faults the process rather than
+/// returning, so this has nothing to assert beyond returning at all.
+pub fn destroy_accepts_null<T, F>(destroy: F)
+where
+    F: FnOnce(*mut T),
+{
+    destroy(std::ptr::null_mut());
 }
 
 fn expect(actual: i32, expected: i32, rule: &str) {
