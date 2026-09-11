@@ -20,19 +20,20 @@ concurrency:
 env:
   CARGO_TERM_COLOR: always
 
-# Toolchains come from `rustup`, which the runner image already carries, so no
-# job depends on a third-party action staying available. The same choice as
-# `ecosystem` and `eres`.
+# Rust comes from `rustup`, which the runner image already carries, so no job
+# depends on a third-party action for it. The same choice as `ecosystem` and
+# `eres`. Python, Node and .NET come from GitHub's own `actions/setup-*`, at the
+# versions ranvier's workflow pins for the first two.
 jobs:
   check:
     name: check (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 20
+    timeout-minutes: 30
     strategy:
       fail-fast: false
-      # Windows and macOS as well as Linux: the consumers of `crates/abi` load a
-      # native library on all three, and pointer width and allocator behaviour
-      # are exactly what differs.
+      # Windows and macOS as well as Linux: every consumer loads a native
+      # library on all three, and pointer width, allocator behaviour, symbol
+      # resolution and library naming are exactly what differs.
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
@@ -42,6 +43,20 @@ jobs:
         run: |
           rustup toolchain install stable --profile minimal --component rustfmt,clippy
           rustup default stable
+      # `extendedresearch-pyo3`'s tests embed an interpreter (`auto-initialize`),
+      # so the build links against a shared libpython.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      # Node 22.18 and later import `.ts` files by stripping their types, which
+      # is how the addon test reaches `crates/napi/ts/` with no npm install.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # The .NET 8 SDK builds both `netstandard2.1` and `net8.0`.
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
       - name: Format
         run: cargo fmt --all --check
       - name: Lint
@@ -65,9 +80,58 @@ jobs:
         with:
           log: cargo-test.log
 
+      # The shared macros expanded in a real consumer, loaded into Node, with the
+      # shared TypeScript run against it. The same zero-test rule as above: a
+      # file whose tests all vanished would pass `node --test`.
+      - name: Node addon
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo build -p extendedresearch-napi-testaddon
+          node --test crates/napi-testaddon/test/addon.test.mjs 2>&1 | tee node-test.log
+          pass=$(awk '/^# pass / {print $3}' node-test.log)
+          skipped=$(awk '/^# skipped / {print $3}' node-test.log)
+          todo=$(awk '/^# todo / {print $3}' node-test.log)
+          echo "pass=${pass:-0} skipped=${skipped:-0} todo=${todo:-0}"
+          if [ "${pass:-0}" -eq 0 ] || [ "${skipped:-0}" -ne 0 ] || [ "${todo:-0}" -ne 0 ]; then
+            echo "::error::The Node suite ran no test, or skipped one."
+            exit 1
+          fi
+
+      - name: Conformance runner self-test
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m unittest discover -s python/conformance/tests -v 2>&1 | tee unittest.log
+          # `OK` alone: `OK (skipped=N)` is a test that did not run.
+          if ! grep -qE '^Ran [1-9][0-9]* tests? ' unittest.log || ! grep -qx 'OK' unittest.log; then
+            echo "::error::The conformance self-test ran no test, or skipped one."
+            exit 1
+          fi
+
+      - name: .NET sources compile for netstandard2.1 and net8.0
+        run: dotnet build dotnet/Interop.Build
+
+      # ExtendedResearch.Interop against a real library, on each platform's own
+      # library naming and loader.
+      - name: .NET interop tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo build -p extendedresearch-abi-testlib
+          dotnet test dotnet/Interop.Tests 2>&1 | tee dotnet-test.log
+          passed=$(grep -oE 'Passed: +[0-9]+' dotnet-test.log | grep -oE '[0-9]+' | tail -1)
+          skipped=$(grep -oE 'Skipped: +[0-9]+' dotnet-test.log | grep -oE '[0-9]+' | tail -1)
+          echo "passed=${passed:-0} skipped=${skipped:-0}"
+          if [ "${passed:-0}" -eq 0 ] || [ "${skipped:-0}" -ne 0 ]; then
+            echo "::error::The .NET suite ran no test, or skipped one."
+            exit 1
+          fi
+
   # `rust-version` is a promise to every consumer, and nothing else here builds
   # on 1.85. A newer API used by accident compiles on stable and fails only for
-  # the consumer who pinned the older toolchain.
+  # the consumer who pinned the older toolchain. Every crate keeps 1.85: the
+  # pyo3 0.29 and napi 3 series declare 1.83 and 1.82.
   msrv:
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -75,8 +139,18 @@ jobs:
       - uses: actions/checkout@v7
       - name: Install toolchain
         run: rustup toolchain install 1.85 --profile minimal
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
       - name: Test
-        run: cargo +1.85 test --workspace
+        shell: bash
+        run: |
+          set -o pipefail
+          cargo +1.85 test --workspace 2>&1 | tee cargo-test.log
+      - name: Prove the tests ran
+        uses: ./.github/actions/prove-tests-ran
+        with:
+          log: cargo-test.log
 
   # The one check an ordinary test run cannot make. `borrow` makes references
   # from a caller's pointers, and whether that is sound over uninitialised
@@ -87,8 +161,10 @@ jobs:
   # **The nightly is pinned**, because Miri ships only with nightly and an
   # unpinned one moves under an unchanged tree. Move the date deliberately.
   #
-  # The discipline test and the doctests are left out: Miri's isolation refuses
-  # the file reads the first does, and neither touches a pointer.
+  # Scoped to the tests that hand pointers across: `crates/abi`'s own, and
+  # `crates/abi-testlib`'s adapter driven through the conformance kit. The
+  # discipline test and the doctests are left out: Miri's isolation refuses the
+  # file reads the first does, and neither touches a pointer.
   miri:
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -101,3 +177,7 @@ jobs:
           cargo +nightly-2026-09-11 miri test -p extendedresearch-abi
           --lib --test borrow --test buffer --test conformance
           --test enumeration --test binding
+      - name: Test the adapter under Miri
+        run: >-
+          cargo +nightly-2026-09-11 miri test -p extendedresearch-abi-testlib
+          --test conformance

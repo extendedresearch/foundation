@@ -1,19 +1,46 @@
 # foundation
 
-Shared Rust code that ranvier, ca3 and eres depend on. One crate today:
-`extendedresearch-abi`, the conventions every C ABI in the ecosystem obeys.
+Shared code that ranvier, ca3 and eres depend on: the C ABI conventions, and
+the binding layers each package's Python, Node and .NET bindings share.
+
+## The layered architecture
+
+Each package has a **safe Rust core** whose error type implements
+`extendedresearch_abi::codes::AbiError`. Above it:
+
+- **Python (PyO3) and Node (napi-rs) bindings call the core directly.** No raw
+  handle and no `unsafe`. They convert the core's errors and enumerations with
+  `extendedresearch-pyo3` and `extendedresearch-napi`.
+- **A thin C-ABI adapter crate per package serves .NET and C callers.** It is
+  the only code in a package that writes `unsafe`, and each block is one
+  documented call into `extendedresearch_abi::borrow`. `codes::status` turns
+  each core `Result` into the status it answers. The .NET binding reads that
+  adapter with `ExtendedResearch.Interop`.
+
+Error codes use this crate's numbering: `0` is success, `-1` to `-15` are the
+boundary's (`codes.rs`), and each library numbers its own from `-16` down.
 
 ## What is here
 
 | Path | What it is |
 |---|---|
-| `crates/abi` | `extendedresearch-abi`. Error codes, the only module that dereferences a caller's pointer, the measure-then-copy buffer shape, the panic guard, the table behind an enumeration's `_count`/`_at`/`_name`, the calling side a Rust binding uses, and a conformance kit a library runs against its own exports. It exports no `extern "C"` symbol; each library still writes its own functions, handles, header and version constant. The crate docs in `crates/abi/src/lib.rs` state every convention and are the reference for them |
+| `crates/abi` | `extendedresearch-abi`. Error codes and the `AbiError` trait, the only module that dereferences a caller's pointer, the measure-then-copy buffer shape, the panic guard, the table behind an enumeration's `_count`/`_at`/`_name`, the calling side C-ABI tests use, and a conformance kit a library runs against its own exports and error codes. It exports no `extern "C"` symbol. The crate docs in `crates/abi/src/lib.rs` state every convention and are the reference for them |
+| `crates/pyo3` | `extendedresearch-pyo3`. `exceptions!` (a package's exception hierarchy, expanded in the consumer), `AbiError` to `PyErr`, and `IntEnum` from an `Enumeration` |
+| `crates/napi` | `extendedresearch-napi`. The `"<PREFIX>_ERR_X: sentence"` error token protocol (`Tokens`), `BigInt` to `u64` refusing what does not fit, macros that expand to `#[napi]` exports in the consumer, and `ts/` — `errors.ts`, `harden.ts`, `enums.ts` — carried as `typescript::{ERRORS, HARDEN, ENUMS}` |
+| `crates/interop-sources` | `extendedresearch-interop-sources`. The C# in `dotnet/Interop/` carried as `FILES`, with `assert_vendored` |
+| `dotnet/Interop` | `ExtendedResearch.Interop`: internal C# a package compiles into its own assembly for `netstandard2.1` and `net8.0`. `AbiHandle` (a `SafeHandle` over `_destroy`), `AbiErrors` and the exception types, `AbiBuffer` (measure-then-copy), `AbiLibrary` (a `DllImport` resolver on net8.0), `AbiEnumeration`, `AbiCodes` |
+| `dotnet/Interop.Build` | Compiles `dotnet/Interop` for both targets, C# 8, warnings as errors |
+| `dotnet/Interop.Tests` | xUnit on net8.0, P/Invoking `crates/abi-testlib` |
+| `crates/abi-testlib` | `publish = false`. A cdylib shaped like a package — a safe core and a C adapter over it — for the .NET tests and for Miri |
+| `crates/napi-testaddon` | `publish = false`. A Node addon consuming `extendedresearch-napi`'s macros; `test/addon.test.mjs` loads it and runs `crates/napi/ts/` against it |
+| `python/conformance` | `extendedresearch-conformance`, a pip-installable development tool: runs every language binding's driver over one cases file and compares each with the C header and with every other binding. Configured per repository by `conformance.toml`; standard library only |
+| `.github/actions/prove-tests-ran` | A composite action that fails a job when a `cargo test` log shows no result line, zero passed tests, or ignored tests |
 | `Cargo.toml` | The workspace. `[workspace.lints]` repeats the levels ranvier, ca3 and eres set, plus `undocumented_unsafe_blocks` |
-| `.github/workflows/ci.yml` | Format, lints, tests on the current stable and on the MSRV, and Miri over the pointer-handling tests |
+| `.github/workflows/ci.yml` | Format, lints, docs and every suite on Linux, Windows and macOS; the Rust tests on the MSRV; Miri over the pointer-handling tests |
 
 ## How the packages reach it
 
-**As a git dependency on this public repository, pinned to a commit:**
+**Rust: as a git dependency on this public repository, pinned to a commit:**
 
 ```toml
 extendedresearch-abi = { git = "https://github.com/extendedresearch/foundation", rev = "<40-character commit>" }
@@ -36,12 +63,28 @@ grep 'source = "git' Cargo.lock \
 # 0
 ```
 
-**Two packages pinning different commits put two copies of this crate in one
+**TypeScript and C#: vendored, with a drift test.** npm cannot install a
+subdirectory of a git repository and NuGet cannot read one, so a package commits
+a copy of `crates/napi/ts/*.ts` or `dotnet/Interop/*.cs` into its own binding
+and calls `extendedresearch_napi::typescript::assert_vendored(dir)` or
+`extendedresearch_interop_sources::assert_vendored(dir)` from a Rust test. The
+copy then differs from the constant at the pinned commit only as a red test.
+
+**The conformance runner: pip, from a git subdirectory:**
+
+```bash
+pip install "extendedresearch-conformance @ git+https://github.com/extendedresearch/foundation@<commit>#subdirectory=python/conformance"
+```
+
+**The CI action: by commit**, as
+`extendedresearch/foundation/.github/actions/prove-tests-ran@<commit>`.
+
+**Two packages pinning different commits put two copies of each crate in one
 build**, and Cargo treats them as different crates. Nothing from here crosses a
-package boundary today — the codes are plain `i32` and the helpers are
-functions — so the copies coexist. A package that exposes one of this crate's
-types in its own public API ties every package built beside it to the same
-commit.
+package boundary today — codes are plain `i32`, the helpers are functions, and
+the exception and export macros expand in each consumer — so the copies
+coexist. A package that exposes one of these crates' types in its own public
+API ties every package built beside it to the same commit.
 
 **crates.io is for when the API is settled.** Until then nothing is published
 and no version is spent: a package moves by changing its `rev`. A crate with a
@@ -49,18 +92,29 @@ git dependency cannot itself be published to crates.io, and no core package is
 today.
 
 **A crate lands here when two packages need the same runtime code.** A crate
-with one consumer belongs in that consumer's repository.
+with one consumer belongs in that consumer's repository. `abi-testlib` and
+`napi-testaddon` are the exception: they are test fixtures for the crates here,
+and `publish = false`.
 
 ## What is built, and what is not
 
-Built: `crates/abi`, with its tests passing on stable, on 1.85, and under Miri.
+Built, with the check that shows it beside each:
+
+- `crates/abi`, `crates/pyo3`, `crates/napi`, `crates/interop-sources`,
+  `crates/abi-testlib`: `cargo test --workspace`, on stable and on 1.85.
+- The napi macros registering in a real consumer, and the TypeScript running
+  against it: `node --test crates/napi-testaddon/test/addon.test.mjs`.
+- `ExtendedResearch.Interop` compiling for `netstandard2.1` and `net8.0`
+  (`dotnet build dotnet/Interop.Build`) and running against a Rust library on
+  net8.0 (`dotnet test dotnet/Interop.Tests`).
+- The conformance runner: `python -m unittest discover -s python/conformance/tests`.
 
 Not built, or not decided:
 
 - **No package depends on this yet.** ranvier has its own `crates/abi` with a
-  different numbering; ca3 and eres have none.
+  different numbering and is moving onto this one; ca3 and eres have none.
 
-  | Code | here | ranvier |
+  | Code | here | ranvier today |
   |---|---|---|
   | NULL | -1 | -1 |
   | RANGE | -2 | -4 |
@@ -68,46 +122,93 @@ Not built, or not decided:
   | PANIC | -4 | -8 |
   | STATE | -5 | none |
   | library-specific | -16 and below | -3, -5, -6, -9, -10, -11 |
-
-  Which side moves is open.
 - **Nothing is published, and nothing is versioned.** Every crate stays at
   `0.0.0`, and packages pin a commit rather than a version. No code, name or
   signature is frozen until the first version is complete.
-- **Where shared tooling lives** — the lint table, the decision-record checker,
-  the step that fails CI when zero tests ran — is undecided. None of it is here.
+- **`extendedresearch-interop-sources` cannot be packaged for crates.io.** It
+  reads `dotnet/Interop/` from outside its crate directory, which a git
+  dependency resolves and `cargo package` does not.
+- **Where the rest of the shared tooling lives** — the lint table, the
+  decision-record checker — is undecided. The zero-tests step and the
+  conformance runner are here.
 - **Each package's own rules still forbid this dependency.** ranvier's and
   plugins' `CONTEXT.md` allow no git source at all, and ca3's decision 0004 §1
   forbids "a dependency on another repository in this ecosystem". Each needs
-  the one exception above written in before that package adopts this crate.
+  the one exception above written in before that package adopts this.
 
 ## Conventions that cause bugs when broken
 
-- **`unsafe` is written in `crates/abi/src/borrow.rs` and nowhere else in
-  `src/`.** The workspace denies `unsafe_code`; `lib.rs` allows it on
-  `mod borrow` alone; `tests/discipline.rs` fails on a second `allow`.
-- **Every function that takes a raw pointer is `unsafe fn`.** A safe public
-  function that dereferences a raw pointer is unsound, because safe code can
-  pass any address.
+- **`unsafe` is written in two places.** `crates/abi/src/borrow.rs`, allowed on
+  `mod borrow` alone; and `crates/abi-testlib`, a test fixture whose exports
+  need `#[unsafe(no_mangle)]`, allowed at its crate root. The workspace denies
+  `unsafe_code` everywhere else, and `crates/abi/tests/discipline.rs` fails on a
+  second `allow` inside `crates/abi`:
+
+  ```bash
+  grep -rn 'allow(unsafe_code)' crates/*/src
+  # crates/abi-testlib/src/lib.rs:27:#![allow(unsafe_code)]
+  # crates/abi/src/lib.rs:66:#[allow(unsafe_code)]
+  ```
+- **Every function that takes a raw pointer is `unsafe fn`**, including a C
+  adapter's `extern "C"` exports. A safe public function that dereferences a raw
+  pointer is unsound, because safe code can pass any address.
 - **A caller's buffer and out-parameters are `MaybeUninit`.** A C caller passes
   uninitialised memory, and a `&mut [u8]` over it is undefined behaviour whether
   or not it is read. Miri checks this; an ordinary test run cannot.
 - **Codes `-1` to `-15` are this crate's to add, and a library numbers its own
   from `-16` down.** A code added to the boundary range by a library collides
-  with the next one added here.
+  with the next one added here. `conformance::error_codes` checks a library's
+  table.
+- **`AbiError::name` is the header's spelling, unprefixed for boundary codes.**
+  A boundary error answers `ERR_NULL`; a domain error answers its full name,
+  `CA3_ERR_TRUNCATED`. The napi and .NET layers add the package prefix to the
+  first kind (`CA3_ERR_NULL`).
+- **pyo3 and napi move in lockstep with every consumer.** `pyo3-ffi` declares
+  `links = "python"`, so a consumer on a different pyo3 series fails to resolve.
+  `napi-sys` declares no `links`, so a consumer on a different napi series
+  builds a second copy silently, and a `napi::Error` from here is not the
+  consumer's. Consumers require `pyo3 = "0.29"` and `napi = "3"`,
+  `napi-derive = "3"`, the series ranvier pins; `cargo tree -i pyo3-ffi` and
+  `cargo tree -i napi` in the consumer each list one version.
+- **Exception classes and `#[napi]` exports are created in the consumer**, by
+  `extendedresearch_pyo3::exceptions!` and the `extendedresearch_napi` export
+  macros. An exception class created in a shared crate is one per extension
+  module linking it; whether a `#[napi]` item in a dependency registers with the
+  consumer's module is unverified.
+- **A vendored TypeScript or C# file is edited here, never in the package.**
+  The package's drift test fails on any difference from the pinned commit, so
+  an edit made there is undone by the next update or blocks it.
 - **`*out_len` never counts a string's terminator, and `capacity` always must.**
 - **The MSRV is 1.85**, the lowest of the three packages (eres requires 1.88),
-  so a crate here builds wherever any of them does.
-- **Each crate carries its own copy of `LICENSE` and `NOTICE`.** A crate is
-  packaged from its own directory, so the root files do not reach a user who
-  downloads it, and Apache-2.0 requires `NOTICE` to travel with a
-  redistribution. `tests/license.rs` fails when a copy drifts from the root.
+  so a crate here builds wherever any of them does. pyo3 0.29 declares 1.83 and
+  napi 3 declares 1.82.
+- **Each published crate and `python/conformance` carry their own copy of
+  `LICENSE` and `NOTICE`.** A package is built from its own directory, so the
+  root files do not reach a user who downloads it, and Apache-2.0 requires
+  `NOTICE` to travel with a redistribution. Each crate's `tests/license.rs` and
+  the conformance self-test fail when a copy drifts from the root.
 
 ## Checks
 
 ```bash
+cargo fmt --all --check
+cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
 cargo +1.85 test --workspace
-cargo clippy --workspace --all-targets -- -D warnings
 # Miri cannot read files, so the discipline test and doctests are left out.
 cargo +nightly miri test -p extendedresearch-abi --lib --test borrow --test buffer --test conformance --test enumeration --test binding
+cargo +nightly miri test -p extendedresearch-abi-testlib --test conformance
+
+cargo build -p extendedresearch-napi-testaddon
+node --test crates/napi-testaddon/test/addon.test.mjs     # Node 22.18 or later
+
+python -m unittest discover -s python/conformance/tests   # Python 3.11 or later
+
+dotnet build dotnet/Interop.Build
+cargo build -p extendedresearch-abi-testlib
+dotnet test dotnet/Interop.Tests
 ```
+
+`crates/napi/tsconfig.json` type-checks `crates/napi/ts/` with `tsc -p crates/napi`.
+TypeScript is not a dependency of this repository, so CI does not run it; a
+consuming package's own `tsc` compiles its vendored copy.
