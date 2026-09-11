@@ -217,7 +217,7 @@ class Configuration(unittest.TestCase):
     def test_paths_resolve_against_the_file_and_the_version_name_defaults(self) -> None:
         path = self.write(CONFIG)
         loaded = config_module.load(path)
-        self.assertEqual(loaded.header, path.parent / "fixture.h")
+        self.assertEqual(loaded.header, path.resolve().parent / "fixture.h")
         self.assertEqual(loaded.abi_version, "FIX_ABI_VERSION")
         self.assertEqual([one.name for one in loaded.languages], ["alpha", "beta", "gamma"])
         self.assertEqual(loaded.languages[2].env, {"FIXTURE_SEEN_ROOT": "{root}"})
