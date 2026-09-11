@@ -6,6 +6,8 @@ on:
   push:
     branches: [main]
   pull_request:
+  # `release.yml` runs every job here before it publishes.
+  workflow_call:
 
 # Nothing here writes.
 permissions:
@@ -115,3 +117,4 @@ jobs:
         run: >-
           cargo +nightly-2026-09-11 miri test -p extendedresearch-abi
           --lib --test borrow --test buffer --test conformance
+          --test enumeration --test binding

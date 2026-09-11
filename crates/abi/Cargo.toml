@@ -20,6 +20,7 @@ rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 description = "The conventions a C ABI obeys so that every language binding sits on one boundary."
+readme = "README.md"
 categories = ["api-bindings", "development-tools::ffi"]
 keywords = ["ffi", "abi", "bindings", "conventions"]
 

@@ -1,0 +1,62 @@
+name: release
+
+# Publishing is the one thing in this repository that cannot be undone: a
+# version on crates.io can be yanked and never deleted. So it runs only on a
+# tag somebody pushed on purpose, only after every check in `ci.yml` has passed
+# on that commit, and only when the tag names the version the manifest says.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+# Two tags pushed together publish one after the other, never at once.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  checks:
+    uses: ./.github/workflows/ci.yml
+
+  publish:
+    needs: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install toolchain
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+
+      # A tag `v0.0.1` on a manifest still saying `0.0.0` would publish 0.0.0
+      # under the wrong name, or fail at crates.io for a reason that reads as
+      # something else. Fail here, naming both.
+      - name: The tag names the manifest's version
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME#v}"
+          version="$(sed -n 's/^version = "\(.*\)"$/\1/p' crates/abi/Cargo.toml | head -n 1)"
+          if [ "$tag" != "$version" ]; then
+            echo "::error::The tag is v$tag and crates/abi/Cargo.toml says $version. Move the manifest's version in a reviewed commit, then tag that commit."
+            exit 1
+          fi
+          echo "publishing extendedresearch-abi $version"
+
+      - name: The registry token is set
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          if [ -z "$CARGO_REGISTRY_TOKEN" ]; then
+            echo "::error::CARGO_REGISTRY_TOKEN is not set on this repository. Create a crates.io API token with the publish-new and publish-update scopes, limited to the extendedresearch-abi crate once it exists, and add it as a repository secret with that name."
+            exit 1
+          fi
+
+      - name: Publish
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: cargo publish -p extendedresearch-abi

@@ -110,6 +110,25 @@ pub const fn name(code: i32) -> Option<&'static str> {
     }
 }
 
+/// What a boundary code means, as a sentence a binding can put in an error.
+///
+/// `None` for [`OK`] and for any domain code, for the reason [`name`] gives.
+#[must_use]
+pub const fn describe(code: i32) -> Option<&'static str> {
+    match code {
+        ERR_NULL => Some("a required handle or out-pointer was null"),
+        ERR_RANGE => {
+            Some("a buffer was too small, or an index or length was past what the call can reach")
+        }
+        ERR_UTF8 => Some("text passed to the library was not valid UTF-8"),
+        ERR_PANIC => Some(
+            "the library panicked and caught it; its state is unknown and it should not be used further",
+        ),
+        ERR_STATE => Some("the object is in the wrong state for this call"),
+        _ => None,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -155,6 +174,15 @@ mod tests {
         }
         assert_eq!(name(DOMAIN_FLOOR), None);
         assert_eq!(name(-999), None);
+    }
+
+    #[test]
+    fn every_boundary_code_is_described_and_nothing_else_is() {
+        for code in [ERR_NULL, ERR_RANGE, ERR_UTF8, ERR_PANIC, ERR_STATE] {
+            assert!(describe(code).is_some(), "{code} has no description");
+        }
+        assert_eq!(describe(OK), None);
+        assert_eq!(describe(DOMAIN_FLOOR), None);
     }
 
     #[test]

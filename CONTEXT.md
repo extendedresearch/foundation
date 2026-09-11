@@ -7,9 +7,10 @@ Shared Rust code that ranvier, ca3 and eres depend on. One crate today:
 
 | Path | What it is |
 |---|---|
-| `crates/abi` | `extendedresearch-abi`. Error codes, the only module that dereferences a caller's pointer, the measure-then-copy buffer shape, the panic guard, and a conformance kit a library runs against its own exports. It exports no `extern "C"` symbol; each library still writes its own functions, handles, header and version constant. The crate docs in `crates/abi/src/lib.rs` state every convention and are the reference for them |
+| `crates/abi` | `extendedresearch-abi`. Error codes, the only module that dereferences a caller's pointer, the measure-then-copy buffer shape, the panic guard, the table behind an enumeration's `_count`/`_at`/`_name`, the calling side a Rust binding uses, and a conformance kit a library runs against its own exports. It exports no `extern "C"` symbol; each library still writes its own functions, handles, header and version constant. The crate docs in `crates/abi/src/lib.rs` state every convention and are the reference for them |
 | `Cargo.toml` | The workspace. `[workspace.lints]` repeats the levels ranvier, ca3 and eres set, plus `undocumented_unsafe_blocks` |
 | `.github/workflows/ci.yml` | Format, lints, tests on the current stable and on the MSRV, and Miri over the pointer-handling tests |
+| `.github/workflows/release.yml` | Publishes `extendedresearch-abi` to crates.io when a `v*` tag naming the manifest's version is pushed, after running all of `ci.yml`. Needs a `CARGO_REGISTRY_TOKEN` secret |
 
 ## How the packages reach it
 
@@ -81,5 +82,5 @@ cargo test --workspace
 cargo +1.85 test --workspace
 cargo clippy --workspace --all-targets -- -D warnings
 # Miri cannot read files, so the discipline test and doctests are left out.
-cargo +nightly miri test -p extendedresearch-abi --lib --test borrow --test buffer --test conformance
+cargo +nightly miri test -p extendedresearch-abi --lib --test borrow --test buffer --test conformance --test enumeration --test binding
 ```
