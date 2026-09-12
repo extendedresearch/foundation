@@ -12,7 +12,7 @@ use napi_derive::napi;
 
 static TOKENS: Tokens = Tokens::new("CA3");
 
-extendedresearch_napi::status_exports!(TOKENS, ca3::ERROR_CODES);
+extendedresearch_napi::status_exports!(TOKENS, ca3::BOUNDARY_CODES, ca3::ERROR_CODES);
 extendedresearch_napi::abi_version_exports!(ca3::abi_version(), ca3::ABI_VERSION);
 extendedresearch_napi::enumeration_exports! {
     /// How a container was compressed.
@@ -24,6 +24,9 @@ pub fn open(path: String) -> napi::Result<u32> {
     ca3::open(&path).report(&TOKENS)
 }
 ```
+
+`BOUNDARY_CODES` lists the boundary codes your header declares (`ERR_NULL`,
+`ERR_RANGE`, …), so `statusCodes()` reports exactly the header's constants.
 
 A failure reaches JavaScript with the message `CA3_ERR_TRUNCATED: <sentence>`.
 The TypeScript in `ts/` turns it into your error class:

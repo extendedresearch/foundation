@@ -14,8 +14,9 @@ namespace ExtendedResearch.Interop
     /// These types are <c>internal</c> to the package assembly that compiles
     /// them, so a caller outside it can catch them only as
     /// <see cref="Exception"/>. A package whose callers should catch by type
-    /// passes <see cref="AbiErrors"/> a hook that answers the package's own
-    /// public exception types.
+    /// passes <see cref="AbiErrors"/> two hooks that answer the package's own
+    /// public exception types: one for a failing code, one for a failure of
+    /// the binding.
     /// </remarks>
     internal class AbiException : Exception
     {

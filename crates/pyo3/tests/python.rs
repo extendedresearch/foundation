@@ -23,6 +23,7 @@ const THING_ERR_UNMAPPED: i32 = DOMAIN_FLOOR - 3;
 exceptions! {
     /// The test package's exceptions.
     pub family ThingExceptions in _thing;
+    prefix "THING";
     base ThingError: "Anything thing refused.";
     panic PanicError: "A panic was caught.";
     exception RefusedError(ThingError): "Thing refused.";
@@ -124,7 +125,25 @@ fn the_message_leads_with_the_constant_s_name() {
             "THING_ERR_REFUSED: it went wrong"
         );
         let direct = code_error::<ThingExceptions>(codes::ERR_NULL, "ERR_NULL", "no handle");
-        assert_eq!(direct.value(py).to_string(), "ERR_NULL: no handle");
+        assert_eq!(direct.value(py).to_string(), "THING_ERR_NULL: no handle");
+    });
+}
+
+#[test]
+fn a_boundary_name_gains_the_prefix_once() {
+    Python::attach(|py| {
+        let range = raised(codes::ERR_RANGE, "ERR_RANGE");
+        assert_eq!(
+            range.value(py).to_string(),
+            "THING_ERR_RANGE: it went wrong",
+            "the spelling napi's Tokens and .NET's AbiErrors report"
+        );
+        let spelled = code_error::<ThingExceptions>(codes::ERR_STATE, "THING_ERR_STATE", "closed");
+        assert_eq!(
+            spelled.value(py).to_string(),
+            "THING_ERR_STATE: closed",
+            "a name that already carries the prefix is not prefixed again"
+        );
     });
 }
 

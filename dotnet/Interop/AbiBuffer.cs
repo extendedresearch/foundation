@@ -41,7 +41,7 @@ namespace ExtendedResearch.Interop
         private static readonly UTF8Encoding Strict = new UTF8Encoding(false, true);
 
         /// <summary>Read text a library answers.</summary>
-        /// <exception cref="AbiBindingException">The answer was not UTF-8, did not fit, or kept growing.</exception>
+        /// <exception cref="AbiBindingException">The answer was not UTF-8, did not fit, or kept growing, unless the binding-failure hook answers the package's own type.</exception>
         public static string ReadText(CopyCall call, AbiErrors errors, string what)
         {
             var bytes = Read(call, 1, errors, what);
@@ -56,7 +56,7 @@ namespace ExtendedResearch.Interop
         }
 
         /// <summary>Read a byte run a library answers.</summary>
-        /// <exception cref="AbiBindingException">The answer did not fit, or kept growing.</exception>
+        /// <exception cref="AbiBindingException">The answer did not fit, or kept growing, unless the binding-failure hook answers the package's own type.</exception>
         public static byte[] ReadBytes(CopyCall call, AbiErrors errors, string what) =>
             Read(call, 0, errors, what);
 

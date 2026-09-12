@@ -110,6 +110,47 @@ public class InteropTests
         Assert.Equal("TESTLIB_ERR_STATE", state.Name);
     }
 
+    private sealed class BindingException : Exception
+    {
+        public BindingException(string name, string message, Exception? inner)
+            : base(message, inner)
+        {
+            Name = name;
+        }
+
+        public string Name { get; }
+    }
+
+    [Fact]
+    public void TheBindingHookRaisesThePackagesOwnTypeForEveryBindingFailure()
+    {
+        var hooked = new AbiErrors(
+            "TESTLIB",
+            Array.Empty<System.Collections.Generic.KeyValuePair<int, string>>(),
+            bindingFailure: (name, message, inner) => new BindingException(name, message, inner));
+
+        var mismatch = Assert.Throws<BindingException>(
+            () => hooked.RequireVersion(2, Native.testlib_abi_version(), "testlib"));
+        Assert.Equal("TESTLIB_ERR_BINDING", mismatch.Name);
+        Assert.Null(mismatch.InnerException);
+
+        CopyCall invalid = (byte[]? d, ulong c, out ulong l) =>
+        {
+            l = 1;
+            if (d != null)
+            {
+                d[0] = 0xFF;
+                d[1] = 0;
+            }
+            return AbiCodes.Ok;
+        };
+        var notUtf8 = Assert.Throws<BindingException>(() => AbiBuffer.ReadText(invalid, hooked, "invalid"));
+        Assert.IsAssignableFrom<DecoderFallbackException>(notUtf8.InnerException);
+
+        Assert.Throws<BindingException>(
+            () => AbiBuffer.ReadText(Growing("abcdefghijklmnop", 12), hooked, "growing"));
+    }
+
     [Fact]
     public void APanicIsAnAbiPanicException()
     {

@@ -31,8 +31,11 @@
 //! | a domain code the family maps | the mapped exception | The package's own choice, which may be a builtin such as `TimeoutError` |
 //! | a domain code the family does not map | the package's base error | Still a failure, still catchable, and the message carries its name |
 //!
-//! Every message starts with the constant's name — `ERR_UTF8: …`,
-//! `CA3_ERR_TRUNCATED: …` — then the error's `Display`.
+//! Every message starts with the constant's name as the package's header spells
+//! it — `CA3_ERR_UTF8: …`, `CA3_ERR_TRUNCATED: …` — then the error's
+//! `Display`. A boundary name gains the family's `prefix` through
+//! `extendedresearch_abi::codes::token`, the step the Node and .NET layers take,
+//! so one failure reads the same in all three.
 //!
 //! # pyo3 moves in lockstep with the consumer
 //!
@@ -46,7 +49,7 @@
 //! This crate enables `abi3-py311` and leaves `extension-module` to the
 //! consumer's `cdylib`.
 
-use extendedresearch_abi::codes::{AbiError, ERR_PANIC, ERR_RANGE, ERR_UTF8, is_domain};
+use extendedresearch_abi::codes::{self, AbiError, ERR_PANIC, ERR_RANGE, ERR_UTF8, is_domain};
 use extendedresearch_abi::enumeration::Enumeration;
 use pyo3::exceptions::{PyIndexError, PyValueError};
 use pyo3::prelude::*;
@@ -62,6 +65,13 @@ pub use pyo3;
 /// Implemented by the unit struct the macro declares. Nothing else needs to
 /// implement it by hand.
 pub trait ExceptionFamily {
+    /// The prefix every constant of the package begins with, such as `CA3`.
+    ///
+    /// A message leads with the constant's name as the header spells it, so a
+    /// boundary name gains this prefix (`CA3_ERR_NULL`), exactly as it does in
+    /// the Node and .NET layers.
+    const PREFIX: &'static str;
+
     /// The package's base error: `ERR_NULL`, `ERR_STATE`, and any code nothing
     /// more specific claims.
     fn base(message: String) -> PyErr;
@@ -91,6 +101,7 @@ pub trait ExceptionFamily {
 /// exceptions! {
 ///     /// Every exception `_thing` raises.
 ///     pub family ThingExceptions in _thing;
+///     prefix "THING";
 ///     base ThingError: "Anything thing refused.";
 ///     panic PanicError: "A panic was caught; thing's state is unknown.";
 ///     exception RefusedError(ThingError): "Thing refused the request.";
@@ -102,6 +113,9 @@ pub trait ExceptionFamily {
 /// - `family Name in module;` declares the unit struct that implements
 ///   [`ExceptionFamily`], and the Python module name the classes report as
 ///   their `__module__`.
+/// - `prefix` is what every constant of the package begins with. A boundary
+///   name gains it in each message (`THING_ERR_NULL: …`); it is required,
+///   because the unprefixed name is the one no header declares.
 /// - `base` subclasses `Exception`; `panic` subclasses `base`.
 /// - Each `exception Name(Parent)` creates one more class. `Parent` is any
 ///   exception type: the base, another created here, or a builtin such as
@@ -116,6 +130,7 @@ macro_rules! exceptions {
     (
         $(#[$meta:meta])*
         $vis:vis family $family:ident in $module:ident;
+        prefix $prefix:literal;
         base $base:ident: $base_doc:literal;
         panic $panic:ident: $panic_doc:literal;
         $( exception $name:ident($parent:ty): $doc:literal; )*
@@ -134,6 +149,8 @@ macro_rules! exceptions {
         $vis struct $family;
 
         impl $crate::ExceptionFamily for $family {
+            const PREFIX: &'static str = $prefix;
+
             fn base(message: ::std::string::String) -> $crate::pyo3::PyErr {
                 $base::new_err(message)
             }
@@ -184,9 +201,11 @@ where
 /// The exception `F` raises for a code, its constant's name, and a sentence.
 ///
 /// For a failure that did not arrive as an [`AbiError`] value — a code read
-/// from a table, or one the binding itself decided on.
+/// from a table, or one the binding itself decided on. `name` may be the
+/// unprefixed boundary name or the header's full spelling; the message carries
+/// the full spelling either way.
 pub fn code_error<F: ExceptionFamily>(code: i32, name: &str, detail: &str) -> PyErr {
-    let message = format!("{name}: {detail}");
+    let message = format!("{}: {detail}", codes::token(F::PREFIX, name));
     match code {
         ERR_UTF8 => PyValueError::new_err(message),
         ERR_RANGE => PyIndexError::new_err(message),

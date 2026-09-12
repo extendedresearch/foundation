@@ -31,7 +31,16 @@ pub static ORIGINS: Enumeration = Enumeration::new(&[
 /// An enumeration with a member whose short name would start with a digit.
 pub static RATES: Enumeration = Enumeration::new(&[(0, "RATE_UNSPECIFIED"), (50, "RATE_50HZ")]);
 
-extendedresearch_napi::status_exports!(TOKENS, ERROR_CODES);
+/// The boundary codes this package's header declares: all five.
+pub const BOUNDARY_CODES: &[i32] = &[
+    codes::ERR_NULL,
+    codes::ERR_RANGE,
+    codes::ERR_UTF8,
+    codes::ERR_PANIC,
+    codes::ERR_STATE,
+];
+
+extendedresearch_napi::status_exports!(TOKENS, BOUNDARY_CODES, ERROR_CODES);
 extendedresearch_napi::abi_version_exports!(3, 3);
 extendedresearch_napi::enumeration_exports! {
     /// What a stream is for.
