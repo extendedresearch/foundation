@@ -83,6 +83,36 @@ jobs:
         with:
           log: cargo-test.log
 
+      # Every log CI hands the step above is one it should accept, so nothing
+      # there shows it refusing anything. `tests/run.sh` runs its script against
+      # real cargo logs it must refuse and must accept, on each platform's bash
+      # and awk.
+      - name: The zero-tests check refuses what it should
+        shell: bash
+        run: bash .github/actions/prove-tests-ran/tests/run.sh
+
+      # The same refusal through `action.yml` itself, so its inputs reach the
+      # script. `continue-on-error` keeps the job going, and the next step fails
+      # unless this one did. The annotation it leaves is the refusal expected.
+      - name: The action refuses a log with zero passed tests (expected to fail)
+        id: refuses
+        if: runner.os == 'Linux'
+        continue-on-error: true
+        uses: ./.github/actions/prove-tests-ran
+        with:
+          log: .github/actions/prove-tests-ran/tests/zero-passed.log
+      - name: The action's refusal failed its step
+        if: runner.os == 'Linux'
+        shell: bash
+        env:
+          OUTCOME: ${{ steps.refuses.outcome }}
+        run: |
+          echo "outcome=$OUTCOME"
+          if [ "$OUTCOME" != failure ]; then
+            echo "::error::The action accepted a log with zero passed tests."
+            exit 1
+          fi
+
       # The shared macros expanded in a real consumer, loaded into Node, with the
       # shared TypeScript run against it. The same zero-test rule as above: a
       # file whose tests all vanished would pass `node --test`.
