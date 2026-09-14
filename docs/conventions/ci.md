@@ -102,8 +102,9 @@ warning.
 
 **No job takes a credential**, and no job checks out another repository.
 
-Every dependency of a build here resolves from crates.io or from a public git
-repository pinned by commit, so there is nothing for a token to unlock. A
+Every dependency of a build here resolves from a public registry — crates.io,
+nuget.org, the npm registry, PyPI — or from a public git repository pinned by
+commit, so there is nothing for a token to unlock. A
 workflow that asks for one has either added a private dependency — which is a
 decision to make deliberately, not a secret to add quietly — or is reaching
 into another repository's tree.
@@ -118,6 +119,13 @@ What a package needs from here it takes as a pinned dependency, and finds out
 about a breaking change by moving that pin. A composite action is shared the
 same way — `<owner>/<repo>/.github/actions/<name>@<commit>` — which needs no
 checkout and no credential.
+
+**A release is the one write, and it is a workflow of its own.** foundation's
+`release.yml` runs only on a version tag, with `permissions: contents: write`,
+and creates the GitHub Release with the workflow's own `GITHUB_TOKEN`; it reads
+no other secret. The build it runs is `scripts/build-release-assets.sh`, which
+the read-only `release-assets` job in `ci.yml` runs on every pull request, so
+the token is never what first exercises the packaging.
 
 `permissions: contents: read` at the top of the workflow states it, and
 `concurrency` with `cancel-in-progress: true` is safe here for the same reason
