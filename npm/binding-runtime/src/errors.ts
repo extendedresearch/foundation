@@ -1,9 +1,9 @@
 /**
  * Failures, as `Error` subclasses carrying a machine-readable code.
  *
- * Vendored from `extendedresearch-napi` (`crates/napi/ts/errors.ts` in
- * foundation). Edit it there; the package's drift test fails when this copy
- * differs.
+ * Part of `@extendedresearch/binding-runtime`, imported as
+ * `@extendedresearch/binding-runtime/errors`. The source is
+ * `npm/binding-runtime/src/errors.ts` in foundation.
  *
  * **Branch on `error.code`, never on `error.message`.** The code is the C ABI
  * constant's own name — `EXAMPLE_ERR_TIMEOUT`, `EXAMPLE_ERR_TRUNCATED` — so it
@@ -26,7 +26,7 @@
  * failure of its own — an argument of the wrong type, say — passes through as
  * itself.
  *
- * This file imports nothing, so a package can vendor it on its own.
+ * This module imports nothing, so a binding can take it without the other two.
  */
 
 /** The separator between the token and the sentence. */

@@ -3,10 +3,13 @@
 //     cargo build -p extendedresearch-napi-testaddon
 //     node --test crates/napi-testaddon/test/
 //
-// Node imports the `.ts` files directly by stripping their types (Node 22.18
-// and later), so this needs no compiler and no npm package. The addon is read
-// from `target/debug` unless `EXTENDEDRESEARCH_TESTADDON` names the built
-// library.
+// The modules are `npm/binding-runtime/src/`, the sources of
+// `@extendedresearch/binding-runtime`. Node imports the `.ts` files directly by
+// stripping their types (Node 22.18 and later), so this needs no compiler and
+// no npm install. The compiled package is checked separately:
+// `scripts/build-release-assets.sh` installs the tarball into a scratch project
+// and runs it from `node_modules`. The addon is read from `target/debug` unless
+// `EXTENDEDRESEARCH_TESTADDON` names the built library.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -16,9 +19,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { AbiError, SEPARATOR, createErrors } from "../../napi/ts/errors.ts";
-import { hardenClass, hardenFunction } from "../../napi/ts/harden.ts";
-import { contract, sharedPrefix, shortName } from "../../napi/ts/enums.ts";
+import { AbiError, SEPARATOR, createErrors } from "../../../npm/binding-runtime/src/errors.ts";
+import { hardenClass, hardenFunction } from "../../../npm/binding-runtime/src/harden.ts";
+import { contract, sharedPrefix, shortName } from "../../../npm/binding-runtime/src/enums.ts";
 
 const ROOT = fileURLToPath(new URL("../../../", import.meta.url));
 

@@ -1,6 +1,6 @@
 //! The short-name rule, with no interpreter involved.
 //!
-//! The same rule is written in TypeScript in `crates/napi/ts/enums.ts`, and
+//! The same rule is written in TypeScript in `npm/binding-runtime/src/enums.ts`, and
 //! these cases are the ones that file's comment lists.
 
 #![allow(clippy::expect_used, clippy::unwrap_used, clippy::indexing_slicing)]

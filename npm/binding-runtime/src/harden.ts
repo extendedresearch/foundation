@@ -1,9 +1,9 @@
 /**
  * Making every native call raise the package's error.
  *
- * Vendored from `extendedresearch-napi` (`crates/napi/ts/harden.ts` in
- * foundation). Edit it there; the package's drift test fails when this copy
- * differs.
+ * Part of `@extendedresearch/binding-runtime`, imported as
+ * `@extendedresearch/binding-runtime/harden`. The source is
+ * `npm/binding-runtime/src/harden.ts` in foundation.
  *
  * The native half reports failures as a constant's name and a sentence
  * (`errors.ts` says why). Something has to turn each of those into the
@@ -20,7 +20,7 @@
  * declarations describe. A method that answers a promise has its rejection
  * translated as well as its throw.
  *
- * This file imports nothing. Pass the `translate` from `createErrors`.
+ * This module imports nothing. Pass the `translate` from `createErrors`.
  */
 
 /** Turns what the native half threw into the package's error. */

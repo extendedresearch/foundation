@@ -1,9 +1,9 @@
 /**
  * Enumerated contracts, from the members the library reports.
  *
- * Vendored from `extendedresearch-napi` (`crates/napi/ts/enums.ts` in
- * foundation). Edit it there; the package's drift test fails when this copy
- * differs.
+ * Part of `@extendedresearch/binding-runtime`, imported as
+ * `@extendedresearch/binding-runtime/enums`. The source is
+ * `npm/binding-runtime/src/enums.ts` in foundation.
  *
  * **This module contains no discriminant.** A package's native half answers
  * each enumeration as `EnumMember[]`, read from the library's own table, and
@@ -25,7 +25,7 @@
  * The prefix is derived from the names rather than written down, because a
  * family's C constant prefix and its contract prefix can differ.
  *
- * This file imports nothing, so a package can vendor it on its own.
+ * This module imports nothing, so a binding can take it without the other two.
  */
 
 /** One member, as a package's native half reports it. */

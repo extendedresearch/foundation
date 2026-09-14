@@ -1,0 +1,5 @@
+{
+  "name": "binding-runtime-consumer",
+  "private": true,
+  "type": "module"
+}

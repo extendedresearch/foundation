@@ -1,7 +1,7 @@
 # extendedresearch-napi
 
-Error tokens, `BigInt` conversion, `#[napi]` exports and TypeScript for a
-package's napi-rs binding.
+Error tokens, `BigInt` conversion and `#[napi]` exports for a package's napi-rs
+binding.
 
 Your binding calls the package's safe Rust core directly. This crate turns what
 the core answers into what Node sees:
@@ -28,12 +28,15 @@ pub fn open(path: String) -> napi::Result<u32> {
 `BOUNDARY_CODES` lists the boundary codes your header declares (`ERR_NULL`,
 `ERR_RANGE`, …), so `statusCodes()` reports exactly the header's constants.
 
+## The TypeScript half
+
 A failure reaches JavaScript with the message `EXAMPLE_ERR_TRUNCATED: <sentence>`.
-The TypeScript in `ts/` turns it into your error class:
+The npm package `@extendedresearch/binding-runtime`, built from
+`npm/binding-runtime` in foundation, turns it into your error class:
 
 ```ts
 import { statusCodes } from "#native";
-import { AbiError, createErrors } from "./vendor/errors.js";
+import { AbiError, createErrors } from "@extendedresearch/binding-runtime/errors";
 
 export class ExampleError extends AbiError {}
 export const errors = createErrors({
@@ -43,22 +46,10 @@ export const errors = createErrors({
 });
 ```
 
-## Vendoring the TypeScript
-
-npm cannot install a subdirectory of a git repository, so commit a copy of
-`ts/errors.ts`, `ts/harden.ts` and `ts/enums.ts` beside your TypeScript and
-check it from a Rust test:
-
-```rust
-#[test]
-fn vendored_typescript_matches_foundation() {
-    extendedresearch_napi::typescript::assert_vendored(
-        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("ts/vendor"),
-    );
-}
-```
-
-The test fails when your copy differs from the one at the commit you pin.
+The package is attached to foundation's releases, not published to the npm
+registry. Install it from the release whose tagged commit you pin this crate
+to, so both halves come from one commit; `npm/binding-runtime/README.md` has the
+command.
 
 ## napi version
 
@@ -71,5 +62,5 @@ manifest: the macros expand to `#[napi]` items in your crate.
 
 ## Status
 
-0.0.0, consumed as a git dependency pinned by `rev`; nothing is frozen.
+0.1.0, consumed as a git dependency pinned by `rev`; nothing is frozen.
 Licensed under Apache-2.0. See `LICENSE` and `NOTICE`.
