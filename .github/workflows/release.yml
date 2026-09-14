@@ -1,0 +1,66 @@
+name: release
+
+# A version tag builds every release asset and attaches them to a GitHub
+# Release for that tag. `scripts/build-release-assets.sh` is the whole build,
+# and `ci.yml` runs the same script on every pull request, so a tag is never the
+# first time it runs. No asset goes to a package registry.
+#
+# **A release tag is never moved.** A package pins the Rust crates to the commit
+# the tag points to and downloads the other assets from the tag's release. A tag
+# moved to another commit separates the two, and one version then names two
+# different trees. A mistake is corrected by the next version.
+on:
+  push:
+    tags: ["v*.*.*"]
+
+# Creating the release and uploading its assets is the one write, made with the
+# workflow's own GITHUB_TOKEN. No other secret is read.
+permissions:
+  contents: write
+
+# Two runs for one tag must not race to create the same release.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      # `cargo metadata` is how the script reads every crate's version.
+      - name: Install toolchain
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      # Pinned exactly, and to the same version as the `release-assets` job in
+      # `ci.yml`, so the wheel and sdist are built the way a pull request built
+      # them.
+      - name: Install build
+        run: python -m pip install build==1.6.1
+      # The tag argument makes the script fail unless every version in the tree
+      # is the one the tag names.
+      - name: Build the release assets
+        run: bash scripts/build-release-assets.sh "$RUNNER_TEMP/release-assets" "$GITHUB_REF_NAME"
+      # `--verify-tag` aborts when the tag does not already exist on GitHub, so
+      # the release attaches to the pushed tag and never creates one.
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: >-
+          gh release create "$GITHUB_REF_NAME"
+          "$RUNNER_TEMP"/release-assets/*
+          --verify-tag
+          --title "$GITHUB_REF_NAME"
+          --generate-notes

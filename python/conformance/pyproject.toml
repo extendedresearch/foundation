@@ -1,6 +1,6 @@
 # A development tool, installed into a package's test environment:
 #
-#     pip install "extendedresearch-conformance @ git+https://github.com/extendedresearch/foundation@<commit>#subdirectory=python/conformance"
+#     pip install https://github.com/extendedresearch/foundation/releases/download/v<version>/extendedresearch_conformance-<version>-py3-none-any.whl
 #
 # It depends on nothing outside the standard library. `tomllib` is why the
 # floor is 3.11.
