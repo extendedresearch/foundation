@@ -1,0 +1,9 @@
+   Compiling fixture v0.1.0 (/home/runner/work/fixture)
+error[E0425]: cannot find function `missing` in crate `fixture`
+ --> tests/broken.rs:3:25
+  |
+3 |     assert_eq!(fixture::missing(), 1);
+  |                         ^^^^^^^ not found in `fixture`
+
+For more information about this error, try `rustc --explain E0425`.
+error: could not compile `fixture` (test "broken") due to 1 previous error

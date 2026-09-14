@@ -195,7 +195,12 @@ belongs.
 
 For `cargo test`, the check is the composite action
 `.github/actions/prove-tests-ran`, which fails a job when the log shows no
-result line, zero passed tests, or any ignored test. It is written once so that
+result line, zero passed tests, or any ignored test. Every log a CI run gives
+it is one it should accept, so its refusals are shown by
+`.github/actions/prove-tests-ran/tests/run.sh`, which runs it against real
+`cargo test` logs, and by `tests/live.sh`, which reads what the machine's own
+cargo prints, because captured logs cannot show cargo changing its summary
+line. It is written once so that
 a consuming package refers to it by commit rather than carrying the same shell
 inline and letting the two drift.
 

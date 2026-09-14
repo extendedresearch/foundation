@@ -38,7 +38,7 @@ boundary's (`codes.rs`), and each library numbers its own from `-16` down.
 | `crates/napi-testaddon` | `publish = false`. A Node addon consuming `extendedresearch-napi`'s macros; `test/addon.test.mjs` loads it and runs `npm/binding-runtime/src/` against it |
 | `python/conformance` | `extendedresearch-conformance`, a pip-installable development tool: runs every language binding's driver over one cases file and compares each with the C header and with every other binding. Configured per repository by `conformance.toml`; standard library only |
 | `scripts/build-release-assets.sh` | Builds every release asset into one directory, checks each, and writes `SHA256SUMS`. `scripts/release-checks.py` holds the checks: versions, licence copies, and each archive's contents |
-| `.github/actions/prove-tests-ran` | A composite action that fails a job when a `cargo test` log shows no result line, zero passed tests, or ignored tests |
+| `.github/actions/prove-tests-ran` | A composite action that fails a job when a `cargo test` log shows no result line, zero passed tests, or ignored tests. The check is `prove-tests-ran.sh`; `tests/` holds real `cargo test` logs it must refuse or accept, and `tests/run.sh` runs them |
 | `docs/conventions` | The rules a consuming package cites rather than copying from a sibling: the C library artefact's name, the toolchain pins, the workspace layout, the CI job split, the rustfmt edition, and the error token grammar. Each states its rule and the failure it prevents |
 | `Cargo.toml` | The workspace. `[workspace.lints]` is the table a consuming package repeats, plus `undocumented_unsafe_blocks` |
 | `.github/workflows/ci.yml` | Format, lints, docs and every suite on Linux, Windows and macOS; the Rust tests on the MSRV; Miri over the pointer-handling tests; every release asset built and checked (`release-assets`) |
@@ -145,6 +145,14 @@ Built, with the check that shows it beside each:
   (`dotnet build dotnet/Interop.Build`) and running against a Rust library on
   net8.0 (`dotnet test dotnet/Interop.Tests`).
 - The conformance runner: `python -m unittest discover -s python/conformance/tests`.
+- The zero-tests action refusing what it should:
+  `bash .github/actions/prove-tests-ran/tests/run.sh` runs its script against
+  real `cargo test` logs on each CI platform, and job `check` on Linux feeds
+  `action.yml` itself a log with zero passed tests and fails unless it refuses.
+  Those logs are captured, so they cannot notice cargo changing its summary
+  line; `bash .github/actions/prove-tests-ran/tests/live.sh`, in the same job on
+  Linux, runs `cargo test` on a crate with two passing tests and one ignored and
+  fails unless the script reads exactly that from the runner's cargo.
 - **Every release asset, on every pull request**: the `release-assets` job runs
   `bash scripts/build-release-assets.sh <empty directory>`. It fails unless
   every version agrees, and every copy of `LICENSE` and `NOTICE` equals the
@@ -279,6 +287,9 @@ cargo build -p extendedresearch-napi-testaddon
 node --test crates/napi-testaddon/test/addon.test.mjs     # Node 22.18 or later
 
 python -m unittest discover -s python/conformance/tests   # Python 3.11 or later
+
+bash .github/actions/prove-tests-ran/tests/run.sh         # the zero-tests check refuses what it should
+bash .github/actions/prove-tests-ran/tests/live.sh        # ...and reads this cargo's summary line
 
 dotnet build dotnet/Interop.Build
 cargo build -p extendedresearch-abi-testlib
