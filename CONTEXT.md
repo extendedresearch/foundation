@@ -149,6 +149,10 @@ Built, with the check that shows it beside each:
   `bash .github/actions/prove-tests-ran/tests/run.sh` runs its script against
   real `cargo test` logs on each CI platform, and job `check` on Linux feeds
   `action.yml` itself a log with zero passed tests and fails unless it refuses.
+  Those logs are captured, so they cannot notice cargo changing its summary
+  line; `bash .github/actions/prove-tests-ran/tests/live.sh`, in the same job on
+  Linux, runs `cargo test` on a crate with two passing tests and one ignored and
+  fails unless the script reads exactly that from the runner's cargo.
 - **Every release asset, on every pull request**: the `release-assets` job runs
   `bash scripts/build-release-assets.sh <empty directory>`. It fails unless
   every version agrees, and every copy of `LICENSE` and `NOTICE` equals the
@@ -285,6 +289,7 @@ node --test crates/napi-testaddon/test/addon.test.mjs     # Node 22.18 or later
 python -m unittest discover -s python/conformance/tests   # Python 3.11 or later
 
 bash .github/actions/prove-tests-ran/tests/run.sh         # the zero-tests check refuses what it should
+bash .github/actions/prove-tests-ran/tests/live.sh        # ...and reads this cargo's summary line
 
 dotnet build dotnet/Interop.Build
 cargo build -p extendedresearch-abi-testlib

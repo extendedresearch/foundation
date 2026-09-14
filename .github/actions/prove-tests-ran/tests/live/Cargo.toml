@@ -1,0 +1,10 @@
+# A crate whose `cargo test` output `tests/live.sh` reads with the cargo on the
+# machine: two tests that pass and one that is ignored. Its own `[workspace]`
+# table keeps it out of foundation's workspace. Nothing publishes it.
+[package]
+name = "prove-tests-ran-live"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[workspace]

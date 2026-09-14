@@ -15,8 +15,9 @@
 # `#[ignore]`d test (`one-ignored.log`), the library alone
 # (`zero-passed.log`), and an integration test that does not compile
 # (`no-result-line.log`). Only the build paths were rewritten, to the shape a
-# Linux runner prints. When cargo changes its summary line, a case here fails
-# before a consumer's guard silently reads the wrong field.
+# Linux runner prints. These logs catch an edit that breaks the script; being
+# captured, they cannot notice cargo changing its summary line, which is what
+# `live.sh` is for.
 set -euo pipefail
 
 here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
