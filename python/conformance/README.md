@@ -11,11 +11,14 @@ disagreements cannot be told apart from one that never ran.
 
 ## Install
 
-It depends on nothing outside the Python standard library (3.11 or later):
+It depends on nothing outside the Python standard library (3.11 or later).
+Install the wheel attached to a foundation release:
 
 ```bash
-pip install "extendedresearch-conformance @ git+https://github.com/extendedresearch/foundation@<commit>#subdirectory=python/conformance"
+pip install https://github.com/extendedresearch/foundation/releases/download/v0.1.0/extendedresearch_conformance-0.1.0-py3-none-any.whl
 ```
+
+The release's `SHA256SUMS` lists the wheel's checksum.
 
 ## Configure
 
