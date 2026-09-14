@@ -1,6 +1,5 @@
-// Vendored from foundation's dotnet/Interop, carried by the Rust crate
-// extendedresearch-interop-sources. Edit it there; the package's drift test
-// fails when this copy differs.
+// Part of the ExtendedResearch.Interop source package, built from
+// dotnet/Interop in foundation. Edit it there, not in a consumer.
 #nullable enable
 
 using System.Collections.Generic;

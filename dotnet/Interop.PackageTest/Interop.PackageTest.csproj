@@ -1,0 +1,36 @@
+<!--
+  A consumer of the ExtendedResearch.Interop package, and nothing else: it
+  restores the .nupkg from a local folder source and compiles the package's
+  sources into its own assembly for both targets a package builds, with
+  warnings as errors and C# 8.
+
+      dotnet pack dotnet/Interop.Package -c Release -o <feed>
+      dotnet build dotnet/Interop.PackageTest -p:RestoreSources=<feed> -p:RestorePackagesPath=<empty folder>
+
+  **Pass an empty RestorePackagesPath.** NuGet takes a package whose id and
+  version are already in the packages folder from there, so a folder that has
+  seen ExtendedResearch.Interop at this version before would compile that copy
+  rather than the .nupkg just packed. scripts/build-release-assets.sh passes a
+  fresh one each run.
+
+  The version is exact, so restore cannot settle on another one in the feed;
+  scripts/release-checks.py fails when it differs from the package's.
+-->
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>netstandard2.1;net8.0</TargetFrameworks>
+    <LangVersion>8.0</LangVersion>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <IsPackable>false</IsPackable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!-- Internal types carry XML docs for the reader, not for a published API. -->
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ExtendedResearch.Interop" Version="[0.1.0]" PrivateAssets="all" />
+  </ItemGroup>
+
+</Project>

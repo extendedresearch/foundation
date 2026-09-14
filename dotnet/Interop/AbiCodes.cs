@@ -1,6 +1,5 @@
-// Vendored from foundation's dotnet/Interop, carried by the Rust crate
-// extendedresearch-interop-sources. Edit it there; the package's drift test
-// fails when this copy differs.
+// Part of the ExtendedResearch.Interop source package, built from
+// dotnet/Interop in foundation. Edit it there, not in a consumer.
 #nullable enable
 
 namespace ExtendedResearch.Interop
@@ -13,7 +12,7 @@ namespace ExtendedResearch.Interop
     /// Zero is success and every other value is a failure, including one this
     /// build has never heard of. Codes from -1 to -15 belong to the boundary;
     /// a library numbers its own from <see cref="DomainFloor"/> down. A Rust
-    /// test in <c>extendedresearch-interop-sources</c> compares each value and
+    /// test in <c>extendedresearch-abi-testlib</c> compares each value and
     /// name here against the Rust constants.
     /// </remarks>
     internal static class AbiCodes

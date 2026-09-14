@@ -9,8 +9,8 @@
 //! each one measures, allocates and copies, and for every failure it reads a
 //! code; these are the shared form of those helpers.
 //!
-//! The .NET form of the same reading is `ExtendedResearch.Interop`, carried by
-//! `extendedresearch-interop-sources`.
+//! The .NET form of the same reading is `ExtendedResearch.Interop`, the C#
+//! source package `dotnet/Interop.Package` builds.
 //!
 //! **One case neither of those handled: an answer that grows between the
 //! measuring call and the copying one.** A name changed by another thread in
