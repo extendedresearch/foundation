@@ -21,9 +21,10 @@ env:
   CARGO_TERM_COLOR: always
 
 # Rust comes from `rustup`, which the runner image already carries, so no job
-# depends on a third-party action for it. The same choice as `ecosystem` and
-# `eres`. Python, Node and .NET come from GitHub's own `actions/setup-*`, at the
-# versions ranvier's workflow pins for the first two.
+# depends on a third-party action for it. Python, Node and .NET come from
+# GitHub's own `actions/setup-*`, at the versions each step's comment below
+# gives a reason for. `docs/conventions/ci.md` states how the jobs are split
+# and why each is named what it is.
 jobs:
   check:
     name: check (${{ matrix.os }})
@@ -73,8 +74,9 @@ jobs:
 
       # A suite that did not run is not a suite that passed. `cargo test` exits 0
       # with nothing to run, and an `#[ignore]`d test lands in a column nothing
-      # reads. The action is the step ranvier, eres and plugins carry inline,
-      # written once so they can refer to it by commit.
+      # reads. The check is written once here as a composite action, so a
+      # consuming package refers to it by commit instead of carrying the same
+      # shell inline and letting the two drift.
       - name: Prove the tests ran
         uses: ./.github/actions/prove-tests-ran
         with:
@@ -120,8 +122,15 @@ jobs:
           set -euo pipefail
           cargo build -p extendedresearch-abi-testlib
           dotnet test dotnet/Interop.Tests 2>&1 | tee dotnet-test.log
-          passed=$(grep -oE 'Passed: +[0-9]+' dotnet-test.log | grep -oE '[0-9]+' | tail -1)
-          skipped=$(grep -oE 'Skipped: +[0-9]+' dotnet-test.log | grep -oE '[0-9]+' | tail -1)
+          # `awk`, not `grep | grep`: grep exits 1 when it matches nothing, and
+          # under `pipefail` that status is the pipeline's, so `set -e` would
+          # kill the script at the assignment — in exactly the case this guard
+          # exists for, the log with no result line at all. The job would still
+          # fail, with no message and at a line that reads like a broken
+          # command. awk prints nothing and exits 0, so the `if` below reports
+          # what happened. `docs/conventions/ci.md` has the whole argument.
+          passed=$(awk 'match($0, /Passed: +[0-9]+/) { s = substr($0, RSTART, RLENGTH); gsub(/[^0-9]/, "", s); print s }' dotnet-test.log | tail -1)
+          skipped=$(awk 'match($0, /Skipped: +[0-9]+/) { s = substr($0, RSTART, RLENGTH); gsub(/[^0-9]/, "", s); print s }' dotnet-test.log | tail -1)
           echo "passed=${passed:-0} skipped=${skipped:-0}"
           if [ "${passed:-0}" -eq 0 ] || [ "${skipped:-0}" -ne 0 ]; then
             echo "::error::The .NET suite ran no test, or skipped one."

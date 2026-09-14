@@ -10,36 +10,36 @@ the core answers into what Node sees:
 use extendedresearch_napi::{Report, Tokens};
 use napi_derive::napi;
 
-static TOKENS: Tokens = Tokens::new("CA3");
+static TOKENS: Tokens = Tokens::new("EXAMPLE");
 
-extendedresearch_napi::status_exports!(TOKENS, ca3::BOUNDARY_CODES, ca3::ERROR_CODES);
-extendedresearch_napi::abi_version_exports!(ca3::abi_version(), ca3::ABI_VERSION);
+extendedresearch_napi::status_exports!(TOKENS, example::BOUNDARY_CODES, example::ERROR_CODES);
+extendedresearch_napi::abi_version_exports!(example::abi_version(), example::ABI_VERSION);
 extendedresearch_napi::enumeration_exports! {
     /// How a container was compressed.
-    compressions => ca3::COMPRESSIONS;
+    compressions => example::COMPRESSIONS;
 }
 
 #[napi]
 pub fn open(path: String) -> napi::Result<u32> {
-    ca3::open(&path).report(&TOKENS)
+    example::open(&path).report(&TOKENS)
 }
 ```
 
 `BOUNDARY_CODES` lists the boundary codes your header declares (`ERR_NULL`,
 `ERR_RANGE`, …), so `statusCodes()` reports exactly the header's constants.
 
-A failure reaches JavaScript with the message `CA3_ERR_TRUNCATED: <sentence>`.
+A failure reaches JavaScript with the message `EXAMPLE_ERR_TRUNCATED: <sentence>`.
 The TypeScript in `ts/` turns it into your error class:
 
 ```ts
 import { statusCodes } from "#native";
 import { AbiError, createErrors } from "./vendor/errors.js";
 
-export class Ca3Error extends AbiError {}
+export class ExampleError extends AbiError {}
 export const errors = createErrors({
-  prefix: "CA3",
+  prefix: "EXAMPLE",
   codes: statusCodes().map((one) => one.name),
-  base: Ca3Error,
+  base: ExampleError,
 });
 ```
 
@@ -62,8 +62,9 @@ The test fails when your copy differs from the one at the commit you pin.
 
 ## napi version
 
-Require napi `3` and napi-derive `3`, with the same features ranvier's binding
-uses. `napi-sys` declares no `links` value, so a different series builds a
+Require napi `3` and napi-derive `3`, the series
+`docs/conventions/toolchain-pins.md` pins, with the same features this crate
+enables. `napi-sys` declares no `links` value, so a different series builds a
 second copy beside this crate's and the types do not match. `cargo tree -i napi`
 in your crate lists exactly one version. Name napi and napi-derive in your own
 manifest: the macros expand to `#[napi]` items in your crate.

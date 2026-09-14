@@ -35,7 +35,8 @@ boundary's (`codes.rs`), and each library numbers its own from `-16` down.
 | `crates/napi-testaddon` | `publish = false`. A Node addon consuming `extendedresearch-napi`'s macros; `test/addon.test.mjs` loads it and runs `crates/napi/ts/` against it |
 | `python/conformance` | `extendedresearch-conformance`, a pip-installable development tool: runs every language binding's driver over one cases file and compares each with the C header and with every other binding. Configured per repository by `conformance.toml`; standard library only |
 | `.github/actions/prove-tests-ran` | A composite action that fails a job when a `cargo test` log shows no result line, zero passed tests, or ignored tests |
-| `Cargo.toml` | The workspace. `[workspace.lints]` repeats the levels ranvier, ca3 and eres set, plus `undocumented_unsafe_blocks` |
+| `docs/conventions` | The rules a consuming package cites rather than copying from a sibling: the C library artefact's name, the toolchain pins, the workspace layout, the CI job split, the rustfmt edition, and the error token grammar. Each states its rule and the failure it prevents |
+| `Cargo.toml` | The workspace. `[workspace.lints]` is the table a consuming package repeats, plus `undocumented_unsafe_blocks` |
 | `.github/workflows/ci.yml` | Format, lints, docs and every suite on Linux, Windows and macOS; the Rust tests on the MSRV; Miri over the pointer-handling tests |
 
 ## How the packages reach it
@@ -53,8 +54,8 @@ tag would move under an unchanged manifest at the next `cargo update`, so
 neither is used.
 
 **This is the one dependency from outside its own tree that a core package
-takes.** ranvier and plugins check that nothing in `Cargo.lock` resolves over
-git. That check becomes "nothing resolves over git except this repository,
+takes.** A package that checks that nothing in its `Cargo.lock` resolves over
+git relaxes that check to "nothing resolves over git except this repository,
 pinned to a commit":
 
 ```bash
@@ -151,11 +152,12 @@ Not built, or not decided:
   table.
 - **`AbiError::name` is unprefixed for boundary codes, and every binding
   reports the header's spelling.** A boundary error answers `ERR_NULL`; a
-  domain error answers its full name, `CA3_ERR_TRUNCATED`. `codes::token` adds
-  the package prefix to the first kind (`CA3_ERR_NULL`) and leaves the second
-  alone, and all three layers apply it: napi's `Tokens`, the pyo3 family's
-  required `prefix`, and `AbiErrors` in .NET. A layer that skipped it would
-  report a name no header declares.
+  domain error answers its full name, `EXAMPLE_ERR_TRUNCATED`. `codes::token`
+  adds the package prefix to the first kind (`EXAMPLE_ERR_NULL`) and leaves the
+  second alone, and all three layers apply it: napi's `Tokens`, the pyo3
+  family's required `prefix`, and `AbiErrors` in .NET. A layer that skipped it
+  would report a name no header declares. `docs/conventions/error-tokens.md`
+  states the grammar in full.
 - **A package's `statusCodes()` reports the boundary codes its header
   declares**, which it passes to `status_exports!`; foundation naming a code
   does not put it in a package's table.
@@ -164,8 +166,9 @@ Not built, or not decided:
   `napi-sys` declares no `links`, so a consumer on a different napi series
   builds a second copy silently, and a `napi::Error` from here is not the
   consumer's. Consumers require `pyo3 = "0.29"` and `napi = "3"`,
-  `napi-derive = "3"`, the series ranvier pins; `cargo tree -i pyo3-ffi` and
-  `cargo tree -i napi` in the consumer each list one version.
+  `napi-derive = "3"`, the series `docs/conventions/toolchain-pins.md` pins;
+  `cargo tree -i pyo3-ffi` and `cargo tree -i napi` in the consumer each list
+  one version.
 - **Exception classes and `#[napi]` exports are created in the consumer**, by
   `extendedresearch_pyo3::exceptions!` and the `extendedresearch_napi` export
   macros. An exception class created in a shared crate is one per extension
@@ -175,9 +178,13 @@ Not built, or not decided:
   The package's drift test fails on any difference from the pinned commit, so
   an edit made there is undone by the next update or blocks it.
 - **`*out_len` never counts a string's terminator, and `capacity` always must.**
-- **The MSRV is 1.85**, the lowest of the three packages (eres requires 1.88),
-  so a crate here builds wherever any of them does. pyo3 0.29 declares 1.83 and
-  napi 3 declares 1.82.
+- **The MSRV is 1.85, because the workspace is on edition 2024 and 1.85 is the
+  release that stabilised it.** Nothing here asks for a later compiler, so the
+  floor is the edition's and not a dependency's: pyo3 0.29 declares 1.83 and
+  napi 3 declares 1.82, both below it. A consumer on a newer toolchain is
+  unaffected; a consumer on an older one could not compile an edition-2024
+  crate at all. `docs/conventions/toolchain-pins.md` carries the pin and the
+  `msrv` job in `ci.yml` is what holds it.
 - **Each published crate and `python/conformance` carry their own copy of
   `LICENSE` and `NOTICE`.** A package is built from its own directory, so the
   root files do not reach a user who downloads it, and Apache-2.0 requires

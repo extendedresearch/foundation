@@ -1,4 +1,4 @@
-# The shared code ranvier, ca3 and eres depend on.
+# The shared code every package built on these C ABI conventions depends on.
 #
 # **The packages take it as a git dependency on this public repository, pinned
 # by commit**; `CONTEXT.md` has the line and the check that goes with it. It is
@@ -19,9 +19,9 @@ rust-version = "1.85"
 license = "Apache-2.0"
 repository = "https://github.com/extendedresearch/foundation"
 
-# The same levels ranvier, ca3 and eres set, so code moved between them reads the
-# same. `undocumented_unsafe_blocks` is the one addition, and it only fires in a
-# crate that writes `unsafe`.
+# The levels a consuming package repeats, so code moved between a package and
+# here reads the same. `undocumented_unsafe_blocks` is the one level set for
+# this repository alone, and it only fires in a crate that writes `unsafe`.
 [workspace.lints.rust]
 unsafe_code = "deny"
 missing_docs = "warn"

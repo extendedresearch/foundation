@@ -18,7 +18,7 @@ namespace ExtendedResearch.Interop
     /// <code>
     /// internal sealed class StreamHandle : AbiHandle
     /// {
-    ///     protected override void Destroy(IntPtr handle) => Native.ranvier_stream_destroy(handle);
+    ///     protected override void Destroy(IntPtr handle) => Native.example_stream_destroy(handle);
     /// }
     /// </code>
     /// <para>P/Invoke declarations then take and answer the derived type

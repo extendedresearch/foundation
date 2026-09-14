@@ -32,17 +32,17 @@
 //! | a domain code the family does not map | the package's base error | Still a failure, still catchable, and the message carries its name |
 //!
 //! Every message starts with the constant's name as the package's header spells
-//! it — `CA3_ERR_UTF8: …`, `CA3_ERR_TRUNCATED: …` — then the error's
+//! it — `EXAMPLE_ERR_UTF8: …`, `EXAMPLE_ERR_TRUNCATED: …` — then the error's
 //! `Display`. A boundary name gains the family's `prefix` through
-//! `extendedresearch_abi::codes::token`, the step the Node and .NET layers take,
-//! so one failure reads the same in all three.
+//! `extendedresearch_abi::codes::token`, the step the Node and .NET layers
+//! take, so one failure reads the same in all three.
 //!
 //! # pyo3 moves in lockstep with the consumer
 //!
 //! `pyo3-ffi` declares `links = "python"`, and Cargo permits one package per
 //! `links` value in a build graph. The consumer's pyo3 requirement must resolve
-//! to the version this crate's resolves to — the `0.29` series today, the same
-//! requirement ranvier's `bindings/python/Cargo.toml` states. A mismatch is a
+//! to the version this crate's resolves to — the `0.29` series today, the pin
+//! `docs/conventions/toolchain-pins.md` states. A mismatch is a
 //! resolution error, not a second copy. `cargo tree -i pyo3-ffi` in the
 //! consumer lists exactly one version.
 //!
@@ -65,11 +65,11 @@ pub use pyo3;
 /// Implemented by the unit struct the macro declares. Nothing else needs to
 /// implement it by hand.
 pub trait ExceptionFamily {
-    /// The prefix every constant of the package begins with, such as `CA3`.
+    /// The prefix every constant of the package begins with, such as `EXAMPLE`.
     ///
     /// A message leads with the constant's name as the header spells it, so a
-    /// boundary name gains this prefix (`CA3_ERR_NULL`), exactly as it does in
-    /// the Node and .NET layers.
+    /// boundary name gains this prefix (`EXAMPLE_ERR_NULL`), exactly as it
+    /// does in the Node and .NET layers.
     const PREFIX: &'static str;
 
     /// The package's base error: `ERR_NULL`, `ERR_STATE`, and any code nothing
@@ -245,8 +245,9 @@ impl<T, E: AbiError> Raise<T> for Result<T, E> {
 /// Names with nothing in common, or a common run with no underscore in it,
 /// give 0 and nothing is stripped. The prefix is derived from the names rather
 /// than written down, because a family's C constant prefix and its contract
-/// prefix can differ (ranvier's `RANVIER_ASSERTED_BY_*` names are
-/// `ASSERTION_METHOD_*`).
+/// prefix can differ: a header spelling a family `EXAMPLE_ASSERTED_BY_*` may
+/// have a contract that calls the same members `ASSERTION_METHOD_*`, and a
+/// prefix written down in the binding would then be wrong for one of the two.
 #[must_use]
 pub fn shared_prefix<S: AsRef<str>>(names: &[S]) -> usize {
     let Some(first) = names.first().map(AsRef::as_ref) else {

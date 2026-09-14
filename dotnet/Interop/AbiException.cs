@@ -37,7 +37,7 @@ namespace ExtendedResearch.Interop
         /// <summary>The <c>int32_t</c> the library answered; zero for a binding failure.</summary>
         public int Code { get; }
 
-        /// <summary>The constant's name as the header spells it, such as <c>CA3_ERR_TRUNCATED</c>.</summary>
+        /// <summary>The constant's name as the header spells it, such as <c>EXAMPLE_ERR_TRUNCATED</c>.</summary>
         public string Name { get; }
     }
 

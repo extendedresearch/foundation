@@ -31,7 +31,7 @@ A `statuses` case may carry rules about the header's statuses as a whole:
 
 ```json
 "distinct": [{"label": "timeout, network and address stay three codes",
-              "codes": ["RANVIER_ERR_TIMEOUT", "RANVIER_ERR_NETWORK", "RANVIER_ERR_ADDRESS"]}],
+              "codes": ["EXAMPLE_ERR_TIMEOUT", "EXAMPLE_ERR_NETWORK", "EXAMPLE_ERR_ADDRESS"]}],
 "absent":   [{"label": "no cancellation status exists yet",
               "pattern": "CANCEL|CLOSED",
               "why": "A recorded gap, asserted so that closing it cannot pass silently."}]

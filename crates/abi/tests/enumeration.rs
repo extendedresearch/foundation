@@ -84,7 +84,7 @@ fn past_the_end_and_an_unknown_value_are_range_errors() {
 
 #[test]
 fn a_null_out_parameter_is_refused_before_the_index_is_looked_at() {
-    // Past the end *and* null: null wins, as it does in ranvier.
+    // Past the end *and* null: the null check runs first, so null wins.
     assert_eq!(thing_at(99, std::ptr::null_mut()), ERR_NULL);
     assert_eq!(thing_count(std::ptr::null_mut()), ERR_NULL);
 }

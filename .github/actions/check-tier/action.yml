@@ -1,0 +1,94 @@
+# Refuse text that crosses an architecture tier.
+#
+# The organisation is three tiers deep. Tier 1 (foundation) may name the tier-2
+# repositories and may not reference them. Tier 2 (ranvier, ca3, eres) may name
+# and reference foundation and itself and nothing else. Tier 3 (plugins) may
+# reference tiers 1 and 2 and must never reference a specific application. The
+# argument for each of those, and for every rule that enforces them, is in
+# `docs/docs.tools/check-tier.py`.
+#
+# # Why the checker lives in one repository and runs in five
+#
+# The rule being enforced is a claim about the *relationship* between these
+# repositories, and a copy of it per repository is five things that drift. A
+# tier crossing is exactly the kind of finding a repository has an incentive to
+# stop reporting, and five copies means the one that matters is edited by
+# whoever met it first.
+#
+# So foundation owns the checker, and the other four check themselves out
+# beside a pinned copy of it. Foundation is the only tier that *can* own it: it
+# is the one repository every other one already depends on, so nothing about
+# this inverts the dependency direction the tiers exist to fix.
+#
+# Used by foundation's own `ci.yml` as `uses: ./.github/actions/check-tier`;
+# another repository refers to it as
+# `extendedresearch/foundation/.github/actions/check-tier@<commit>` and passes
+# its own name as `repo`.
+#
+# # Pin `foundation-ref` to a commit, not to a branch
+#
+# `foundation-ref` chooses which foundation the rules come from. A branch name
+# there means the rule set can change under a repository that did not change,
+# so a green build turns red with nothing in its own history to explain it —
+# and the first person to meet that failure is being asked to debug someone
+# else's commit. A commit SHA means the rule set moves when someone bumps it,
+# in a diff, under review. The default is `main` because there has to be one;
+# every caller outside foundation should pass a SHA.
+name: Check the tier boundary
+description: >-
+  Fail when a repository names or references work on the other side of an
+  architecture tier boundary.
+
+inputs:
+  repo:
+    description: >-
+      The repository's tier name - foundation, ranvier, ca3, eres or plugins.
+      This selects the rule set, so a name with no tier is a failure rather
+      than a pass: see the first floor in check-tier.py.
+    required: true
+  foundation-ref:
+    description: >-
+      The foundation commit to take the checker from. Pass a commit SHA from
+      any repository other than foundation itself.
+    required: false
+    default: main
+  path:
+    description: >-
+      The checkout to scan, relative to the workspace. Defaults to the
+      workspace root, which is where actions/checkout puts a repository.
+    required: false
+    default: "."
+
+runs:
+  using: composite
+  steps:
+    # A temp path rather than a directory in the workspace: the workspace is
+    # the tree being scanned, and checking the rules out inside it would put
+    # the vocabulary file - the one file that must contain what it forbids -
+    # into the corpus at a path the self-exemption does not cover.
+    - name: Take the checker from foundation
+      uses: actions/checkout@v5
+      with:
+        repository: extendedresearch/foundation
+        ref: ${{ inputs.foundation-ref }}
+        path: ${{ runner.temp }}/tier-checker
+        persist-credentials: false
+
+    - name: Check the tier boundary
+      shell: bash
+      env:
+        REPO: ${{ inputs.repo }}
+        TARGET: ${{ inputs.path }}
+        CHECKER: ${{ runner.temp }}/tier-checker/docs/docs.tools/check-tier.py
+      run: |
+        set -euo pipefail
+        if [ ! -f "$CHECKER" ]; then
+          echo "::error::$CHECKER is not there. The checkout step produced no checker, so nothing was verified."
+          exit 1
+        fi
+        # `python3 -u` so the matrix interleaves with the findings in the log
+        # rather than arriving after them. The matrix prints on a pass as well
+        # as on a failure, and reading it is the point: a failures-only report
+        # shrinks to nothing when the walk breaks, and nothing is also what a
+        # clean tree looks like.
+        python3 -u "$CHECKER" --root "$GITHUB_WORKSPACE/$TARGET" --repo "$REPO"
