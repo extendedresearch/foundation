@@ -13,7 +13,7 @@
 # `crates/abi`, which it reads.
 [package]
 name = "extendedresearch-abi-testlib"
-version = "0.0.0"
+version = "0.1.0"
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true

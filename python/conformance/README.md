@@ -68,4 +68,4 @@ and checks that each fault fails the row it should.
 
 ## Status
 
-0.0.0, nothing frozen. Licensed under Apache-2.0. See `LICENSE` and `NOTICE`.
+0.1.0, nothing frozen. Licensed under Apache-2.0. See `LICENSE` and `NOTICE`.

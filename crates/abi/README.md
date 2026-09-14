@@ -93,7 +93,7 @@ crates.io yet.
 
 ## Status
 
-This is 0.0.0, and nothing in it is frozen: a name, a code or a signature can
+This is 0.1.0, and nothing in it is frozen: a name, a code or a signature can
 change in the next version. The minimum supported Rust version is 1.85.
 
 Licensed under Apache-2.0. See `LICENSE` and `NOTICE`.
