@@ -9,7 +9,7 @@
 //! | [`Tokens`] | The error token protocol for one package: an [`AbiError`] becomes a `napi::Error` whose message is `"<PREFIX>_ERR_X: sentence"` |
 //! | [`Tokens::to_u64`], [`from_u64`] | `BigInt` to `u64` and back, refusing a value that does not fit |
 //! | [`status_exports!`], [`abi_version_exports!`], [`enumeration_exports!`] | The `#[napi]` functions a binding exports, expanded **in the consuming crate** |
-//! | [`typescript`] | `errors.ts`, `harden.ts` and `enums.ts`, which a package vendors beside its own TypeScript and checks with [`typescript::assert_vendored`] |
+//! | `@extendedresearch/binding-runtime` | The TypeScript half — `errors`, `harden` and `enums` — which is an npm package attached to foundation's releases rather than part of this crate |
 //!
 //! # Why the code travels in the message
 //!
@@ -17,7 +17,8 @@
 //! Node-API's own fixed set. `napi::Error<String>` can widen it for a
 //! synchronous function, but `#[napi] async fn` requires `Error<Status>`. So
 //! the native half reports the package's constant name as the first token of
-//! the message, `": "`, then the sentence, and `ts/errors.ts` splits on the
+//! the message, `": "`, then the sentence, and
+//! `@extendedresearch/binding-runtime/errors` splits on the
 //! first `": "`, looks the token up in the set `statusCodes()` reports, and
 //! raises the package's error class. A token not in the set is not the
 //! package's, so a napi-rs failure of its own passes through unrelabelled.
@@ -47,11 +48,10 @@ use extendedresearch_abi::codes::{self, AbiError};
 use napi::bindgen_prelude::BigInt;
 use napi::{Error, Status};
 
-pub mod typescript;
-
 /// The separator between the token and the sentence in an error's message.
 ///
-/// `ts/errors.ts` states the same string as `SEPARATOR`.
+/// `@extendedresearch/binding-runtime/errors` states the same string as
+/// `SEPARATOR`.
 pub const SEPARATOR: &str = ": ";
 
 /// The error token protocol for one package.
@@ -238,8 +238,9 @@ impl<T, E: AbiError> Report<T> for Result<T, E> {
 ///
 /// Defines a `#[napi(object)] StatusCode { value, name }`,
 /// `statusCodes(): StatusCode[]` from [`Tokens::status_table`], and
-/// `bindingCodes(): string[]` from [`Tokens::binding_codes`]. `ts/errors.ts`
-/// builds its set of codes from the two. The boundary codes are the ones the
+/// `bindingCodes(): string[]` from [`Tokens::binding_codes`].
+/// `@extendedresearch/binding-runtime/errors` builds its set of codes from the
+/// two. The boundary codes are the ones the
 /// package's header declares, as [`Tokens::status_table`] describes.
 #[macro_export]
 macro_rules! status_exports {
@@ -310,8 +311,8 @@ macro_rules! abi_version_exports {
 /// ```
 ///
 /// Defines a `#[napi(object)] EnumMember { value, name }` and, per line, a
-/// function answering `EnumMember[]` in the table's order. `ts/enums.ts` turns
-/// each into a frozen contract. Invoke it once per crate: a second invocation
+/// function answering `EnumMember[]` in the table's order.
+/// `@extendedresearch/binding-runtime/enums` turns each into a frozen contract. Invoke it once per crate: a second invocation
 /// defines `EnumMember` twice.
 #[macro_export]
 macro_rules! enumeration_exports {

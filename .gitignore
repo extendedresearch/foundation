@@ -7,3 +7,6 @@ obj/
 # What `pip install` of python/conformance writes beside its sources.
 build/
 *.egg-info/
+# What npm/binding-runtime's `npm ci` and `npm run build` write.
+node_modules/
+/npm/binding-runtime/dist/

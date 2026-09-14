@@ -1,0 +1,48 @@
+<!--
+  Packs dotnet/Interop/*.cs as the source package ExtendedResearch.Interop.
+
+      dotnet pack dotnet/Interop.Package -c Release -o <folder>
+
+  The package holds C# source and no assembly: each file is a content file
+  under contentFiles/cs/any/ with the build action Compile, so a consumer's
+  PackageReference compiles it into the consumer's own assembly, where every
+  type stays internal. dotnet/Interop.PackageTest is that consumer, and
+  scripts/build-release-assets.sh packs this project, checks what the package
+  holds, and builds the consumer against it.
+
+  The project compiles nothing of its own. dotnet/Interop.Build compiles the
+  same sources for both targets, and dotnet/Interop.Tests runs them.
+-->
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+
+    <PackageId>ExtendedResearch.Interop</PackageId>
+    <Version>0.1.0</Version>
+    <Authors>Extended Research</Authors>
+    <Copyright>Copyright 2026 Extended Research</Copyright>
+    <Description>Internal C# a package's .NET binding compiles into its own assembly: a SafeHandle over the library's _destroy, status-to-exception mapping, measure-then-copy reads, a native library resolver, and enumeration tables. Source only, for netstandard2.1 and net8.0.</Description>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageProjectUrl>https://github.com/extendedresearch/foundation</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/extendedresearch/foundation</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+
+    <!-- Source only: no assembly in lib/, and no dependency group for one. -->
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
+    <!-- Keeps the package out of the dependencies of any package built from a consumer. -->
+    <DevelopmentDependency>true</DevelopmentDependency>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="../Interop/*.cs" Pack="true" PackagePath="contentFiles/cs/any/ExtendedResearch.Interop/" BuildAction="Compile" Visible="false" />
+    <None Include="README.md" Pack="true" PackagePath="" />
+    <None Include="LICENSE" Pack="true" PackagePath="" />
+    <None Include="NOTICE" Pack="true" PackagePath="" />
+  </ItemGroup>
+
+</Project>

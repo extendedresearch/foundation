@@ -1,6 +1,7 @@
 # What a package's napi-rs binding shares with every other package's: the error
-# token protocol, BigInt conversion, the `#[napi]` exports each binding repeats,
-# and the TypeScript that raises typed errors from them.
+# token protocol, BigInt conversion, and the `#[napi]` exports each binding
+# repeats. The TypeScript that raises typed errors from them is the npm package
+# `@extendedresearch/binding-runtime`, built from `npm/binding-runtime`.
 #
 # **napi moves in lockstep with every consumer, and nothing enforces it.**
 # `napi-sys` declares no `links` value, so a consumer whose napi requirement
@@ -17,22 +18,22 @@
 # generates refers to the `napi` crate by that name.
 [package]
 name = "extendedresearch-napi"
-version = "0.0.0"
+version = "0.1.0"
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Error tokens, BigInt conversion, exports and TypeScript for a package's napi-rs binding."
+description = "Error tokens, BigInt conversion and exports for a package's napi-rs binding."
 readme = "README.md"
 categories = ["api-bindings", "development-tools::ffi"]
 keywords = ["napi", "node", "bindings", "abi"]
-include = ["src/**", "ts/**", "tests/**", "Cargo.toml", "README.md", "LICENSE", "NOTICE"]
+include = ["src/**", "tests/**", "Cargo.toml", "README.md", "LICENSE", "NOTICE"]
 
 [lints]
 workspace = true
 
 [dependencies]
-extendedresearch-abi = { version = "0.0.0", path = "../abi" }
+extendedresearch-abi = { version = "0.1.0", path = "../abi" }
 napi = { version = "3", default-features = false, features = ["napi6"] }
 
 [dev-dependencies]

@@ -1,0 +1,39 @@
+{
+  "name": "@extendedresearch/binding-runtime",
+  "version": "0.1.0",
+  "description": "The TypeScript half of a package's napi-rs binding: typed errors from error tokens, hardened native classes, and frozen enumeration contracts.",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/extendedresearch/foundation.git",
+    "directory": "npm/binding-runtime"
+  },
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./errors": {
+      "types": "./dist/errors.d.ts",
+      "default": "./dist/errors.js"
+    },
+    "./harden": {
+      "types": "./dist/harden.d.ts",
+      "default": "./dist/harden.js"
+    },
+    "./enums": {
+      "types": "./dist/enums.d.ts",
+      "default": "./dist/enums.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3"
+  }
+}
