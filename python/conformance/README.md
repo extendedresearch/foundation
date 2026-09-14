@@ -22,8 +22,8 @@ pip install "extendedresearch-conformance @ git+https://github.com/extendedresea
 Put a `conformance.toml` in your repository:
 
 ```toml
-header = "crates/abi/include/ranvier.h"
-prefix = "RANVIER"
+header = "crates/abi/include/example.h"
+prefix = "EXAMPLE"
 cases = "conformance/bindings/cases.json"
 
 [[language]]
@@ -33,7 +33,7 @@ command = ["{python}", "conformance/bindings/driver.py", "--out", "{out}", "--ca
 [[language]]
 name = "javascript"
 command = ["node", "conformance/bindings/driver.mjs", "--out", "{out}", "--cases", "{cases}"]
-env = { RANVIER_PYTHON = "{python}" }
+env = { EXAMPLE_PYTHON = "{python}" }
 ```
 
 `src/extendedresearch_conformance/config.py` lists the placeholders. Paths are

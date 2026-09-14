@@ -52,10 +52,12 @@ class Header:
     def family(self, header_prefix: str, contract_prefix: str) -> dict[str, int]:
         """One enumeration, as the contract spells its members.
 
-        `header_prefix` is what the C constants share (`RANVIER_REFUSE_REASON_`);
+        `header_prefix` is what the C constants share (`EXAMPLE_REFUSE_REASON_`);
         `contract_prefix` is what the library's `_name` functions answer
-        (`REFUSE_REASON_`). Both are named because they can differ:
-        ranvier's `RANVIER_ASSERTED_BY_OS_USER` is `ASSERTION_METHOD_OS_USER`.
+        (`REFUSE_REASON_`). Both are named because they can differ: a header
+        may spell a member `EXAMPLE_ASSERTED_BY_OS_USER` while the contract
+        calls it `ASSERTION_METHOD_OS_USER`, so neither prefix can be derived
+        from the other.
         """
         members = {
             contract_prefix + name[len(header_prefix) :]: value

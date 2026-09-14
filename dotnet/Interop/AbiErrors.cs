@@ -13,8 +13,8 @@ namespace ExtendedResearch.Interop
     /// </summary>
     /// <remarks>
     /// <para>Names follow the header: a boundary code is the package's prefix
-    /// and the boundary name (<c>RANVIER_ERR_NULL</c>); a domain code is the
-    /// name the package declares (<c>RANVIER_ERR_TIMEOUT</c>); any other code
+    /// and the boundary name (<c>EXAMPLE_ERR_NULL</c>); a domain code is the
+    /// name the package declares (<c>EXAMPLE_ERR_TIMEOUT</c>); any other code
     /// is <c>&lt;PREFIX&gt;_ERR_UNKNOWN</c>.</para>
     /// <para>Which exception, when the hook answers null or is absent:</para>
     /// <list type="table">
@@ -35,7 +35,7 @@ namespace ExtendedResearch.Interop
         private readonly Func<int, string, string, Exception?>? _raise;
         private readonly Func<string, string, Exception?, Exception?>? _bindingFailure;
 
-        /// <param name="prefix">The prefix every constant of the package begins with, such as <c>RANVIER</c>.</param>
+        /// <param name="prefix">The prefix every constant of the package begins with, such as <c>EXAMPLE</c>.</param>
         /// <param name="domainCodes">Every domain code with its full constant name.</param>
         /// <param name="raise">
         /// Consulted first for every failing code, with the code, its name and

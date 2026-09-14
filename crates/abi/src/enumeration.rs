@@ -11,9 +11,9 @@
 //! ```
 //!
 //! **A binding that loops cannot produce a subset.** A binding that transcribes
-//! constants by hand can, and the failure is silent: in ranvier, two clients
-//! written against one contract each declared four of its six refusal reasons
-//! and stopped at the same missing value, so a refusal for that reason read as
+//! constants by hand can, and the failure is silent: two clients written by
+//! hand against one contract each declared four of its six refusal reasons and
+//! stopped at the same missing value, so a refusal for that reason read as
 //! no reason at all. `_count` and `_at` let a binding generate its constants from
 //! the library when it loads; `_name` gives a report the contract's own words.
 //!

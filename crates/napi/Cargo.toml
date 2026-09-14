@@ -7,8 +7,8 @@
 # resolves to a different major version builds a second copy beside this one,
 # and the two disagree about every type that crosses between them — a
 # `napi::Error` from here is not the consumer's `napi::Error`. The requirement
-# is the one ranvier's `bindings/javascript` states, `3` for napi and
-# napi-derive. Check in the consumer:
+# is `3` for napi and napi-derive, the pin `docs/conventions/toolchain-pins.md`
+# states and every consumer repeats. Check in the consumer:
 #
 #     cargo tree -i napi          # exactly one version
 #

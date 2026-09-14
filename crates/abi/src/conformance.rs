@@ -281,8 +281,8 @@ where
 /// Check a package's table of its own error codes, and return it.
 ///
 /// `declared` is every domain code the package's header defines, with the
-/// constant's name: `&[(CA3_ERR_TRUNCATED, "CA3_ERR_TRUNCATED")]`. The boundary
-/// codes are this crate's and do not belong in it.
+/// constant's name: `&[(EXAMPLE_ERR_TRUNCATED, "EXAMPLE_ERR_TRUNCATED")]`. The
+/// boundary codes are this crate's and do not belong in it.
 ///
 /// # Panics
 ///

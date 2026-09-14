@@ -5,10 +5,10 @@ the header is, the prefix its constants share, where the cases are, and how to
 run each language's driver.
 
 ```toml
-header = "crates/abi/include/ranvier.h"
-prefix = "RANVIER"
+header = "crates/abi/include/example.h"
+prefix = "EXAMPLE"
 cases = "conformance/bindings/cases.json"
-# abi_version = "RANVIER_ABI_VERSION"   # the default is <prefix>_ABI_VERSION
+# abi_version = "EXAMPLE_ABI_VERSION"   # the default is <prefix>_ABI_VERSION
 
 [[language]]
 name = "python"
@@ -17,7 +17,7 @@ command = ["{python}", "conformance/bindings/driver.py", "--out", "{out}", "--ca
 [[language]]
 name = "javascript"
 command = ["node", "conformance/bindings/driver.mjs", "--out", "{out}", "--cases", "{cases}"]
-env = { RANVIER_PYTHON = "{python}" }
+env = { EXAMPLE_PYTHON = "{python}" }
 ```
 
 Paths are relative to the file's own directory, and every driver runs with that

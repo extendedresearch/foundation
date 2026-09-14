@@ -37,8 +37,8 @@
 //! `napi-sys` declares no `links` value, so nothing stops a consumer from
 //! resolving a second napi beside this crate's, and a `napi::Error` built here
 //! would then be a different type from the consumer's. Require the same series
-//! this crate does — `3` for napi and napi-derive, as ranvier's
-//! `bindings/javascript/Cargo.toml` states. `cargo tree -i napi` in the
+//! this crate does — `3` for napi and napi-derive, the pin
+//! `docs/conventions/toolchain-pins.md` states. `cargo tree -i napi` in the
 //! consumer lists exactly one version.
 
 use std::fmt::Display;
@@ -59,11 +59,11 @@ pub const SEPARATOR: &str = ": ";
 /// ```
 /// use extendedresearch_napi::Tokens;
 ///
-/// static TOKENS: Tokens = Tokens::new("RANVIER");
+/// static TOKENS: Tokens = Tokens::new("EXAMPLE");
 ///
-/// assert_eq!(TOKENS.token("ERR_NULL"), "RANVIER_ERR_NULL");
-/// assert_eq!(TOKENS.token("RANVIER_ERR_TIMEOUT"), "RANVIER_ERR_TIMEOUT");
-/// assert_eq!(TOKENS.binding_token(), "RANVIER_ERR_BINDING");
+/// assert_eq!(TOKENS.token("ERR_NULL"), "EXAMPLE_ERR_NULL");
+/// assert_eq!(TOKENS.token("EXAMPLE_ERR_TIMEOUT"), "EXAMPLE_ERR_TIMEOUT");
+/// assert_eq!(TOKENS.binding_token(), "EXAMPLE_ERR_BINDING");
 /// ```
 #[derive(Debug, Clone, Copy)]
 pub struct Tokens {
@@ -86,9 +86,9 @@ impl Tokens {
     /// A constant's name as the package's header spells it.
     ///
     /// A boundary name (`ERR_NULL`, `OK`) gains the prefix; a name that already
-    /// carries it (`CA3_ERR_TRUNCATED`) is unchanged. [`AbiError::name`] answers
-    /// the first kind for boundary codes and the second for domain codes, so
-    /// this is the one step between them. It is
+    /// carries it (`EXAMPLE_ERR_TRUNCATED`) is unchanged. [`AbiError::name`]
+    /// answers the first kind for boundary codes and the second for domain
+    /// codes, so this is the one step between them. It is
     /// `extendedresearch_abi::codes::token`, which the pyo3 layer applies too.
     #[must_use]
     pub fn token(&self, name: &str) -> String {
@@ -231,9 +231,9 @@ impl<T, E: AbiError> Report<T> for Result<T, E> {
 /// ```text
 /// use extendedresearch_abi::codes::{ERR_NULL, ERR_PANIC, ERR_RANGE, ERR_UTF8};
 ///
-/// static TOKENS: extendedresearch_napi::Tokens = extendedresearch_napi::Tokens::new("CA3");
+/// static TOKENS: extendedresearch_napi::Tokens = extendedresearch_napi::Tokens::new("EXAMPLE");
 /// const BOUNDARY_CODES: &[i32] = &[ERR_NULL, ERR_RANGE, ERR_UTF8, ERR_PANIC];
-/// extendedresearch_napi::status_exports!(TOKENS, BOUNDARY_CODES, ca3::ERROR_CODES);
+/// extendedresearch_napi::status_exports!(TOKENS, BOUNDARY_CODES, example::ERROR_CODES);
 /// ```
 ///
 /// Defines a `#[napi(object)] StatusCode { value, name }`,
@@ -276,7 +276,7 @@ macro_rules! status_exports {
 /// Export `abiVersion()` and `expectedAbiVersion()` from the consuming crate.
 ///
 /// ```text
-/// extendedresearch_napi::abi_version_exports!(ca3::abi_version(), ca3::ABI_VERSION);
+/// extendedresearch_napi::abi_version_exports!(example::abi_version(), example::ABI_VERSION);
 /// ```
 ///
 /// The TypeScript entry point compares the two for equality at import.
@@ -303,9 +303,9 @@ macro_rules! abi_version_exports {
 /// ```text
 /// extendedresearch_napi::enumeration_exports! {
 ///     /// What a stream is for.
-///     origins => ranvier::ORIGINS;
+///     origins => example::ORIGINS;
 ///     /// Why a runtime refused a node.
-///     refuse_reasons => ranvier::REFUSE_REASONS;
+///     refuse_reasons => example::REFUSE_REASONS;
 /// }
 /// ```
 ///

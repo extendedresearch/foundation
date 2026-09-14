@@ -9,8 +9,9 @@
 #
 #     cargo tree -i pyo3-ffi      # in the consumer: exactly one version
 #
-# The requirement is the one ranvier's `bindings/python` pins, `0.29`, with
-# `abi3-py311`. `extension-module` is left to the consumer's `cdylib`, which is
+# The requirement is `0.29` with `abi3-py311`, the pin
+# `docs/conventions/toolchain-pins.md` states and every consumer repeats.
+# `extension-module` is left to the consumer's `cdylib`, which is
 # where it decides how the module links; enabling it here would stop this
 # crate's own tests from linking an interpreter.
 [package]
