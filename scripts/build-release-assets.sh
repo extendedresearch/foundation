@@ -21,7 +21,8 @@
 # The steps, and what each one fails on:
 #
 # 1. `scripts/release-checks.py tree`: a version that differs from another, or
-#    from the tag; a LICENSE or NOTICE copy that differs from the root's.
+#    from the tag; an npm manifest `npm publish` would refuse or would publish
+#    restricted; a LICENSE or NOTICE copy that differs from the root's.
 # 2. Build the npm tarball, the .nupkg, the wheel and the sdist.
 # 3. `scripts/release-checks.py assets`: an archive missing a file, holding one
 #    nobody expected, or stating the wrong name or version.

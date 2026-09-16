@@ -8,7 +8,10 @@
     "url": "git+https://github.com/extendedresearch/foundation.git",
     "directory": "npm/binding-runtime"
   },
-  "private": true,
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
+    "access": "public"
+  },
   "type": "module",
   "exports": {
     "./errors": {

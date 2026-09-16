@@ -21,6 +21,13 @@ internal path dependency (both from `cargo metadata`), the conformance runner's
 NuGet project, and the exact version the NuGet consumer test restores. Given a
 tag, the tag must be `v<major>.<minor>.<patch>` and name that version.
 
+**The npm package still publishes, and still publishes publicly.** `npm publish`
+refuses a manifest carrying `"private": true`, and a scoped package published
+without `access` set to `public` lands restricted, where `npm install` from
+outside the organisation answers 404 and nothing in the release run notices.
+`registry` names where the publish goes, so an `.npmrc` the runner picked up
+elsewhere cannot redirect the tarball.
+
 **Every copy of LICENSE and NOTICE is the root's.** Each asset is built from its
 own directory, so the root files reach a user only as a copy, and Apache-2.0
 requires NOTICE to travel with a redistribution. The directories an asset or a
@@ -58,6 +65,7 @@ PACKAGE_TEST_PROJECT = ROOT / "dotnet" / "Interop.PackageTest" / "Interop.Packag
 CONFORMANCE = ROOT / "python" / "conformance"
 
 NPM_NAME = "@extendedresearch/binding-runtime"
+NPM_REGISTRY = "https://registry.npmjs.org/"
 NUGET_ID = "ExtendedResearch.Interop"
 PYTHON_DIST = "extendedresearch_conformance"
 
@@ -220,6 +228,31 @@ def check_versions(tag: str | None) -> bool:
     for where, version in found:
         passed = version == expected
         table.add(where, version if passed else f"{version}, expected {expected}", passed)
+    return table.report()
+
+
+def check_npm_publishing() -> bool:
+    table = Table(f"{NPM_NAME}: publishable, and public, on the npm registry")
+    manifest = json.loads((NPM / "package.json").read_text(encoding="utf-8"))
+    config = manifest.get("publishConfig", {})
+    private = manifest.get("private", False)
+    table.add(
+        "package.json private",
+        "absent" if private is False else f"{json.dumps(private)}; npm publish refuses it",
+        private is False,
+    )
+    access = config.get("access")
+    table.add(
+        "publishConfig access",
+        access if access == "public" else f"{json.dumps(access)}, expected \"public\"",
+        access == "public",
+    )
+    registry = config.get("registry")
+    table.add(
+        "publishConfig registry",
+        registry if registry == NPM_REGISTRY else f"{json.dumps(registry)}, expected {NPM_REGISTRY}",
+        registry == NPM_REGISTRY,
+    )
     return table.report()
 
 
@@ -388,7 +421,9 @@ def check_sdist(directory: Path, version: str) -> bool:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="The checks a foundation release makes.")
     commands = parser.add_subparsers(dest="command", required=True)
-    tree = commands.add_parser("tree", help="versions and licence copies, before building")
+    tree = commands.add_parser(
+        "tree", help="versions, npm publishing and licence copies, before building"
+    )
     tree.add_argument("--tag", help="the release tag, v<major>.<minor>.<patch>")
     commands.add_parser("version", help="print the release version, with no newline")
     assets = commands.add_parser("assets", help="what each built archive holds")
@@ -402,7 +437,7 @@ def main(argv: list[str] | None = None) -> int:
         sys.stdout.write(json.loads((NPM / "package.json").read_text(encoding="utf-8"))["version"])
         return 0
     if args.command == "tree":
-        results = [check_versions(args.tag), check_licences()]
+        results = [check_versions(args.tag), check_npm_publishing(), check_licences()]
     else:
         results = [
             check(args.directory, args.version)
