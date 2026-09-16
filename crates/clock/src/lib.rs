@@ -19,10 +19,10 @@
 //! native `host` module and a browser `browser` module — implement [`Clock`]
 //! over these types, and are not written yet.
 //!
-//! The field names follow the `clock.v1` schema, so a [`Domain`], [`Anchor`],
-//! [`Basis`] or [`SuspendBehaviour`] maps onto a recording's declaration field
-//! by field. Several choices here are provisional until confirmed: the crate
-//! name, [`Basis`] values 7 to 10, the browser `host_id` and epoch format
+//! This crate defines the clock vocabulary: the field names, and the integers
+//! of [`Basis`] and [`SuspendBehaviour`], are its own and part of its contract.
+//! Several choices here are provisional until confirmed: the crate name,
+//! [`Basis`] values 7 to 10, the browser `host_id` and epoch format
 //! ([`doc_epoch_from`]), and [`QUANTUM_TOL_DEN`].
 //!
 //! # Conformance

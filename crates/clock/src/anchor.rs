@@ -12,8 +12,7 @@ use crate::units::widths;
 ///
 /// The wall read `W` is bracketed by two monotonic reads `m1` and `m2`.
 /// `read_span_ns` is `m2 - m1` and `monotonic_ns` is the midpoint
-/// `m1 + ⌊(m2 - m1)/2⌋`, so the fields map one to one onto `clock.v1`'s wall
-/// clock anchor. `wall_unix_ns` is never 0 in an anchor
+/// `m1 + ⌊(m2 - m1)/2⌋`. `wall_unix_ns` is never 0 in an anchor
 /// [`Anchor::from_brackets`] builds, because 0 means no anchor.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Anchor {

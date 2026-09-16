@@ -7,8 +7,8 @@ use crate::anchor::Anchor;
 
 /// Whether a domain's clock advances while the machine is suspended.
 ///
-/// The integers are `clock.v1`'s `SuspendBehaviour`, value for value.
-/// [`SuspendBehaviour::Unspecified`] is not [`SuspendBehaviour::Included`], and
+/// The integers are this crate's definition and are part of its contract, as
+/// for [`Basis`](crate::Basis). [`SuspendBehaviour::Unspecified`] is not [`SuspendBehaviour::Included`], and
 /// nothing may infer the second from the first.
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -34,8 +34,8 @@ pub struct DomainId(u64);
 /// known about that clock.
 ///
 /// Two readings may be subtracted if and only if `host_id` and
-/// `host_clock_epoch` are both byte-equal. The field names are `clock.v1`'s, so
-/// a `Domain` maps to a host clock declaration field by field.
+/// `host_clock_epoch` are both byte-equal. Only those two strings identify a
+/// domain; the other fields describe its clock.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Domain {
     /// Which machine (native) or which JS realm (browser).

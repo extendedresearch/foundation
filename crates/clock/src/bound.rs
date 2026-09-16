@@ -76,11 +76,11 @@ pub fn bound_for_read(resolution_ns: Option<u64>, rounding: Rounding) -> Bound {
 
 /// Where in the path a reading was taken, which decides the shape of its bound.
 ///
-/// Values 0 to 6 are the `clock.v1` `RxStampPoint` values, value for value, so
-/// a reading's basis becomes a recording's receive-stamp point by copying the
-/// integer. Values 7 to 10 are provisional: they are proposed as additions to
-/// that enumeration, and hold the same integers here until that lands.
-/// The set is closed at each release; a new basis is a reviewed change.
+/// The integers are this crate's definition and are part of its contract: a
+/// basis crosses a boundary, and is written to a record, as its integer, so a
+/// value is never renumbered or reused. Values 7 to 10 are provisional until
+/// the owner confirms them. The set is closed at each release; a new basis is
+/// a reviewed change, appended with the next integer.
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[non_exhaustive]
@@ -179,7 +179,7 @@ mod tests {
     }
 
     #[test]
-    fn basis_integers_are_the_receive_stamp_points() {
+    fn basis_integers_are_fixed() {
         let all = [
             (Basis::Unspecified, 0),
             (Basis::AfterReadReturned, 1),

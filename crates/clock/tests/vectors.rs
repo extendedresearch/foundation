@@ -46,7 +46,7 @@ const VECTORS: &[&str] = &[
     "0012-an-anchor-keeps-the-first-narrowest-bracket-and-states-its-error",
     "0013-a-reading-maps-to-the-calendar-through-the-anchor",
     "0014-the-drift-check-refuses-rather-than-guesses",
-    "0015-basis-integers-are-receive-stamp-points",
+    "0015-basis-integers-are-fixed",
     "0016-suspend-behaviour-integers",
     "0017-monotonic-source-literals-are-bare-identifiers",
 ];

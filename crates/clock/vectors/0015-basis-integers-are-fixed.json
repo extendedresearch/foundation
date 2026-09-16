@@ -1,7 +1,7 @@
 {
   "clock_vector": "0",
-  "id": "0015-basis-integers-are-receive-stamp-points",
-  "about": "Basis variants as integers. 0-6 are clock.v1 RxStampPoint value for value; 7 display_frame, 8 audio_output_buffer, 9 clock_read and 10 platform_event_timestamp are provisional additions with the same integers. Row names are the variant names in snake case. A face that renumbers, or appends in another order, fails a row.",
+  "id": "0015-basis-integers-are-fixed",
+  "about": "Basis variants as integers, which are the clock vocabulary's own definition: unspecified 0 to file_read 6, then display_frame 7, audio_output_buffer 8, clock_read 9 and platform_event_timestamp 10, the last four provisional. A basis crosses a boundary and is recorded as its integer, so no value is renumbered or reused. Row names are the variant names in snake case. A face that renumbers, or appends in another order, fails a row.",
   "function": "Basis",
   "faces": [
     "native",
