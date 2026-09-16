@@ -1,0 +1,96 @@
+{
+  "clock_vector": "0",
+  "id": "0009-widen-never-narrows",
+  "about": "Reading::widen(early_ns, late_ns) makes each side of the bound the larger of its current width and the one passed, and keeps the basis and the reading. Widening by (0, 0) is the identity. A face that adds the widths, replaces them, or resets the basis fails a row.",
+  "function": "Reading::widen",
+  "faces": [
+    "native",
+    "browser"
+  ],
+  "rows": {
+    "identity": {
+      "input": {
+        "early_ns": "10",
+        "late_ns": "20",
+        "basis": 9,
+        "widen_early_ns": "0",
+        "widen_late_ns": "0"
+      },
+      "expect": {
+        "early_ns": "10",
+        "late_ns": "20",
+        "basis": "9"
+      }
+    },
+    "early_grows": {
+      "input": {
+        "early_ns": "10",
+        "late_ns": "20",
+        "basis": 9,
+        "widen_early_ns": "15",
+        "widen_late_ns": "5"
+      },
+      "expect": {
+        "early_ns": "15",
+        "late_ns": "20",
+        "basis": "9"
+      }
+    },
+    "late_grows": {
+      "input": {
+        "early_ns": "10",
+        "late_ns": "20",
+        "basis": 9,
+        "widen_early_ns": "5",
+        "widen_late_ns": "30"
+      },
+      "expect": {
+        "early_ns": "10",
+        "late_ns": "30",
+        "basis": "9"
+      }
+    },
+    "both_grow": {
+      "input": {
+        "early_ns": "10",
+        "late_ns": "20",
+        "basis": 7,
+        "widen_early_ns": "11",
+        "widen_late_ns": "21"
+      },
+      "expect": {
+        "early_ns": "11",
+        "late_ns": "21",
+        "basis": "7"
+      }
+    },
+    "to_unbounded": {
+      "input": {
+        "early_ns": "10",
+        "late_ns": "20",
+        "basis": 9,
+        "widen_early_ns": "18446744073709551615",
+        "widen_late_ns": "18446744073709551615"
+      },
+      "expect": {
+        "early_ns": "18446744073709551615",
+        "late_ns": "18446744073709551615",
+        "basis": "9"
+      }
+    },
+    "unknown_stays_unknown": {
+      "input": {
+        "early_ns": "18446744073709551615",
+        "late_ns": "18446744073709551615",
+        "basis": 0,
+        "widen_early_ns": "1",
+        "widen_late_ns": "1"
+      },
+      "expect": {
+        "early_ns": "18446744073709551615",
+        "late_ns": "18446744073709551615",
+        "basis": "0"
+      }
+    }
+  }
+}

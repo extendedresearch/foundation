@@ -1,0 +1,19 @@
+{
+  "clock_vector": "0",
+  "id": "0004-quantum-from-deltas-fits-one-grid-or-returns-none",
+  "about": "quantum_from_deltas(deltas_ns) ignores zero deltas and returns None below QUANTUM_MIN_DELTAS (16) non-zero deltas. Otherwise, for k = 1..=QUANTUM_MAX_DIVISOR (64) while d_min / k is at least QUANTUM_FLOOR_NS (1000), it walks the sorted non-zero deltas keeping a running span S and step count N, assigns each delta n = round-half-up(d * N / S) steps, and accepts the first k under which every delta lies within q/QUANTUM_TOL_DEN (16) + min(QUANTUM_SLACK_NS (512), q/64) of n * q, q being S/N held as a rational. It returns the whole-us value nearest S/N when that explains the span within 512 ns, else S/N rounded half-up to the ns, and None when no k fits. All arithmetic is on integers. A face that takes the GCD of whole-us deltas (G-17 as first drafted) fails p1 (16667000), p2 and p6 (1000). A face that drops the us snap fails p4 (1000016) and p5 (99988). The rfp_source_grid row models the 16 667 us grid read from Firefox source (likely; the call site was not read); p1 and p2 model a 1000/60 ms grid. No wall value, domain or bound enters this function.",
+  "function": "quantum_from_deltas",
+  "faces": ["native", "browser"],
+  "rows": {
+    "grid_200us_300us": {"input": {"deltas_ns": ["200000", "300000", "200000", "300000", "200000", "300000", "200000", "300000", "200000", "300000", "200000", "300000", "200000", "300000", "200000", "300000"]}, "expect": "100000"},
+    "fifteen_nonzero": {"input": {"deltas_ns": ["0", "100000", "100000", "100000", "100000", "100000", "100000", "100000", "100000", "100000", "100000", "100000", "100000", "100000", "100000", "100000"]}, "expect": "none"},
+    "five_deltas_with_zeros": {"input": {"deltas_ns": ["0", "0", "100000", "100000", "300000"]}, "expect": "none"},
+    "rfp_source_grid_one_frame_per_delta": {"input": {"deltas_ns": ["16667000", "16667000", "16667000", "16667000", "16667000", "16667000", "16667000", "16667000", "16667000", "16667000", "16667000", "16667000", "16667000", "16667000", "16667000", "16667000"]}, "expect": "16667000"},
+    "p1_premise_grid_one_frame_per_delta": {"input": {"deltas_ns": ["16666667", "16666666", "16666667", "16666666", "16666667", "16666666", "16666667", "16666666", "16666667", "16666666", "16666667", "16666666", "16666667", "16666666", "16666667", "16666666"]}, "expect": "16666667"},
+    "p2_premise_grid_one_skipped_frame": {"input": {"deltas_ns": ["16666667", "16666666", "16666667", "16666666", "16666667", "16666666", "16666667", "16666666", "16666667", "16666666", "16666667", "16666666", "16666667", "16666666", "16666667", "16666666", "33333333"]}, "expect": "16666667"},
+    "p3_source_grid_skipped_frame_and_gc_pause": {"input": {"deltas_ns": ["16667000", "16667000", "16667000", "16667000", "16667000", "16667000", "16667000", "16667000", "16667000", "16667000", "16667000", "16667000", "16667000", "16667000", "16667000", "33334000", "300006000"]}, "expect": "16667000"},
+    "p4_date_now_epoch_scale_conversion_noise": {"input": {"deltas_ns": ["0", "999936", "0", "0", "1000192", "1000192", "999936", "0", "1000192", "999936", "999936", "999936", "999936", "1000192", "999936", "999936", "1000192", "0", "999936", "999936", "999936"]}, "expect": "1000000"},
+    "p5_100us_grid_per_reading_jitter": {"input": {"deltas_ns": ["99883", "100170", "99747", "100200", "100200", "99600", "100200", "100200", "99600", "100400", "99683", "99917", "100200", "100053", "99947", "99800"]}, "expect": "100000"},
+    "p6_no_common_grid": {"input": {"deltas_ns": ["1000000", "1007919", "1031676", "1071271", "1126704", "1197975", "1285084", "1388031", "1506816", "1641439", "1791900", "1058199", "1240336", "1438311", "1652124", "1881775"]}, "expect": "none"}
+  }
+}

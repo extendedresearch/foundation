@@ -1,0 +1,81 @@
+{
+  "clock_vector": "0",
+  "id": "0006-a-browser-host-id-is-its-epoch-and-keeps-no-suffix",
+  "about": "The browser domain's host_id and host_clock_epoch are both doc_epoch_from(nonce_hi, nonce_lo) for one realm nonce. DriftCheck ends the domain by replacing the epoch's suffix, and leaves host_id as it was: the realm does not change at a discontinuity. The clock is a two-sided engine with q = 100 us, so each monotonic reading is bounded (q, q); Date.now is floor-only at 1 ms. Observation 0 fires, against the start anchor: before is then the anchor's monotonic_ns on the ending domain, bounded by the anchor's error, ceil(s/2) + mono late + wall early and floor(s/2) + mono early + wall late, with basis ClockRead (9). Observation 1 is quiet on .e1, and observation 2 fires again, to .e2, with host_id unchanged. A face that suffixes host_id, appends .e1.e2, bounds before by the reading's own bound, or reports before as zero width fails a row.",
+  "function": "DriftCheck",
+  "faces": [
+    "browser"
+  ],
+  "nonce": {
+    "nonce_hi": 0,
+    "nonce_lo": 171
+  },
+  "domain": {
+    "resolution_ns": "100000"
+  },
+  "monotonic_rounding": "two_sided",
+  "anchor": {
+    "monotonic_ns": "1000000000",
+    "wall_unix_ns": "1700000000000000000",
+    "read_span_ns": "100000",
+    "wall_resolution_ns": "1000000",
+    "wall_rounding": "floor_only"
+  },
+  "threshold": {
+    "floor_ns": "5000000",
+    "rate_ppm": 1000
+  },
+  "observations": [
+    {
+      "monotonic_ns": "1500000000",
+      "wall_unix_ns": "1700000030500000000",
+      "read_span_ns": "0",
+      "wall_resolution_ns": "1000000"
+    },
+    {
+      "monotonic_ns": "2500000000",
+      "wall_unix_ns": "1700000031500000000",
+      "read_span_ns": "100000",
+      "wall_resolution_ns": "1000000"
+    },
+    {
+      "monotonic_ns": "2600000000",
+      "wall_unix_ns": "1700000091600000000",
+      "read_span_ns": "100000",
+      "wall_resolution_ns": "1000000"
+    }
+  ],
+  "rows": {
+    "host_id": {
+      "expect": "doc.00000000000000ab"
+    },
+    "host_clock_epoch": {
+      "expect": "doc.00000000000000ab"
+    },
+    "outcomes": {
+      "expect": "fired,quiet,fired"
+    },
+    "first": {
+      "expect": {
+        "before_host_clock_epoch": "doc.00000000000000ab",
+        "before_ns": "1000000000",
+        "before_early_ns": "150000",
+        "before_late_ns": "1150000",
+        "before_basis": "9",
+        "next_host_id": "doc.00000000000000ab",
+        "next_host_clock_epoch": "doc.00000000000000ab.e1",
+        "offset_change_ns": "30000000000",
+        "offset_change_below_ns": "1250000",
+        "offset_change_above_ns": "1250000"
+      }
+    },
+    "second": {
+      "expect": {
+        "before_host_clock_epoch": "doc.00000000000000ab.e1",
+        "before_ns": "2500000000",
+        "next_host_id": "doc.00000000000000ab",
+        "next_host_clock_epoch": "doc.00000000000000ab.e2"
+      }
+    }
+  }
+}

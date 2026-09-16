@@ -1,0 +1,339 @@
+{
+  "clock_vector": "0",
+  "id": "0012-an-anchor-keeps-the-first-narrowest-bracket-and-states-its-error",
+  "about": "Anchor::from_brackets(brackets, monotonic_resolution_ns, monotonic, wall_source, wall_resolution_ns, wall_rounding). Brackets are [m1, wall_unix_ns, m2]. A bracket with wall 0 or m2 < m1 is discarded; of the rest the smallest m2 - m1 is kept, the first on a tie; none left is none. monotonic_ns is m1 + floor(s/2) and read_span_ns is s. The bound is the anchor error on wall_unix_ns: early = ceil(s/2) + mono late + wall early, late = floor(s/2) + mono early + wall late, from bound_for_read of each leg, saturating; either resolution none gives UNBOUNDED on both sides with basis Unspecified (0), otherwise basis ClockRead (9). A face that uses the span alone fails native_worked and zero_span; keeps the last of a tie fails first_narrowest_on_a_tie; uses m2 as the anchor point fails every row with a span; ignores a two-sided leg fails the two_sided rows. wall_source is passed through and does not enter any value here.",
+  "function": "Anchor::from_brackets",
+  "faces": [
+    "native",
+    "browser"
+  ],
+  "rows": {
+    "native_worked": {
+      "input": {
+        "brackets": [
+          [
+            "999999000",
+            "1700000000000000000",
+            "1000001001"
+          ]
+        ],
+        "monotonic_resolution_ns": "100",
+        "monotonic_rounding": "floor_only",
+        "wall_resolution_ns": "100",
+        "wall_rounding": "floor_only"
+      },
+      "expect": {
+        "monotonic_ns": "1000000000",
+        "wall_unix_ns": "1700000000000000000",
+        "read_span_ns": "2001",
+        "early_ns": "1101",
+        "late_ns": "1100",
+        "basis": "9"
+      }
+    },
+    "macos_zero_is_not_the_error": {
+      "input": {
+        "brackets": [
+          [
+            "500",
+            "1700000000000000000",
+            "584"
+          ]
+        ],
+        "monotonic_resolution_ns": "42",
+        "monotonic_rounding": "floor_only",
+        "wall_resolution_ns": "1000",
+        "wall_rounding": "floor_only"
+      },
+      "expect": {
+        "monotonic_ns": "542",
+        "wall_unix_ns": "1700000000000000000",
+        "read_span_ns": "84",
+        "early_ns": "84",
+        "late_ns": "1042",
+        "basis": "9"
+      }
+    },
+    "zero_span": {
+      "input": {
+        "brackets": [
+          [
+            "500",
+            "1700000000000000000",
+            "500"
+          ]
+        ],
+        "monotonic_resolution_ns": "42",
+        "monotonic_rounding": "floor_only",
+        "wall_resolution_ns": "1000",
+        "wall_rounding": "floor_only"
+      },
+      "expect": {
+        "monotonic_ns": "500",
+        "wall_unix_ns": "1700000000000000000",
+        "read_span_ns": "0",
+        "early_ns": "42",
+        "late_ns": "1000",
+        "basis": "9"
+      }
+    },
+    "first_narrowest_on_a_tie": {
+      "input": {
+        "brackets": [
+          [
+            "1000000000",
+            "1700000000000000000",
+            "1000003000"
+          ],
+          [
+            "2000000000",
+            "1700000001000000000",
+            "2000002001"
+          ],
+          [
+            "3000000000",
+            "1700000002000000000",
+            "3000002001"
+          ]
+        ],
+        "monotonic_resolution_ns": "100",
+        "monotonic_rounding": "floor_only",
+        "wall_resolution_ns": "100",
+        "wall_rounding": "floor_only"
+      },
+      "expect": {
+        "monotonic_ns": "2000001000",
+        "wall_unix_ns": "1700000001000000000",
+        "read_span_ns": "2001",
+        "early_ns": "1101",
+        "late_ns": "1100",
+        "basis": "9"
+      }
+    },
+    "zero_wall_discarded": {
+      "input": {
+        "brackets": [
+          [
+            "1000000000",
+            "0",
+            "1000000000"
+          ],
+          [
+            "2000000000",
+            "1700000000000000000",
+            "2000000500"
+          ]
+        ],
+        "monotonic_resolution_ns": "1",
+        "monotonic_rounding": "floor_only",
+        "wall_resolution_ns": "1",
+        "wall_rounding": "floor_only"
+      },
+      "expect": {
+        "monotonic_ns": "2000000250",
+        "wall_unix_ns": "1700000000000000000",
+        "read_span_ns": "500",
+        "early_ns": "251",
+        "late_ns": "251",
+        "basis": "9"
+      }
+    },
+    "backwards_bracket_discarded": {
+      "input": {
+        "brackets": [
+          [
+            "5000",
+            "1700000000000000000",
+            "4000"
+          ],
+          [
+            "6000",
+            "1700000000000000001",
+            "9000"
+          ]
+        ],
+        "monotonic_resolution_ns": "1",
+        "monotonic_rounding": "floor_only",
+        "wall_resolution_ns": "1",
+        "wall_rounding": "floor_only"
+      },
+      "expect": {
+        "monotonic_ns": "7500",
+        "wall_unix_ns": "1700000000000000001",
+        "read_span_ns": "3000",
+        "early_ns": "1501",
+        "late_ns": "1501",
+        "basis": "9"
+      }
+    },
+    "no_valid_bracket": {
+      "input": {
+        "brackets": [
+          [
+            "0",
+            "0",
+            "2"
+          ],
+          [
+            "5",
+            "1700000000000000000",
+            "4"
+          ]
+        ],
+        "monotonic_resolution_ns": "1",
+        "monotonic_rounding": "floor_only",
+        "wall_resolution_ns": "1",
+        "wall_rounding": "floor_only"
+      },
+      "expect": "none"
+    },
+    "no_bracket": {
+      "input": {
+        "brackets": [],
+        "monotonic_resolution_ns": "1",
+        "monotonic_rounding": "floor_only",
+        "wall_resolution_ns": "1",
+        "wall_rounding": "floor_only"
+      },
+      "expect": "none"
+    },
+    "two_sided_monotonic": {
+      "input": {
+        "brackets": [
+          [
+            "1000",
+            "1700000000000000000",
+            "1010"
+          ]
+        ],
+        "monotonic_resolution_ns": "7",
+        "monotonic_rounding": "two_sided",
+        "wall_resolution_ns": "3",
+        "wall_rounding": "floor_only"
+      },
+      "expect": {
+        "monotonic_ns": "1005",
+        "wall_unix_ns": "1700000000000000000",
+        "read_span_ns": "10",
+        "early_ns": "12",
+        "late_ns": "15",
+        "basis": "9"
+      }
+    },
+    "two_sided_wall": {
+      "input": {
+        "brackets": [
+          [
+            "1000",
+            "1700000000000000000",
+            "1010"
+          ]
+        ],
+        "monotonic_resolution_ns": "7",
+        "monotonic_rounding": "floor_only",
+        "wall_resolution_ns": "3",
+        "wall_rounding": "two_sided"
+      },
+      "expect": {
+        "monotonic_ns": "1005",
+        "wall_unix_ns": "1700000000000000000",
+        "read_span_ns": "10",
+        "early_ns": "15",
+        "late_ns": "8",
+        "basis": "9"
+      }
+    },
+    "both_two_sided_odd_span": {
+      "input": {
+        "brackets": [
+          [
+            "1000",
+            "1700000000000000000",
+            "1011"
+          ]
+        ],
+        "monotonic_resolution_ns": "7",
+        "monotonic_rounding": "two_sided",
+        "wall_resolution_ns": "3",
+        "wall_rounding": "two_sided"
+      },
+      "expect": {
+        "monotonic_ns": "1005",
+        "wall_unix_ns": "1700000000000000000",
+        "read_span_ns": "11",
+        "early_ns": "16",
+        "late_ns": "15",
+        "basis": "9"
+      }
+    },
+    "unknown_monotonic_resolution": {
+      "input": {
+        "brackets": [
+          [
+            "0",
+            "1700000000000000000",
+            "2"
+          ]
+        ],
+        "monotonic_resolution_ns": "none",
+        "monotonic_rounding": "floor_only",
+        "wall_resolution_ns": "5",
+        "wall_rounding": "floor_only"
+      },
+      "expect": {
+        "monotonic_ns": "1",
+        "wall_unix_ns": "1700000000000000000",
+        "read_span_ns": "2",
+        "early_ns": "18446744073709551615",
+        "late_ns": "18446744073709551615",
+        "basis": "0"
+      }
+    },
+    "unknown_wall_resolution": {
+      "input": {
+        "brackets": [
+          [
+            "0",
+            "1700000000000000000",
+            "2"
+          ]
+        ],
+        "monotonic_resolution_ns": "5",
+        "monotonic_rounding": "floor_only",
+        "wall_resolution_ns": "none",
+        "wall_rounding": "floor_only"
+      },
+      "expect": {
+        "monotonic_ns": "1",
+        "wall_unix_ns": "1700000000000000000",
+        "read_span_ns": "2",
+        "early_ns": "18446744073709551615",
+        "late_ns": "18446744073709551615",
+        "basis": "0"
+      }
+    },
+    "finite_widths_saturate": {
+      "input": {
+        "brackets": [
+          [
+            "0",
+            "1",
+            "2"
+          ]
+        ],
+        "monotonic_resolution_ns": "18446744073709551614",
+        "monotonic_rounding": "floor_only",
+        "wall_resolution_ns": "5",
+        "wall_rounding": "floor_only"
+      },
+      "expect": {
+        "monotonic_ns": "1",
+        "wall_unix_ns": "1",
+        "read_span_ns": "2",
+        "early_ns": "18446744073709551615",
+        "late_ns": "6",
+        "basis": "9"
+      }
+    }
+  }
+}

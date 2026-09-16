@@ -1,0 +1,45 @@
+{
+  "clock_vector": "0",
+  "id": "0015-basis-integers-are-fixed",
+  "about": "Basis variants as integers, which are the clock vocabulary's own definition: unspecified 0 to file_read 6, then display_frame 7, audio_output_buffer 8, clock_read 9 and platform_event_timestamp 10, the last four provisional. A basis crosses a boundary and is recorded as its integer, so no value is renumbered or reused. Row names are the variant names in snake case. A face that renumbers, or appends in another order, fails a row.",
+  "function": "Basis",
+  "faces": [
+    "native",
+    "browser"
+  ],
+  "rows": {
+    "unspecified": {
+      "expect": "0"
+    },
+    "after_read_returned": {
+      "expect": "1"
+    },
+    "in_platform_callback": {
+      "expect": "2"
+    },
+    "kernel_socket_timestamp": {
+      "expect": "3"
+    },
+    "interrupt_edge": {
+      "expect": "4"
+    },
+    "browser_event_handler": {
+      "expect": "5"
+    },
+    "file_read": {
+      "expect": "6"
+    },
+    "display_frame": {
+      "expect": "7"
+    },
+    "audio_output_buffer": {
+      "expect": "8"
+    },
+    "clock_read": {
+      "expect": "9"
+    },
+    "platform_event_timestamp": {
+      "expect": "10"
+    }
+  }
+}

@@ -1,0 +1,101 @@
+{
+  "clock_vector": "0",
+  "id": "0011-ms-to-ns-rounds-to-nearest-and-refuses-what-is-not-a-time",
+  "about": "ns_from_ms(ms) is (ms * 1e6) rounded half away from zero, as one f64 multiply then a round. Inputs are IEEE-754 bit patterns, so the row tests the conversion and not a decimal parser. 4.1 ms multiplies to 4099999.9999999995 and truncation reads 4099999. At epoch scale the single multiply gives ...030144, 115 ns from the exact decimal value, and a face that converts whole and fractional milliseconds separately gives ...030029. -0.0 is not negative and gives 0; the smallest negative subnormal is negative. NaN and both infinities are not_finite. A product of exactly 2^64 is out_of_range, and the double below it is the largest input that fits.",
+  "function": "ns_from_ms",
+  "faces": [
+    "browser"
+  ],
+  "rows": {
+    "tenths_that_truncate_wrong": {
+      "input": {
+        "ms": "0x4010666666666666"
+      },
+      "expect": "4100000"
+    },
+    "thousandths": {
+      "input": {
+        "ms": "0x3ff0147ae147ae14"
+      },
+      "expect": "1005000"
+    },
+    "sixtieth_of_a_second": {
+      "input": {
+        "ms": "0x4030aaaaaaaaaaab"
+      },
+      "expect": "16666667"
+    },
+    "epoch_scale": {
+      "input": {
+        "ms": "0x427a0a9550a1507b"
+      },
+      "expect": "1789547317781030144"
+    },
+    "negative_zero": {
+      "input": {
+        "ms": "0x8000000000000000"
+      },
+      "expect": "0"
+    },
+    "zero": {
+      "input": {
+        "ms": "0x0000000000000000"
+      },
+      "expect": "0"
+    },
+    "negative": {
+      "input": {
+        "ms": "0xbff0000000000000"
+      },
+      "expect": "refused:negative"
+    },
+    "smallest_negative": {
+      "input": {
+        "ms": "0x8000000000000001"
+      },
+      "expect": "refused:negative"
+    },
+    "nan": {
+      "input": {
+        "ms": "0x7ff8000000000000"
+      },
+      "expect": "refused:not_finite"
+    },
+    "positive_infinity": {
+      "input": {
+        "ms": "0x7ff0000000000000"
+      },
+      "expect": "refused:not_finite"
+    },
+    "negative_infinity": {
+      "input": {
+        "ms": "0xfff0000000000000"
+      },
+      "expect": "refused:not_finite"
+    },
+    "half_rounds_up": {
+      "input": {
+        "ms": "0x3ec4f8b588e368f1"
+      },
+      "expect": "3"
+    },
+    "largest_that_fits": {
+      "input": {
+        "ms": "0x42b0c6f7a0b5ed8c"
+      },
+      "expect": "18446744073709547520"
+    },
+    "rounds_to_two_pow_64": {
+      "input": {
+        "ms": "0x42b0c6f7a0b5ed8d"
+      },
+      "expect": "refused:out_of_range"
+    },
+    "largest_double": {
+      "input": {
+        "ms": "0x7fefffffffffffff"
+      },
+      "expect": "refused:out_of_range"
+    }
+  }
+}

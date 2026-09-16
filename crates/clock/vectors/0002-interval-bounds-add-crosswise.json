@@ -1,0 +1,29 @@
+{
+  "clock_vector": "0",
+  "id": "0002-interval-bounds-add-crosswise",
+  "about": "later.since(earlier) on one domain returns Ok(Interval) with ns = later - earlier, below = early(later) + late(earlier), above = late(later) + early(earlier), each sum saturating at UNBOUNDED; it returns Err(Overflow) when ns does not fit i64. The stimulus is a 60 Hz frame stamp (basis 7) standing for stimulus onset, whose uncertainty is on the late side: late UNBOUNDED, because photons follow frame start by an amount no page can bound, and early equal to the early side of the clock-read bound on the same engine. That engine can round up, with q = 100 us, so the onset bound is (q, UNBOUNDED) and the response, a direct clock read (basis 9), is bounded (q, q). The floor read (basis 9) is a floor-only engine with q = 1 ms, bounded (0, q). A face that adds the widths symmetrically, swaps early and late, wraps on overflow, or saturates ns instead of refusing fails a row.",
+  "function": "Reading::since",
+  "faces": ["native", "browser"],
+  "domain": { "host_id": "fixture-host", "host_clock_epoch": "boot.6553f0c4" },
+  "readings": {
+    "stimulus_onset": { "ns": "1000000000", "early_ns": "100000", "late_ns": "18446744073709551615", "basis": 7 },
+    "response_read":  { "ns": "1250000000", "early_ns": "100000", "late_ns": "100000",               "basis": 9 },
+    "floor_read":     { "ns": "1000000000", "early_ns": "0",      "late_ns": "1000000",              "basis": 9 },
+    "wide_a":         { "ns": "3000000000", "early_ns": "9223372036854775808", "late_ns": "0", "basis": 0 },
+    "wide_b":         { "ns": "2000000000", "early_ns": "0", "late_ns": "9223372036854775808", "basis": 0 },
+    "zero":           { "ns": "0",                    "early_ns": "0", "late_ns": "0", "basis": 0 },
+    "i64_max":        { "ns": "9223372036854775807",  "early_ns": "0", "late_ns": "0", "basis": 0 },
+    "i64_max_plus_1": { "ns": "9223372036854775808",  "early_ns": "0", "late_ns": "0", "basis": 0 },
+    "u64_max":        { "ns": "18446744073709551615", "early_ns": "0", "late_ns": "0", "basis": 0 }
+  },
+  "rows": {
+    "forward":              { "input": { "later": "response_read",  "earlier": "stimulus_onset" }, "expect": { "ns": "250000000",  "below_ns": "18446744073709551615", "above_ns": "200000" } },
+    "reversed":             { "input": { "later": "stimulus_onset", "earlier": "response_read" },  "expect": { "ns": "-250000000", "below_ns": "200000", "above_ns": "18446744073709551615" } },
+    "finite_crosswise":     { "input": { "later": "response_read",  "earlier": "floor_read" },     "expect": { "ns": "250000000",  "below_ns": "1100000", "above_ns": "100000" } },
+    "finite_sum_saturates": { "input": { "later": "wide_a", "earlier": "wide_b" }, "expect": { "ns": "1000000000", "below_ns": "18446744073709551615", "above_ns": "0" } },
+    "ns_at_i64_max":        { "input": { "later": "i64_max", "earlier": "zero" }, "expect": { "ns": "9223372036854775807", "below_ns": "0", "above_ns": "0" } },
+    "ns_above_i64_max":     { "input": { "later": "i64_max_plus_1", "earlier": "zero" }, "expect": "refused:overflow" },
+    "ns_at_i64_min":        { "input": { "later": "zero", "earlier": "i64_max_plus_1" }, "expect": { "ns": "-9223372036854775808", "below_ns": "0", "above_ns": "0" } },
+    "ns_below_i64_min":     { "input": { "later": "zero", "earlier": "u64_max" }, "expect": "refused:overflow" }
+  }
+}

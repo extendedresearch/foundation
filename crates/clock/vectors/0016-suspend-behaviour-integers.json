@@ -1,0 +1,21 @@
+{
+  "clock_vector": "0",
+  "id": "0016-suspend-behaviour-integers",
+  "about": "SuspendBehaviour variants as integers, which are the clock vocabulary's own definition: unspecified 0, included 1, excluded 2. Unspecified is not Included, and no face infers one from the other.",
+  "function": "SuspendBehaviour",
+  "faces": [
+    "native",
+    "browser"
+  ],
+  "rows": {
+    "unspecified": {
+      "expect": "0"
+    },
+    "included": {
+      "expect": "1"
+    },
+    "excluded": {
+      "expect": "2"
+    }
+  }
+}

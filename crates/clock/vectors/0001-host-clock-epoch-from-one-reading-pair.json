@@ -1,0 +1,15 @@
+{
+  "clock_vector": "0",
+  "id": "0001-host-clock-epoch-from-one-reading-pair",
+  "about": "host_clock_epoch_from(wall_ns, monotonic_ns) is boot. plus unpadded lowercase hex of floor((wall - monotonic) / 1e9), saturating at zero. A sub-second wall step keeps the epoch; a step that crosses a whole-second boundary splits it even when it is two nanoseconds, which is the derivation's documented non-airtightness, pinned so that nobody 'fixes' it in one face only.",
+  "function": "host_clock_epoch_from",
+  "faces": ["native"],
+  "rows": {
+    "nominal":              { "input": { "wall_unix_ns": "1700000000000000000", "monotonic_ns": "60000000000" }, "expect": "boot.6553f0c4" },
+    "sub_second_step":      { "input": { "wall_unix_ns": "1700000000400000000", "monotonic_ns": "60000000000" }, "expect": "boot.6553f0c4" },
+    "one_hour_later":       { "input": { "wall_unix_ns": "1700003600000000000", "monotonic_ns": "60000000000" }, "expect": "boot.6553fed4" },
+    "boundary_below":       { "input": { "wall_unix_ns": "1700000000999999999", "monotonic_ns": "60000000000" }, "expect": "boot.6553f0c4" },
+    "boundary_above":       { "input": { "wall_unix_ns": "1700000001000000001", "monotonic_ns": "60000000000" }, "expect": "boot.6553f0c5" },
+    "monotonic_above_wall": { "input": { "wall_unix_ns": "5", "monotonic_ns": "500" }, "expect": "boot.0" }
+  }
+}

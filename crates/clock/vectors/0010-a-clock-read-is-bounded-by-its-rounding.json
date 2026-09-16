@@ -1,0 +1,78 @@
+{
+  "clock_vector": "0",
+  "id": "0010-a-clock-read-is-bounded-by-its-rounding",
+  "about": "bound_for_read(resolution_ns, rounding): Some(q) with floor_only is (0, q) and with two_sided is (q, q), both with basis ClockRead (9); None is Bound::UNKNOWN, both sides UNBOUNDED with basis Unspecified (0), whatever the rounding. A face that gives a floor-only clock an early side, a two-sided one no early side, or keeps ClockRead on an unknown resolution fails a row.",
+  "function": "bound_for_read",
+  "faces": [
+    "native",
+    "browser"
+  ],
+  "rows": {
+    "floor_only": {
+      "input": {
+        "resolution_ns": "100000",
+        "rounding": "floor_only"
+      },
+      "expect": {
+        "early_ns": "0",
+        "late_ns": "100000",
+        "basis": "9"
+      }
+    },
+    "two_sided": {
+      "input": {
+        "resolution_ns": "100000",
+        "rounding": "two_sided"
+      },
+      "expect": {
+        "early_ns": "100000",
+        "late_ns": "100000",
+        "basis": "9"
+      }
+    },
+    "unknown_floor_only": {
+      "input": {
+        "resolution_ns": "none",
+        "rounding": "floor_only"
+      },
+      "expect": {
+        "early_ns": "18446744073709551615",
+        "late_ns": "18446744073709551615",
+        "basis": "0"
+      }
+    },
+    "unknown_two_sided": {
+      "input": {
+        "resolution_ns": "none",
+        "rounding": "two_sided"
+      },
+      "expect": {
+        "early_ns": "18446744073709551615",
+        "late_ns": "18446744073709551615",
+        "basis": "0"
+      }
+    },
+    "native_one_ns": {
+      "input": {
+        "resolution_ns": "1",
+        "rounding": "floor_only"
+      },
+      "expect": {
+        "early_ns": "0",
+        "late_ns": "1",
+        "basis": "9"
+      }
+    },
+    "zero_resolution": {
+      "input": {
+        "resolution_ns": "0",
+        "rounding": "two_sided"
+      },
+      "expect": {
+        "early_ns": "0",
+        "late_ns": "0",
+        "basis": "9"
+      }
+    }
+  }
+}

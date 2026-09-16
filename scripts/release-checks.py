@@ -71,6 +71,7 @@ PYTHON_DIST = "extendedresearch_conformance"
 
 LICENCE_COPIES = (
     "crates/abi",
+    "crates/clock",
     "crates/napi",
     "crates/pyo3",
     "dotnet/Interop.Package",

@@ -1,0 +1,163 @@
+{
+  "clock_vector": "0",
+  "id": "0007-readings-subtract-only-on-byte-equal-domains",
+  "about": "Reading::since subtracts only when both readings' host_id and host_clock_epoch are byte-equal, and compares nothing else. Case, a trailing space, a .e<n> suffix and Unicode normalisation all make two domains different: nfc_against_nfd is U+00E9 against e followed by U+0301, which render alike and are different bytes. A domain whose monotonic_source differs but whose two strings are equal is the same domain. A face that folds case, trims, normalises, ignores the suffix or compares any other field fails a row. Each reading names its own domain; a reading without monotonic_source uses CLOCK_BOOTTIME.",
+  "function": "Reading::since",
+  "faces": [
+    "native",
+    "browser"
+  ],
+  "readings": {
+    "base_later": {
+      "host_id": "fixture-host",
+      "host_clock_epoch": "boot.6553f0c4",
+      "ns": "2000",
+      "early_ns": "0",
+      "late_ns": "100",
+      "basis": 9
+    },
+    "base_earlier": {
+      "host_id": "fixture-host",
+      "host_clock_epoch": "boot.6553f0c4",
+      "ns": "1000",
+      "early_ns": "0",
+      "late_ns": "100",
+      "basis": 9
+    },
+    "upper_hex": {
+      "host_id": "fixture-host",
+      "host_clock_epoch": "boot.6553F0C4",
+      "ns": "1000",
+      "early_ns": "0",
+      "late_ns": "100",
+      "basis": 9
+    },
+    "trailing_space_host": {
+      "host_id": "fixture-host ",
+      "host_clock_epoch": "boot.6553f0c4",
+      "ns": "1000",
+      "early_ns": "0",
+      "late_ns": "100",
+      "basis": 9
+    },
+    "other_host": {
+      "host_id": "other-host",
+      "host_clock_epoch": "boot.6553f0c4",
+      "ns": "1000",
+      "early_ns": "0",
+      "late_ns": "100",
+      "basis": 9
+    },
+    "suffixed_epoch": {
+      "host_id": "fixture-host",
+      "host_clock_epoch": "boot.6553f0c4.e1",
+      "ns": "1000",
+      "early_ns": "0",
+      "late_ns": "100",
+      "basis": 9
+    },
+    "nfc_later": {
+      "host_id": "caf\u00e9",
+      "host_clock_epoch": "boot.6553f0c4",
+      "ns": "2000",
+      "early_ns": "0",
+      "late_ns": "100",
+      "basis": 9
+    },
+    "nfd_earlier": {
+      "host_id": "cafe\u0301",
+      "host_clock_epoch": "boot.6553f0c4",
+      "ns": "1000",
+      "early_ns": "0",
+      "late_ns": "100",
+      "basis": 9
+    },
+    "nfc_earlier": {
+      "host_id": "caf\u00e9",
+      "host_clock_epoch": "boot.6553f0c4",
+      "ns": "1000",
+      "early_ns": "0",
+      "late_ns": "100",
+      "basis": 9
+    },
+    "different_source": {
+      "host_id": "fixture-host",
+      "host_clock_epoch": "boot.6553f0c4",
+      "ns": "1000",
+      "early_ns": "0",
+      "late_ns": "100",
+      "basis": 9,
+      "monotonic_source": "QueryPerformanceCounter"
+    }
+  },
+  "rows": {
+    "byte_equal": {
+      "input": {
+        "later": "base_later",
+        "earlier": "base_earlier"
+      },
+      "expect": {
+        "ns": "1000",
+        "below_ns": "100",
+        "above_ns": "100"
+      }
+    },
+    "hex_case_differs": {
+      "input": {
+        "later": "base_later",
+        "earlier": "upper_hex"
+      },
+      "expect": "refused:domain_mismatch"
+    },
+    "trailing_space_in_host_id": {
+      "input": {
+        "later": "base_later",
+        "earlier": "trailing_space_host"
+      },
+      "expect": "refused:domain_mismatch"
+    },
+    "same_epoch_other_host": {
+      "input": {
+        "later": "base_later",
+        "earlier": "other_host"
+      },
+      "expect": "refused:domain_mismatch"
+    },
+    "suffix_differs": {
+      "input": {
+        "later": "base_later",
+        "earlier": "suffixed_epoch"
+      },
+      "expect": "refused:domain_mismatch"
+    },
+    "nfc_against_nfd": {
+      "input": {
+        "later": "nfc_later",
+        "earlier": "nfd_earlier"
+      },
+      "expect": "refused:domain_mismatch"
+    },
+    "nfc_against_nfc": {
+      "input": {
+        "later": "nfc_later",
+        "earlier": "nfc_earlier"
+      },
+      "expect": {
+        "ns": "1000",
+        "below_ns": "100",
+        "above_ns": "100"
+      }
+    },
+    "source_is_not_identity": {
+      "input": {
+        "later": "base_later",
+        "earlier": "different_source"
+      },
+      "expect": {
+        "ns": "1000",
+        "below_ns": "100",
+        "above_ns": "100"
+      }
+    }
+  }
+}
