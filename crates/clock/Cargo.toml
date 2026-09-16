@@ -1,0 +1,31 @@
+# One vocabulary for a clock reading, shared by every package that timestamps
+# anything: a reading carries the domain it was taken on and a worst-case bound
+# on when the event it stamps happened.
+#
+# **This is the target-independent core only.** It holds data and arithmetic —
+# bound composition, the epoch and nonce formats, the anchor and its error, the
+# timer-quantum search, the drift check — and reads no platform clock. The
+# native face (`host`) and the browser face (`browser`) are later modules; the
+# core compiles for `wasm32-unknown-unknown` and every host target with no `cfg`
+# inside it, and CI's `wasm` job holds that.
+#
+# **No dependency, and no `unsafe`.** The workspace denies `unsafe_code`, and no
+# module here allows it. The conformance vectors under `vectors/` are
+# language-free JSON, read by `tests/vectors.rs` with a parser written in the
+# test, so reading them adds no dependency either.
+[package]
+name = "extendedresearch-clock"
+version = "0.1.1"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Clock readings that carry their domain and a worst-case bound, and the arithmetic over them."
+categories = ["date-and-time"]
+keywords = ["clock", "timestamp", "monotonic", "timing"]
+include = ["src/**", "tests/**", "vectors/**", "Cargo.toml", "LICENSE", "NOTICE"]
+
+[lints]
+workspace = true
+
+[dependencies]
