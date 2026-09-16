@@ -201,6 +201,24 @@ jobs:
         with:
           log: cargo-test.log
 
+  # The clock crate's core is target-independent: the browser face compiles it
+  # to wasm, and a platform type or a `cfg` that leaked into it would stop that
+  # build while every native job stayed green. A different target is a
+  # different compiled graph, so it is its own job. `cargo check` rather than a
+  # test run: the vectors run against the same source in `check`, and
+  # `wasm32-unknown-unknown` has no test runner.
+  wasm:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install toolchain
+        run: |
+          rustup toolchain install stable --profile minimal --target wasm32-unknown-unknown
+          rustup default stable
+      - name: The clock core compiles for wasm32
+        run: cargo check --target wasm32-unknown-unknown -p extendedresearch-clock
+
   # The one check an ordinary test run cannot make. `borrow` makes references
   # from a caller's pointers, and whether that is sound over uninitialised
   # memory is a property of the abstract machine rather than of the output, so
