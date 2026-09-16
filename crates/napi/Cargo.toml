@@ -18,7 +18,7 @@
 # generates refers to the `napi` crate by that name.
 [package]
 name = "extendedresearch-napi"
-version = "0.1.0"
+version = "0.1.1"
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
@@ -33,7 +33,7 @@ include = ["src/**", "tests/**", "Cargo.toml", "README.md", "LICENSE", "NOTICE"]
 workspace = true
 
 [dependencies]
-extendedresearch-abi = { version = "0.1.0", path = "../abi" }
+extendedresearch-abi = { version = "0.1.1", path = "../abi" }
 napi = { version = "3", default-features = false, features = ["napi6"] }
 
 [dev-dependencies]

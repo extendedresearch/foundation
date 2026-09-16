@@ -10,7 +10,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "extendedresearch-conformance"
-version = "0.1.0"
+version = "0.1.1"
 description = "Run every language binding of a package through one set of cases and compare them with each other and with the C header."
 readme = "README.md"
 requires-python = ">=3.11"

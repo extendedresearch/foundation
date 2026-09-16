@@ -3,20 +3,51 @@ name: release
 # A version tag builds every release asset and attaches them to a GitHub
 # Release for that tag. `scripts/build-release-assets.sh` is the whole build,
 # and `ci.yml` runs the same script on every pull request, so a tag is never the
-# first time it runs. No asset goes to a package registry.
+# first time it runs.
+#
+# **One asset also goes to a package registry: the npm tarball.** It is
+# published as `@extendedresearch/binding-runtime` and stays attached to the
+# release as well, so a consumer installs by name or by download URL and gets
+# the same bytes — the file published is the one the script built and checked,
+# not a second `npm pack`. The crates, the `.nupkg` and the wheel reach a
+# package the way `CONTEXT.md` describes, from this release and from nowhere
+# else.
+#
+# **Two ways to authenticate for npm, and this file needs no edit to move
+# between them.** The job holds `id-token: write`, and npm 11.5.1 or later
+# "automatically detects OIDC environments and uses them for authentication
+# before falling back to traditional tokens" (docs.npmjs.com/trusted-publishers).
+#
+#   1. Today the publish uses the `NPM_TOKEN` secret. A trusted publisher can
+#      only be configured on a package that already exists, so the first version
+#      has to arrive by token.
+#   2. Then, on npmjs.com, configure a trusted publisher for the package: GitHub
+#      Actions, organization `extendedresearch`, repository `foundation`,
+#      workflow filename `release.yml`, no environment.
+#   3. Then delete the `NPM_TOKEN` secret, and set the package's publishing
+#      access to "Require two-factor authentication and disallow tokens".
+#
+# With the secret deleted `secrets.NPM_TOKEN` is empty, the publish step writes
+# no token into its `.npmrc`, and OIDC is the only credential left.
 #
 # **A release tag is never moved.** A package pins the Rust crates to the commit
 # the tag points to and downloads the other assets from the tag's release. A tag
 # moved to another commit separates the two, and one version then names two
-# different trees. A mistake is corrected by the next version.
+# different trees. A mistake is corrected by the next version. A published npm
+# version is fixed the same way and more strictly: the registry refuses a second
+# publish of a version it already holds.
 on:
   push:
     tags: ["v*.*.*"]
 
-# Creating the release and uploading its assets is the one write, made with the
-# workflow's own GITHUB_TOKEN. No other secret is read.
+# Creating the release and uploading its assets is the one write on GitHub, made
+# with the workflow's own GITHUB_TOKEN. `id-token: write` lets the job ask
+# GitHub for the OIDC token npm exchanges for a publish credential, and is what
+# npm signs a provenance attestation with. `NPM_TOKEN` is the one secret read,
+# by the one step that publishes; `ci.yml` reads none.
 permissions:
   contents: write
+  id-token: write
 
 # Two runs for one tag must not race to create the same release.
 concurrency:
@@ -37,9 +68,17 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      # **An exact Node, because trusted publishing needs 22.14.0 or later** and
+      # `22` would accept whatever 22.x the runner image already caches. 22.23.2
+      # was the newest 22.x in nodejs.org's release index on 2026-09-15:
+      #
+      #     curl -s https://nodejs.org/dist/index.json
+      #
+      # No `registry-url` here: the credential is written in the one step that
+      # publishes, so the build runs without one.
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 22.23.2
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0.x
@@ -52,6 +91,99 @@ jobs:
       # is the one the tag names.
       - name: Build the release assets
         run: bash scripts/build-release-assets.sh "$RUNNER_TEMP/release-assets" "$GITHUB_REF_NAME"
+
+      # **After the build, so the tarball is packed by the npm Node ships**,
+      # which is the npm `ci.yml`'s `release-assets` job packs it with; only the
+      # publish runs on the npm installed here. Node 22.23.2 bundles npm 10.9.8
+      # (`.npm` in nodejs.org's release index) and trusted publishing needs
+      # 11.5.1, so that npm is installed, pinned exactly. 11.19.1 was
+      # `npm view npm@11 version`'s newest on 2026-09-15. The check fails the
+      # job rather than letting a token-less publish reach the registry with an
+      # npm that cannot use OIDC.
+      - name: Install the npm that publishes
+        run: |
+          npm install -g npm@11.19.1
+          node - <<'EOF'
+          const { execSync } = require("node:child_process");
+          const node = process.versions.node;
+          const npm = execSync("npm --version").toString().trim();
+          const atLeast = (have, want) => {
+            const a = have.split(".").map(Number), b = want.split(".").map(Number);
+            for (let i = 0; i < 3; i++) if (a[i] !== b[i]) return a[i] > b[i];
+            return true;
+          };
+          console.log(`node ${node}, npm ${npm}`);
+          if (!atLeast(node, "22.14.0") || !atLeast(npm, "11.5.1")) {
+            console.error("trusted publishing needs node >= 22.14.0 and npm >= 11.5.1");
+            process.exit(1);
+          }
+          EOF
+
+      # **The file published is the file the release attaches.** It comes out of
+      # the build's output directory, so npm packs nothing here and cannot pack
+      # a tarball that differs from the one `SHA256SUMS` covers. Every check in
+      # `scripts/build-release-assets.sh` has passed by the time this runs: each
+      # version equals the tag, the tarball holds exactly the files it should,
+      # each compiled module imports nothing, and a scratch project installed it
+      # and imported every export.
+      #
+      # **npm first, then the GitHub Release, so a run that failed part-way can
+      # be re-run into a finished release.** A version already on the registry is
+      # skipped here, while `gh release create` fails when the tag already has a
+      # release — so in the other order, a run that created the release and then
+      # failed to publish could never reach this step again. The registry half is
+      # also the half no re-run can undo: npm refuses a second publish of a
+      # version it holds.
+      #
+      # **`--provenance` because this repository is public.** npm builds the
+      # attestation from the OIDC token and the run that produced the tarball,
+      # and generates none from a private repository. `--access public` is passed
+      # as well as set in the manifest's `publishConfig`, because a scoped
+      # package's first publish is restricted unless something says otherwise,
+      # and a restricted package answers 404 to everyone outside the
+      # organisation.
+      #
+      # **The token line is written only when the secret is set.** The `.npmrc`
+      # names `NODE_AUTH_TOKEN` and npm expands it while reading the file, so no
+      # token is written to disk; the file lives under `$RUNNER_TEMP`, so none is
+      # written into the checkout either. Once the secret is deleted the line is
+      # left out, rather than written with an empty value, and OIDC is the only
+      # credential npm can find.
+      #
+      # **The skip check is a plain `npm view`.** The package is public, so an
+      # anonymous read sees every published version and the check holds even
+      # after the token is gone.
+      - name: Publish the npm tarball to the registry
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          set -euo pipefail
+          version=$(python scripts/release-checks.py version | tr -d '\r')
+          tarball="$RUNNER_TEMP/release-assets/extendedresearch-binding-runtime-$version.tgz"
+          # A bare `test -f` would fail the job with no line saying what is
+          # missing, at a step whose name reads as a registry problem.
+          if [ ! -f "$tarball" ]; then
+            echo "::error::the build wrote no $(basename "$tarball") into $RUNNER_TEMP/release-assets"
+            exit 1
+          fi
+
+          npmrc="$RUNNER_TEMP/publish.npmrc"
+          echo '@extendedresearch:registry=https://registry.npmjs.org/' > "$npmrc"
+          if [ -n "${NODE_AUTH_TOKEN:-}" ]; then
+            echo '//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}' >> "$npmrc"
+            echo "authenticating with the NPM_TOKEN secret, after any OIDC exchange npm attempts"
+          else
+            echo "no NPM_TOKEN secret; authenticating through trusted publishing (OIDC) alone"
+          fi
+          export NPM_CONFIG_USERCONFIG="$npmrc"
+
+          name="@extendedresearch/binding-runtime"
+          if npm view "${name}@${version}" version >/dev/null 2>&1; then
+            echo "::notice::${name}@${version} is already on the registry; skipping"
+            exit 0
+          fi
+          npm publish "$tarball" --provenance --access public
+
       # `--verify-tag` aborts when the tag does not already exist on GitHub, so
       # the release attaches to the pushed tag and never creates one.
       - name: Create the release

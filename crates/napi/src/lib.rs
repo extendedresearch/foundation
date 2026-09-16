@@ -9,7 +9,7 @@
 //! | [`Tokens`] | The error token protocol for one package: an [`AbiError`] becomes a `napi::Error` whose message is `"<PREFIX>_ERR_X: sentence"` |
 //! | [`Tokens::to_u64`], [`from_u64`] | `BigInt` to `u64` and back, refusing a value that does not fit |
 //! | [`status_exports!`], [`abi_version_exports!`], [`enumeration_exports!`] | The `#[napi]` functions a binding exports, expanded **in the consuming crate** |
-//! | `@extendedresearch/binding-runtime` | The TypeScript half — `errors`, `harden` and `enums` — which is an npm package attached to foundation's releases rather than part of this crate |
+//! | `@extendedresearch/binding-runtime` | The TypeScript half — `errors`, `harden` and `enums` — published on the npm registry and attached to each foundation release, rather than part of this crate |
 //!
 //! # Why the code travels in the message
 //!

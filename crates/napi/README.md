@@ -46,10 +46,10 @@ export const errors = createErrors({
 });
 ```
 
-The package is attached to foundation's releases, not published to the npm
-registry. Install it from the release whose tagged commit you pin this crate
-to, so both halves come from one commit; `npm/binding-runtime/README.md` has the
-command.
+The package is on the npm registry, and the same tarball is attached to each
+foundation release. Install the version whose release the commit you pin this
+crate to belongs to, so both halves come from one commit;
+`npm/binding-runtime/README.md` has both commands.
 
 ## napi version
 
@@ -62,5 +62,5 @@ manifest: the macros expand to `#[napi]` items in your crate.
 
 ## Status
 
-0.1.0, consumed as a git dependency pinned by `rev`; nothing is frozen.
+0.1.1, consumed as a git dependency pinned by `rev`; nothing is frozen.
 Licensed under Apache-2.0. See `LICENSE` and `NOTICE`.

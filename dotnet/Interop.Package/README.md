@@ -33,8 +33,8 @@ so download the package into a folder in your repository:
 
 ```bash
 mkdir -p nuget
-curl -fL -o nuget/ExtendedResearch.Interop.0.1.0.nupkg \
-  https://github.com/extendedresearch/foundation/releases/download/v0.1.0/ExtendedResearch.Interop.0.1.0.nupkg
+curl -fL -o nuget/ExtendedResearch.Interop.0.1.1.nupkg \
+  https://github.com/extendedresearch/foundation/releases/download/v0.1.1/ExtendedResearch.Interop.0.1.1.nupkg
 ```
 
 Name the folder in a `nuget.config` beside your project, and map the package id
@@ -64,7 +64,7 @@ Then reference it by exact version:
 
 ```xml
 <ItemGroup>
-  <PackageReference Include="ExtendedResearch.Interop" Version="[0.1.0]" PrivateAssets="all" />
+  <PackageReference Include="ExtendedResearch.Interop" Version="[0.1.1]" PrivateAssets="all" />
 </ItemGroup>
 ```
 
@@ -76,5 +76,5 @@ it restores the package from a local folder and builds for `netstandard2.1` and
 
 ## Status
 
-0.1.0. A later 0.x release can change any name or signature. Licensed under
+0.1.1. A later 0.x release can change any name or signature. Licensed under
 Apache-2.0. See `LICENSE` and `NOTICE`.

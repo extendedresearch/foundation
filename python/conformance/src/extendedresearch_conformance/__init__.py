@@ -10,4 +10,4 @@ included.
 `conformance.toml`; `header` reads the constants the header defines.
 """
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
