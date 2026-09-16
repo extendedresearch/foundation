@@ -121,9 +121,13 @@ same way — `<owner>/<repo>/.github/actions/<name>@<commit>` — which needs no
 checkout and no credential.
 
 **A release is the one write, and it is a workflow of its own.** foundation's
-`release.yml` runs only on a version tag, with `permissions: contents: write`,
-and creates the GitHub Release with the workflow's own `GITHUB_TOKEN`; it reads
-no other secret. The build it runs is `scripts/build-release-assets.sh`, which
+`release.yml` runs only on a version tag, with `permissions: contents: write`
+and `id-token: write`, and creates the GitHub Release with the workflow's own
+`GITHUB_TOKEN`. It reads one secret, `NPM_TOKEN`, in the one step that publishes
+the npm tarball — the only secret any workflow here reads, and the reason
+publishing is a workflow of its own rather than a job in `ci.yml`: `ci.yml`
+reads none, and the split is what keeps that true as the release grows. The
+build it runs is `scripts/build-release-assets.sh`, which
 the read-only `release-assets` job in `ci.yml` runs on every pull request, so
 the token is never what first exercises the packaging.
 

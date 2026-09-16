@@ -17,8 +17,17 @@ is no root export: import the subpath you need.
 
 ## Install
 
-The package is attached to each foundation release and is not on the npm
-registry. Install the tarball from the release's download URL:
+```bash
+npm install @extendedresearch/binding-runtime@0.1.1
+```
+
+An exact version, not a range: the native half is a Rust crate your manifest
+pins by `rev` to one foundation commit, and this half is published from that
+commit's release. Install the version whose release the `rev` you pin belongs
+to, so both halves come from one commit.
+
+The same tarball stays attached to each foundation release, so you can install
+it by download URL instead, and a package that already did needs no change:
 
 ```bash
 npm install https://github.com/extendedresearch/foundation/releases/download/v0.1.1/extendedresearch-binding-runtime-0.1.1.tgz
@@ -26,11 +35,8 @@ npm install https://github.com/extendedresearch/foundation/releases/download/v0.
 
 npm installs a tarball given as an `http://` or `https://` URL
 ([`npm install <tarball url>`](https://docs.npmjs.com/cli/v10/commands/npm-install)).
-The release's `SHA256SUMS` covers the tarball.
-
-Take the tarball from the release whose tagged commit your `rev` of
-`extendedresearch-napi` pins, so the native half and this half come from one
-commit.
+The two are the same file: `release.yml` publishes the asset it attaches, and
+the release's `SHA256SUMS` covers it.
 
 The tarball carries compiled JavaScript and declarations, `dist/*.js` and
 `dist/*.d.ts`, not TypeScript sources: Node refuses to strip types from `.ts`

@@ -37,19 +37,20 @@ boundary's (`codes.rs`), and each library numbers its own from `-16` down.
 | `crates/abi-testlib` | `publish = false`. A cdylib shaped like a package — a safe core and a C adapter over it — for the .NET tests and for Miri. `tests/interop_codes.rs` compares `dotnet/Interop/AbiCodes.cs` with `extendedresearch_abi::codes` |
 | `crates/napi-testaddon` | `publish = false`. A Node addon consuming `extendedresearch-napi`'s macros; `test/addon.test.mjs` loads it and runs `npm/binding-runtime/src/` against it |
 | `python/conformance` | `extendedresearch-conformance`, a pip-installable development tool: runs every language binding's driver over one cases file and compares each with the C header and with every other binding. Configured per repository by `conformance.toml`; standard library only |
-| `scripts/build-release-assets.sh` | Builds every release asset into one directory, checks each, and writes `SHA256SUMS`. `scripts/release-checks.py` holds the checks: versions, licence copies, and each archive's contents |
+| `scripts/build-release-assets.sh` | Builds every release asset into one directory, checks each, and writes `SHA256SUMS`. `scripts/release-checks.py` holds the checks: versions, the npm manifest's publishability, licence copies, and each archive's contents |
 | `.github/actions/prove-tests-ran` | A composite action that fails a job when a `cargo test` log shows no result line, zero passed tests, or ignored tests. The check is `prove-tests-ran.sh`; `tests/` holds real `cargo test` logs it must refuse or accept, and `tests/run.sh` runs them |
 | `docs/conventions` | The rules a consuming package cites rather than copying from a sibling: the C library artefact's name, the toolchain pins, the workspace layout, the CI job split, the rustfmt edition, and the error token grammar. Each states its rule and the failure it prevents |
 | `Cargo.toml` | The workspace. `[workspace.lints]` is the table a consuming package repeats, plus `undocumented_unsafe_blocks` |
 | `.github/workflows/ci.yml` | Format, lints, docs and every suite on Linux, Windows and macOS; the Rust tests on the MSRV; Miri over the pointer-handling tests; every release asset built and checked (`release-assets`) |
-| `.github/workflows/release.yml` | On a `v*.*.*` tag: the release script with the tag, then a GitHub Release for the tag with the assets attached, using only the workflow's `GITHUB_TOKEN` |
+| `.github/workflows/release.yml` | On a `v*.*.*` tag: the release script with the tag, then the npm tarball it built published to the npm registry, then a GitHub Release for the tag with every asset attached. It writes with the workflow's `GITHUB_TOKEN` and reads one secret, `NPM_TOKEN`, in the publishing step alone |
 
 ## How the packages reach it
 
 Every foundation version is a tag, `v<major>.<minor>.<patch>`, and a GitHub
 Release for that tag carrying four assets and `SHA256SUMS`. A package takes the
-Rust crates by the commit the tag points to and everything else from the
-release, and moves to a new version by changing all of them together.
+Rust crates by the commit the tag points to, the TypeScript half from the npm
+registry or from the release, and the rest from the release, and moves to a new
+version by changing all of them together.
 
 **Rust: as a git dependency on this public repository, pinned to the commit the
 release tag points to:**
@@ -79,7 +80,19 @@ grep 'source = "git' Cargo.lock \
 # 0
 ```
 
-**TypeScript: the npm tarball, from the release's download URL:**
+**TypeScript: from the npm registry, by name and exact version:**
+
+```bash
+npm install @extendedresearch/binding-runtime@0.1.1
+```
+
+Since 0.1.1 `release.yml` publishes the tarball it built to the registry, as a
+public package, before creating the GitHub Release. An exact version rather
+than a range: the native half is pinned by `rev` to one commit, and both halves
+come from that commit's release.
+
+**The same tarball stays attached to the release**, so a package that took it
+by URL before 0.1.1 keeps working and needs no change to move to a new version:
 
 ```bash
 npm install https://github.com/extendedresearch/foundation/releases/download/v0.1.1/extendedresearch-binding-runtime-0.1.1.tgz
@@ -87,6 +100,9 @@ npm install https://github.com/extendedresearch/foundation/releases/download/v0.
 
 npm installs a tarball given as an `http://` or `https://` URL
 ([`npm install <tarball url>`](https://docs.npmjs.com/cli/v10/commands/npm-install)).
+The two are one file: the workflow publishes the asset the release attaches,
+which is the file `SHA256SUMS` covers, rather than packing a second one.
+
 The tarball carries compiled `dist/*.js` and `dist/*.d.ts`, not TypeScript:
 Node refuses to strip types from `.ts` files under `node_modules`
 ([Node.js: type stripping in dependencies](https://nodejs.org/api/typescript.html#type-stripping-in-dependencies)).
@@ -122,11 +138,12 @@ the exception and export macros expand in each consumer — so the copies
 coexist. A package that exposes one of these crates' types in its own public
 API ties every package built beside it to the same commit.
 
-**No package registry yet.** The crates are not on crates.io, the tarball is
-not on the npm registry, the `.nupkg` is not on nuget.org, and the wheel is not
-on PyPI: a release is a GitHub Release and nothing else. A crate with a git
-dependency cannot itself be published to crates.io, and no core package is
-today.
+**One package registry, and one package on it.** Since 0.1.1 the npm tarball is
+published as `@extendedresearch/binding-runtime`, and is also attached to the
+release. The crates are not on crates.io, the `.nupkg` is not on nuget.org, and
+the wheel is not on PyPI: for those three a release is a GitHub Release and
+nothing else. A crate with a git dependency cannot itself be published to
+crates.io, and no core package is today.
 
 **A crate lands here when two packages need the same runtime code.** A crate
 with one consumer belongs in that consumer's repository. `abi-testlib` and
@@ -155,25 +172,36 @@ Built, with the check that shows it beside each:
   fails unless the script reads exactly that from the runner's cargo.
 - **Every release asset, on every pull request**: the `release-assets` job runs
   `bash scripts/build-release-assets.sh <empty directory>`. It fails unless
-  every version agrees, and every copy of `LICENSE` and `NOTICE` equals the
-  root's. It builds the npm tarball, the `.nupkg`, the wheel and the sdist, and
-  fails on an archive holding a file it should not or missing one it should. It
-  installs the tarball into a scratch project and imports each export from
-  `node_modules`, type-checks a TypeScript consumer against the installed
-  declarations, and builds `dotnet/Interop.PackageTest` from the `.nupkg`
-  through a local folder source. Then it writes `SHA256SUMS`.
+  every version agrees, every copy of `LICENSE` and `NOTICE` equals the root's,
+  and `npm/binding-runtime/package.json` is one `npm publish` would accept and
+  would publish publicly. It builds the npm tarball, the `.nupkg`, the wheel and
+  the sdist, and fails on an archive holding a file it should not or missing one
+  it should. It installs the tarball into a scratch project and imports each
+  export from `node_modules`, type-checks a TypeScript consumer against the
+  installed declarations, and builds `dotnet/Interop.PackageTest` from the
+  `.nupkg` through a local folder source. Then it writes `SHA256SUMS`.
 - **Publishing as GitHub Release assets**: `release.yml`, on a push of a
   `v*.*.*` tag, runs the same script with the tag — which also fails unless
   every version equals it — and creates the release with
-  `gh release create "$GITHUB_REF_NAME" <assets> --verify-tag`. It reads no
-  secret beyond the workflow's `GITHUB_TOKEN`.
+  `gh release create "$GITHUB_REF_NAME" <assets> --verify-tag`, using the
+  workflow's `GITHUB_TOKEN`. It ran once, for `v0.1.0`:
+
+  ```bash
+  gh run list --workflow=release.yml --repo extendedresearch/foundation
+  ```
 
 Not built, or not decided:
 
-- **`release.yml` has not run.** No tag has been pushed; the first release is
-  its first run on GitHub. The build inside it is the one `release-assets` runs
-  on every pull request, and the `gh release create` step is the part no pull
-  request exercises.
+- **Publishing to npm has not run.** The step is in `release.yml` from 0.1.1 and
+  no tag has carried it yet, so the first `v0.1.1` push is the first `npm
+  publish`. What it publishes is the tarball `release-assets` already builds and
+  checks on every pull request; the `npm publish` itself, the `NPM_TOKEN`
+  secret, and `--provenance` are the parts no pull request exercises.
+- **Trusted publishing is not configured.** The publish authenticates with the
+  `NPM_TOKEN` secret, because npm configures a trusted publisher only on a
+  package that already exists. The head of `release.yml` states the three steps
+  that move it to OIDC, and the step needs no edit to follow them: with the
+  secret deleted it writes no token line.
 - **A release tag is never moved.** A package pins its `rev` to the commit a
   tag points to and downloads the assets from that tag's release; a tag moved
   to another commit leaves one version naming two trees, and assets built from
@@ -184,8 +212,9 @@ Not built, or not decided:
   repository enables it is not recorded here.
 - **Nothing is frozen.** 0.1.0 was the first version, and a later 0.x release
   can change any name, code or signature.
-- **No registry is decided.** Publishing to crates.io, the npm registry,
-  nuget.org or PyPI is a separate decision from this release process.
+- **Three registries are undecided.** Publishing to crates.io, nuget.org or PyPI
+  is a separate decision from this release process; the npm registry is the one
+  that was taken, in 0.1.1.
 - **Where the rest of the shared tooling lives** — the lint table, the
   decision-record checker — is undecided. The zero-tests step and the
   conformance runner are here.
@@ -242,10 +271,11 @@ Not built, or not decided:
   macros. An exception class created in a shared crate is one per extension
   module linking it; whether a `#[napi]` item in a dependency registers with the
   consumer's module is unverified.
-- **The TypeScript and the C# are edited here, and a package takes them only as
-  a release asset.** A copy committed into a package is a file no release check
-  reads and no version names. Each module in `npm/binding-runtime/src/` imports
-  nothing, so a binding can take one without the others, and
+- **The TypeScript and the C# are edited here, and a package takes them as a
+  published package — from npm or from the release for the TypeScript, from the
+  release for the C#.** A copy committed into a package is a file no release
+  check reads and no version names. Each module in `npm/binding-runtime/src/`
+  imports nothing, so a binding can take one without the others, and
   `scripts/release-checks.py assets` fails on a compiled module that imports
   anything.
 - **Every version in the tree is the release's.** Each crate and the `version`
