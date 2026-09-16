@@ -1,0 +1,53 @@
+{
+  "clock_vector": "0",
+  "id": "0005-doc-epoch-from-two-nonce-halves",
+  "about": "doc_epoch_from(nonce_hi, nonce_lo) is doc. plus exactly 16 lowercase hex digits, zero-padded, of (nonce_hi << 32) | nonce_lo. The halves are u32 JSON numbers. A face that drops the padding fails zero, low_byte, halves_in_order and mixed; one that swaps the halves fails halves_in_order and low_half_only; one that writes uppercase fails all_ones and mixed. The function name is provisional.",
+  "function": "doc_epoch_from",
+  "faces": [
+    "browser"
+  ],
+  "rows": {
+    "zero": {
+      "input": {
+        "nonce_hi": 0,
+        "nonce_lo": 0
+      },
+      "expect": "doc.0000000000000000"
+    },
+    "low_byte": {
+      "input": {
+        "nonce_hi": 0,
+        "nonce_lo": 171
+      },
+      "expect": "doc.00000000000000ab"
+    },
+    "all_ones": {
+      "input": {
+        "nonce_hi": 4294967295,
+        "nonce_lo": 4294967295
+      },
+      "expect": "doc.ffffffffffffffff"
+    },
+    "halves_in_order": {
+      "input": {
+        "nonce_hi": 1,
+        "nonce_lo": 0
+      },
+      "expect": "doc.0000000100000000"
+    },
+    "low_half_only": {
+      "input": {
+        "nonce_hi": 0,
+        "nonce_lo": 4294967295
+      },
+      "expect": "doc.00000000ffffffff"
+    },
+    "mixed": {
+      "input": {
+        "nonce_hi": 19114957,
+        "nonce_lo": 35311
+      },
+      "expect": "doc.0123abcd000089ef"
+    }
+  }
+}

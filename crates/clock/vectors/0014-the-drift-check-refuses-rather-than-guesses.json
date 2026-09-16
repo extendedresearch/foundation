@@ -1,0 +1,334 @@
+{
+  "clock_vector": "0",
+  "id": "0014-the-drift-check-refuses-rather-than-guesses",
+  "about": "DriftCheck edges over supplied pairs, one scenario per row. The domain is host_id fixture-host, the row's host_clock_epoch, resolution 100 ns; each monotonic reading is bounded bound_for_read(Some(100), floor_only) and is on the check's current domain unless the observation names reading_host_clock_epoch. outcomes lists each observation: quiet, fired, or refused:<variant>. A refused observation changes nothing, so the next observation is compared with the pair before it. Rows: a reading on another domain is refused before anything else; an offset change outside i64 is refused; a negative change exactly at floor_ns + floor(rate_ppm * dt / 1e6) is quiet and one nanosecond more fires; the rate term is floored, so 1 ppm over 999 999 ns adds nothing and 1 ns fires; .e9 becomes .e10; a suffix that is not .e<n> is replaced by .e1; a fire that would need .e18446744073709551616 is refused:overflow; an unknown wall resolution widens offset_change's bound to UNBOUNDED and does not change the comparison; a two-sided wall leg (wall_rounding, default floor_only) widens its own observation's anchor error on both sides.",
+  "function": "DriftCheck",
+  "faces": [
+    "native",
+    "browser"
+  ],
+  "domain": {
+    "host_id": "fixture-host",
+    "resolution_ns": "100"
+  },
+  "monotonic_rounding": "floor_only",
+  "rows": {
+    "mismatch_is_refused_and_changes_nothing": {
+      "input": {
+        "host_clock_epoch": "boot.6553f0ff",
+        "anchor": {
+          "monotonic_ns": "1000000000",
+          "wall_unix_ns": "1700000000000000000",
+          "read_span_ns": "2000",
+          "wall_resolution_ns": "100",
+          "wall_rounding": "floor_only"
+        },
+        "threshold": {
+          "floor_ns": "50000000",
+          "rate_ppm": 500
+        },
+        "observations": [
+          {
+            "monotonic_ns": "2000000000",
+            "wall_unix_ns": "1700000009000000000",
+            "read_span_ns": "2000",
+            "wall_resolution_ns": "100",
+            "reading_host_clock_epoch": "boot.6553f0ff.e1"
+          },
+          {
+            "monotonic_ns": "2000000000",
+            "wall_unix_ns": "1700000001000000000",
+            "read_span_ns": "2000",
+            "wall_resolution_ns": "100"
+          }
+        ]
+      },
+      "expect": {
+        "outcomes": "refused:domain_mismatch,quiet"
+      }
+    },
+    "offset_change_past_i64_is_refused": {
+      "input": {
+        "host_clock_epoch": "boot.6553f0ff",
+        "anchor": {
+          "monotonic_ns": "18446744073709551615",
+          "wall_unix_ns": "1",
+          "read_span_ns": "2000",
+          "wall_resolution_ns": "100",
+          "wall_rounding": "floor_only"
+        },
+        "threshold": {
+          "floor_ns": "50000000",
+          "rate_ppm": 500
+        },
+        "observations": [
+          {
+            "monotonic_ns": "0",
+            "wall_unix_ns": "18446744073709551615",
+            "read_span_ns": "2000",
+            "wall_resolution_ns": "100"
+          },
+          {
+            "monotonic_ns": "18446744073709550615",
+            "wall_unix_ns": "0",
+            "read_span_ns": "2000",
+            "wall_resolution_ns": "100"
+          }
+        ]
+      },
+      "expect": {
+        "outcomes": "refused:overflow,quiet"
+      }
+    },
+    "negative_change_at_threshold_is_quiet": {
+      "input": {
+        "host_clock_epoch": "boot.6553f0ff",
+        "anchor": {
+          "monotonic_ns": "1000000000",
+          "wall_unix_ns": "1700000000000000000",
+          "read_span_ns": "2000",
+          "wall_resolution_ns": "100",
+          "wall_rounding": "floor_only"
+        },
+        "threshold": {
+          "floor_ns": "50000000",
+          "rate_ppm": 500
+        },
+        "observations": [
+          {
+            "monotonic_ns": "2000000000",
+            "wall_unix_ns": "1700000000949500000",
+            "read_span_ns": "2000",
+            "wall_resolution_ns": "100"
+          },
+          {
+            "monotonic_ns": "3000000000",
+            "wall_unix_ns": "1700000001898999999",
+            "read_span_ns": "2000",
+            "wall_resolution_ns": "100"
+          }
+        ]
+      },
+      "expect": {
+        "outcomes": "quiet,fired",
+        "first_before_host_clock_epoch": "boot.6553f0ff",
+        "first_before_ns": "2000000000",
+        "first_next_host_clock_epoch": "boot.6553f0ff.e1",
+        "first_offset_change_ns": "-50500001",
+        "first_offset_change_below_ns": "2200",
+        "first_offset_change_above_ns": "2200"
+      }
+    },
+    "rate_term_is_floored": {
+      "input": {
+        "host_clock_epoch": "boot.6553f0ff",
+        "anchor": {
+          "monotonic_ns": "0",
+          "wall_unix_ns": "1700000000000000000",
+          "read_span_ns": "2000",
+          "wall_resolution_ns": "100",
+          "wall_rounding": "floor_only"
+        },
+        "threshold": {
+          "floor_ns": "0",
+          "rate_ppm": 1
+        },
+        "observations": [
+          {
+            "monotonic_ns": "1000000",
+            "wall_unix_ns": "1700000000001000001",
+            "read_span_ns": "2000",
+            "wall_resolution_ns": "100"
+          },
+          {
+            "monotonic_ns": "1999999",
+            "wall_unix_ns": "1700000000002000001",
+            "read_span_ns": "2000",
+            "wall_resolution_ns": "100"
+          }
+        ]
+      },
+      "expect": {
+        "outcomes": "quiet,fired",
+        "first_before_host_clock_epoch": "boot.6553f0ff",
+        "first_before_ns": "1000000",
+        "first_next_host_clock_epoch": "boot.6553f0ff.e1",
+        "first_offset_change_ns": "1",
+        "first_offset_change_below_ns": "2200",
+        "first_offset_change_above_ns": "2200"
+      }
+    },
+    "multi_digit_suffix": {
+      "input": {
+        "host_clock_epoch": "boot.6553f0ff.e9",
+        "anchor": {
+          "monotonic_ns": "1000000000",
+          "wall_unix_ns": "1700000000000000000",
+          "read_span_ns": "2000",
+          "wall_resolution_ns": "100",
+          "wall_rounding": "floor_only"
+        },
+        "threshold": {
+          "floor_ns": "50000000",
+          "rate_ppm": 500
+        },
+        "observations": [
+          {
+            "monotonic_ns": "2000000000",
+            "wall_unix_ns": "1700000009000000000",
+            "read_span_ns": "2000",
+            "wall_resolution_ns": "100"
+          }
+        ]
+      },
+      "expect": {
+        "outcomes": "fired",
+        "first_before_host_clock_epoch": "boot.6553f0ff.e9",
+        "first_before_ns": "1000000000",
+        "first_next_host_clock_epoch": "boot.6553f0ff.e10",
+        "first_offset_change_ns": "8000000000",
+        "first_offset_change_below_ns": "2200",
+        "first_offset_change_above_ns": "2200"
+      }
+    },
+    "malformed_suffix_is_replaced": {
+      "input": {
+        "host_clock_epoch": "boot.6553f0ff.x",
+        "anchor": {
+          "monotonic_ns": "1000000000",
+          "wall_unix_ns": "1700000000000000000",
+          "read_span_ns": "2000",
+          "wall_resolution_ns": "100",
+          "wall_rounding": "floor_only"
+        },
+        "threshold": {
+          "floor_ns": "50000000",
+          "rate_ppm": 500
+        },
+        "observations": [
+          {
+            "monotonic_ns": "2000000000",
+            "wall_unix_ns": "1700000009000000000",
+            "read_span_ns": "2000",
+            "wall_resolution_ns": "100"
+          }
+        ]
+      },
+      "expect": {
+        "outcomes": "fired",
+        "first_before_host_clock_epoch": "boot.6553f0ff.x",
+        "first_before_ns": "1000000000",
+        "first_next_host_clock_epoch": "boot.6553f0ff.e1",
+        "first_offset_change_ns": "8000000000",
+        "first_offset_change_below_ns": "2200",
+        "first_offset_change_above_ns": "2200"
+      }
+    },
+    "suffix_past_u64_is_refused": {
+      "input": {
+        "host_clock_epoch": "boot.6553f0ff.e18446744073709551615",
+        "anchor": {
+          "monotonic_ns": "1000000000",
+          "wall_unix_ns": "1700000000000000000",
+          "read_span_ns": "2000",
+          "wall_resolution_ns": "100",
+          "wall_rounding": "floor_only"
+        },
+        "threshold": {
+          "floor_ns": "50000000",
+          "rate_ppm": 500
+        },
+        "observations": [
+          {
+            "monotonic_ns": "2000000000",
+            "wall_unix_ns": "1700000009000000000",
+            "read_span_ns": "2000",
+            "wall_resolution_ns": "100"
+          },
+          {
+            "monotonic_ns": "2000000000",
+            "wall_unix_ns": "1700000001000000000",
+            "read_span_ns": "2000",
+            "wall_resolution_ns": "100"
+          }
+        ]
+      },
+      "expect": {
+        "outcomes": "refused:overflow,quiet"
+      }
+    },
+    "unknown_wall_resolution_widens_only_the_bound": {
+      "input": {
+        "host_clock_epoch": "boot.6553f0ff",
+        "anchor": {
+          "monotonic_ns": "1000000000",
+          "wall_unix_ns": "1700000000000000000",
+          "read_span_ns": "2000",
+          "wall_resolution_ns": "100",
+          "wall_rounding": "floor_only"
+        },
+        "threshold": {
+          "floor_ns": "50000000",
+          "rate_ppm": 500
+        },
+        "observations": [
+          {
+            "monotonic_ns": "2000000000",
+            "wall_unix_ns": "1700000009000000000",
+            "read_span_ns": "2000",
+            "wall_resolution_ns": "none"
+          },
+          {
+            "monotonic_ns": "3000000000",
+            "wall_unix_ns": "1700000010000000000",
+            "read_span_ns": "2000",
+            "wall_resolution_ns": "100"
+          }
+        ]
+      },
+      "expect": {
+        "outcomes": "fired,quiet",
+        "first_before_host_clock_epoch": "boot.6553f0ff",
+        "first_before_ns": "1000000000",
+        "first_next_host_clock_epoch": "boot.6553f0ff.e1",
+        "first_offset_change_ns": "8000000000",
+        "first_offset_change_below_ns": "18446744073709551615",
+        "first_offset_change_above_ns": "18446744073709551615"
+      }
+    },
+    "two_sided_wall_rounding": {
+      "input": {
+        "host_clock_epoch": "boot.6553f0ff",
+        "anchor": {
+          "monotonic_ns": "1000000000",
+          "wall_unix_ns": "1700000000000000000",
+          "read_span_ns": "2000",
+          "wall_resolution_ns": "100",
+          "wall_rounding": "floor_only"
+        },
+        "threshold": {
+          "floor_ns": "50000000",
+          "rate_ppm": 500
+        },
+        "observations": [
+          {
+            "monotonic_ns": "2000000000",
+            "wall_unix_ns": "1700000009000000000",
+            "read_span_ns": "3001",
+            "wall_resolution_ns": "1000",
+            "wall_rounding": "two_sided"
+          }
+        ]
+      },
+      "expect": {
+        "outcomes": "fired",
+        "first_before_host_clock_epoch": "boot.6553f0ff",
+        "first_before_ns": "1000000000",
+        "first_next_host_clock_epoch": "boot.6553f0ff.e1",
+        "first_offset_change_ns": "8000000000",
+        "first_offset_change_below_ns": "3701",
+        "first_offset_change_above_ns": "3600"
+      }
+    }
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "clock_vector": "0",
+  "id": "0015-basis-integers-are-receive-stamp-points",
+  "about": "Basis variants as integers. 0-6 are clock.v1 RxStampPoint value for value; 7 display_frame, 8 audio_output_buffer, 9 clock_read and 10 platform_event_timestamp are provisional additions with the same integers. Row names are the variant names in snake case. A face that renumbers, or appends in another order, fails a row.",
+  "function": "Basis",
+  "faces": [
+    "native",
+    "browser"
+  ],
+  "rows": {
+    "unspecified": {
+      "expect": "0"
+    },
+    "after_read_returned": {
+      "expect": "1"
+    },
+    "in_platform_callback": {
+      "expect": "2"
+    },
+    "kernel_socket_timestamp": {
+      "expect": "3"
+    },
+    "interrupt_edge": {
+      "expect": "4"
+    },
+    "browser_event_handler": {
+      "expect": "5"
+    },
+    "file_read": {
+      "expect": "6"
+    },
+    "display_frame": {
+      "expect": "7"
+    },
+    "audio_output_buffer": {
+      "expect": "8"
+    },
+    "clock_read": {
+      "expect": "9"
+    },
+    "platform_event_timestamp": {
+      "expect": "10"
+    }
+  }
+}

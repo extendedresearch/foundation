@@ -1,0 +1,267 @@
+{
+  "clock_vector": "0",
+  "id": "0013-a-reading-maps-to-the-calendar-through-the-anchor",
+  "about": "wall_at(domain, reading, monotonic): unix_ns = W + (r - M); early_ns = reading early + anchor early and late_ns = reading late + anchor late, on the same side because a mapped time is a sum. The anchor error is ceil(s/2) + mono late + wall early and floor(s/2) + mono early + wall late, the monotonic leg being bound_for_read(domain.resolution_ns, monotonic) and the wall leg bound_for_read(anchor.wall_resolution_ns, anchor.wall_rounding); either resolution none makes both sides UNBOUNDED. A row's input.domain replaces the vector's domain, and a reading is on the row's domain unless it names another host_clock_epoch. Refusals are checked in the order domain_mismatch, no_anchor, overflow, the last when unix_ns is below 0 or past u64::MAX. A face that adds crosswise fails floor_only_monotonic; fixes the wall leg at floor_only fails two_sided_wall_leg; ignores a two-sided monotonic leg fails two_sided_monotonic.",
+  "function": "wall_at",
+  "faces": [
+    "native",
+    "browser"
+  ],
+  "domain": {
+    "host_id": "fixture-host",
+    "host_clock_epoch": "boot.6553f0ff",
+    "resolution_ns": "100",
+    "anchor": {
+      "monotonic_ns": "1000000000",
+      "wall_unix_ns": "1700000000000000000",
+      "read_span_ns": "2001",
+      "wall_resolution_ns": "1000",
+      "wall_rounding": "floor_only"
+    }
+  },
+  "rows": {
+    "floor_only_monotonic": {
+      "input": {
+        "reading": {
+          "ns": "3000000000",
+          "early_ns": "7",
+          "late_ns": "50",
+          "basis": 9
+        },
+        "monotonic_rounding": "floor_only"
+      },
+      "expect": {
+        "unix_ns": "1700000002000000000",
+        "early_ns": "1108",
+        "late_ns": "2050"
+      }
+    },
+    "two_sided_monotonic": {
+      "input": {
+        "reading": {
+          "ns": "3000000000",
+          "early_ns": "7",
+          "late_ns": "50",
+          "basis": 9
+        },
+        "monotonic_rounding": "two_sided"
+      },
+      "expect": {
+        "unix_ns": "1700000002000000000",
+        "early_ns": "1108",
+        "late_ns": "2150"
+      }
+    },
+    "before_the_anchor": {
+      "input": {
+        "reading": {
+          "ns": "1",
+          "early_ns": "0",
+          "late_ns": "0",
+          "basis": 9
+        },
+        "monotonic_rounding": "floor_only"
+      },
+      "expect": {
+        "unix_ns": "1699999999000000001",
+        "early_ns": "1101",
+        "late_ns": "2000"
+      }
+    },
+    "two_sided_wall_leg": {
+      "input": {
+        "reading": {
+          "ns": "1000000000",
+          "early_ns": "0",
+          "late_ns": "100",
+          "basis": 9
+        },
+        "monotonic_rounding": "floor_only",
+        "domain": {
+          "host_id": "fixture-host",
+          "host_clock_epoch": "boot.6553f0ff",
+          "resolution_ns": "100",
+          "anchor": {
+            "monotonic_ns": "1000000000",
+            "wall_unix_ns": "1700000000000000000",
+            "read_span_ns": "2001",
+            "wall_resolution_ns": "1000",
+            "wall_rounding": "two_sided"
+          }
+        }
+      },
+      "expect": {
+        "unix_ns": "1700000000000000000",
+        "early_ns": "2101",
+        "late_ns": "2100"
+      }
+    },
+    "unknown_monotonic_resolution": {
+      "input": {
+        "reading": {
+          "ns": "5",
+          "early_ns": "0",
+          "late_ns": "100",
+          "basis": 9
+        },
+        "monotonic_rounding": "floor_only",
+        "domain": {
+          "host_id": "fixture-host",
+          "host_clock_epoch": "boot.6553f0ff",
+          "resolution_ns": "none",
+          "anchor": {
+            "monotonic_ns": "1000000000",
+            "wall_unix_ns": "1700000000000000000",
+            "read_span_ns": "2001",
+            "wall_resolution_ns": "1000",
+            "wall_rounding": "floor_only"
+          }
+        }
+      },
+      "expect": {
+        "unix_ns": "1699999999000000005",
+        "early_ns": "18446744073709551615",
+        "late_ns": "18446744073709551615"
+      }
+    },
+    "unknown_wall_resolution": {
+      "input": {
+        "reading": {
+          "ns": "5",
+          "early_ns": "0",
+          "late_ns": "100",
+          "basis": 9
+        },
+        "monotonic_rounding": "floor_only",
+        "domain": {
+          "host_id": "fixture-host",
+          "host_clock_epoch": "boot.6553f0ff",
+          "resolution_ns": "100",
+          "anchor": {
+            "monotonic_ns": "1000000000",
+            "wall_unix_ns": "1700000000000000000",
+            "read_span_ns": "2001",
+            "wall_resolution_ns": "none",
+            "wall_rounding": "floor_only"
+          }
+        }
+      },
+      "expect": {
+        "unix_ns": "1699999999000000005",
+        "early_ns": "18446744073709551615",
+        "late_ns": "18446744073709551615"
+      }
+    },
+    "unbounded_reading": {
+      "input": {
+        "reading": {
+          "ns": "5",
+          "early_ns": "18446744073709551615",
+          "late_ns": "0",
+          "basis": 9
+        },
+        "monotonic_rounding": "floor_only"
+      },
+      "expect": {
+        "unix_ns": "1699999999000000005",
+        "early_ns": "18446744073709551615",
+        "late_ns": "2000"
+      }
+    },
+    "no_anchor": {
+      "input": {
+        "reading": {
+          "ns": "5",
+          "early_ns": "0",
+          "late_ns": "0",
+          "basis": 9
+        },
+        "monotonic_rounding": "floor_only",
+        "domain": {
+          "host_id": "fixture-host",
+          "host_clock_epoch": "boot.6553f0ff",
+          "resolution_ns": "100",
+          "anchor": "none"
+        }
+      },
+      "expect": "refused:no_anchor"
+    },
+    "domain_mismatch": {
+      "input": {
+        "reading": {
+          "ns": "5",
+          "early_ns": "0",
+          "late_ns": "0",
+          "basis": 9,
+          "host_clock_epoch": "boot.6553f0ff.e1"
+        },
+        "monotonic_rounding": "floor_only"
+      },
+      "expect": "refused:domain_mismatch"
+    },
+    "before_the_unix_epoch": {
+      "input": {
+        "reading": {
+          "ns": "999999989",
+          "early_ns": "0",
+          "late_ns": "0",
+          "basis": 9
+        },
+        "monotonic_rounding": "floor_only",
+        "domain": {
+          "host_id": "fixture-host",
+          "host_clock_epoch": "boot.6553f0ff",
+          "resolution_ns": "100",
+          "anchor": {
+            "monotonic_ns": "1000000000",
+            "wall_unix_ns": "10",
+            "read_span_ns": "2001",
+            "wall_resolution_ns": "1000",
+            "wall_rounding": "floor_only"
+          }
+        }
+      },
+      "expect": "refused:overflow"
+    },
+    "at_the_unix_epoch": {
+      "input": {
+        "reading": {
+          "ns": "999999990",
+          "early_ns": "0",
+          "late_ns": "0",
+          "basis": 9
+        },
+        "monotonic_rounding": "floor_only",
+        "domain": {
+          "host_id": "fixture-host",
+          "host_clock_epoch": "boot.6553f0ff",
+          "resolution_ns": "100",
+          "anchor": {
+            "monotonic_ns": "1000000000",
+            "wall_unix_ns": "10",
+            "read_span_ns": "2001",
+            "wall_resolution_ns": "1000",
+            "wall_rounding": "floor_only"
+          }
+        }
+      },
+      "expect": {
+        "unix_ns": "0",
+        "early_ns": "1101",
+        "late_ns": "2000"
+      }
+    },
+    "past_u64": {
+      "input": {
+        "reading": {
+          "ns": "18446744073709551615",
+          "early_ns": "0",
+          "late_ns": "0",
+          "basis": 9
+        },
+        "monotonic_rounding": "floor_only"
+      },
+      "expect": "refused:overflow"
+    }
+  }
+}

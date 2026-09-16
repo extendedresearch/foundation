@@ -1,0 +1,48 @@
+{
+  "clock_vector": "0",
+  "id": "0017-monotonic-source-literals-are-bare-identifiers",
+  "about": "The monotonic_source literals a face may declare: CLOCK_BOOTTIME, CLOCK_MONOTONIC_RAW, QueryPerformanceCounter and CLOCK_MONOTONIC for native targets, performance.now for the browser. Each is a bare identifier, compared by exact match: non-empty, with no whitespace, (, ), :, ; or ,. The with_a_note row is the descriptive form a source string must not take. This vector holds the literal set as data; the core has no literal of its own, and each face's live row checks that it emits one of these.",
+  "function": "monotonic_source",
+  "faces": [
+    "native",
+    "browser"
+  ],
+  "rows": {
+    "clock_boottime": {
+      "input": {
+        "monotonic_source": "CLOCK_BOOTTIME"
+      },
+      "expect": "bare_identifier"
+    },
+    "clock_monotonic_raw": {
+      "input": {
+        "monotonic_source": "CLOCK_MONOTONIC_RAW"
+      },
+      "expect": "bare_identifier"
+    },
+    "queryperformancecounter": {
+      "input": {
+        "monotonic_source": "QueryPerformanceCounter"
+      },
+      "expect": "bare_identifier"
+    },
+    "clock_monotonic": {
+      "input": {
+        "monotonic_source": "CLOCK_MONOTONIC"
+      },
+      "expect": "bare_identifier"
+    },
+    "performance_now": {
+      "input": {
+        "monotonic_source": "performance.now"
+      },
+      "expect": "bare_identifier"
+    },
+    "with_a_note": {
+      "input": {
+        "monotonic_source": "clock_gettime(CLOCK_MONOTONIC) (via std::time::Instant; excludes suspend)"
+      },
+      "expect": "not_bare"
+    }
+  }
+}

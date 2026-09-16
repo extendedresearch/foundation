@@ -1,0 +1,60 @@
+{
+  "clock_vector": "0",
+  "id": "0008-a-bound-is-unknown-only-when-both-sides-are-unbounded",
+  "about": "Bound::is_unknown is true exactly when early_ns and late_ns are both UNBOUNDED (18446744073709551615). The basis is not consulted, so both_unbounded_clock_read is unknown. One unbounded side is not unknown, and neither is a zero bound, which is a claim. A face that checks either side alone, or requires basis Unspecified, fails a row.",
+  "function": "Bound::is_unknown",
+  "faces": [
+    "native",
+    "browser"
+  ],
+  "rows": {
+    "both_unbounded_unspecified": {
+      "input": {
+        "early_ns": "18446744073709551615",
+        "late_ns": "18446744073709551615",
+        "basis": 0
+      },
+      "expect": "true"
+    },
+    "both_unbounded_clock_read": {
+      "input": {
+        "early_ns": "18446744073709551615",
+        "late_ns": "18446744073709551615",
+        "basis": 9
+      },
+      "expect": "true"
+    },
+    "early_only": {
+      "input": {
+        "early_ns": "18446744073709551615",
+        "late_ns": "0",
+        "basis": 0
+      },
+      "expect": "false"
+    },
+    "late_only": {
+      "input": {
+        "early_ns": "0",
+        "late_ns": "18446744073709551615",
+        "basis": 0
+      },
+      "expect": "false"
+    },
+    "zero": {
+      "input": {
+        "early_ns": "0",
+        "late_ns": "0",
+        "basis": 0
+      },
+      "expect": "false"
+    },
+    "one_below_unbounded": {
+      "input": {
+        "early_ns": "18446744073709551614",
+        "late_ns": "18446744073709551614",
+        "basis": 0
+      },
+      "expect": "false"
+    }
+  }
+}

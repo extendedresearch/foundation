@@ -1,0 +1,136 @@
+{
+  "clock_vector": "0",
+  "id": "0003-a-suspend-seen-by-drift-ends-the-domain",
+  "about": "DriftCheck::start(&domain, anchor, DriftThreshold { floor_ns: 50 ms, rate_ppm: 500 }), then observe(monotonic, wall_unix_ns, read_span_ns, wall_resolution_ns) per observation, compared pair to pair: it fires when |offset change| > floor_ns + floor(rate_ppm * dt / 1e6), dt being the monotonic time since the last pair. Each monotonic reading is built on the check's current domain with bound_for_read(Some(100), FloorOnly) = (0, 100), and observe takes the monotonic leg's bound from that reading; the wall leg is FloorOnly, as for every wall source the API names. The domain's epoch is what its anchor derives (boot.6553f0ff). Observations 0-1: two 30 ms slews stay under the threshold one at a time and exceed it together, so a face comparing against the anchor fires early. Observation 2: 10 s of wall against 100 ms of monotonic, a suspend the clock did not count; the domain ends, before stays on the ending domain, observe re-tags after onto .e1, next_domain's anchor is observation 2, and after.since(before) is refused. Its offset_change bound is observation 2's anchor early plus observation 1's anchor late, and the reverse, each anchor error being ceil(span/2) + mono late + wall early and floor(span/2) + mono early + wall late; the odd span and the unequal wall resolutions make a face that adds same-side, or ignores the resolutions, fail. Observation 4: a change exactly at threshold (50.5 ms over 1 s) does not fire. Observation 5: 60 ms over 100 s is under that pair's 100 ms threshold, so a face that ignores rate_ppm fires. Observation 6: the wall stepped back 2 s; the next epoch is .e2, which replaces .e1.",
+  "function": "DriftCheck",
+  "faces": [
+    "native",
+    "browser"
+  ],
+  "domain": {
+    "host_id": "fixture-host",
+    "host_clock_epoch": "boot.6553f0ff",
+    "resolution_ns": "100"
+  },
+  "monotonic_rounding": "floor_only",
+  "anchor": {
+    "monotonic_ns": "1000000000",
+    "wall_unix_ns": "1700000000000000000",
+    "read_span_ns": "2000",
+    "wall_resolution_ns": "100"
+  },
+  "threshold": {
+    "floor_ns": "50000000",
+    "rate_ppm": 500
+  },
+  "observations": [
+    {
+      "monotonic_ns": "2000000000",
+      "wall_unix_ns": "1700000001030000000",
+      "read_span_ns": "2000",
+      "wall_resolution_ns": "100"
+    },
+    {
+      "monotonic_ns": "3000000000",
+      "wall_unix_ns": "1700000002060000000",
+      "read_span_ns": "2000",
+      "wall_resolution_ns": "1000"
+    },
+    {
+      "monotonic_ns": "3100000000",
+      "wall_unix_ns": "1700000012160000000",
+      "read_span_ns": "3001",
+      "wall_resolution_ns": "1000"
+    },
+    {
+      "monotonic_ns": "3200000000",
+      "wall_unix_ns": "1700000012260000000",
+      "read_span_ns": "2000",
+      "wall_resolution_ns": "100"
+    },
+    {
+      "monotonic_ns": "4200000000",
+      "wall_unix_ns": "1700000013310500000",
+      "read_span_ns": "2000",
+      "wall_resolution_ns": "100"
+    },
+    {
+      "monotonic_ns": "104200000000",
+      "wall_unix_ns": "1700000113370500000",
+      "read_span_ns": "2000",
+      "wall_resolution_ns": "100"
+    },
+    {
+      "monotonic_ns": "105200000000",
+      "wall_unix_ns": "1700000112370500000",
+      "read_span_ns": "2000",
+      "wall_resolution_ns": "1000"
+    },
+    {
+      "monotonic_ns": "105300000000",
+      "wall_unix_ns": "1700000112470500000",
+      "read_span_ns": "2000",
+      "wall_resolution_ns": "100"
+    }
+  ],
+  "rows": {
+    "clock_read_bound": {
+      "expect": {
+        "early_ns": "0",
+        "late_ns": "100"
+      }
+    },
+    "fired_at": {
+      "expect": "2,6"
+    },
+    "first": {
+      "expect": {
+        "before_host_clock_epoch": "boot.6553f0ff",
+        "after_host_clock_epoch": "boot.6553f0ff.e1",
+        "next_host_clock_epoch": "boot.6553f0ff.e1",
+        "offset_change_ns": "10000000000",
+        "offset_change_below_ns": "3601",
+        "offset_change_above_ns": "3600",
+        "next_anchor_monotonic_ns": "3100000000",
+        "next_anchor_wall_unix_ns": "1700000012160000000"
+      }
+    },
+    "second": {
+      "expect": {
+        "before_host_clock_epoch": "boot.6553f0ff.e1",
+        "after_host_clock_epoch": "boot.6553f0ff.e2",
+        "next_host_clock_epoch": "boot.6553f0ff.e2",
+        "offset_change_ns": "-2000000000",
+        "offset_change_below_ns": "2200",
+        "offset_change_above_ns": "3100",
+        "next_anchor_monotonic_ns": "105200000000",
+        "next_anchor_wall_unix_ns": "1700000112370500000"
+      }
+    },
+    "across_the_jump": {
+      "input": {
+        "later": 2,
+        "earlier": 1
+      },
+      "expect": "refused:domain_mismatch"
+    },
+    "after_the_jump": {
+      "input": {
+        "later": 3,
+        "earlier": 2
+      },
+      "expect": {
+        "ns": "100000000",
+        "below_ns": "100",
+        "above_ns": "100"
+      }
+    },
+    "across_the_step_back": {
+      "input": {
+        "later": 6,
+        "earlier": 5
+      },
+      "expect": "refused:domain_mismatch"
+    }
+  }
+}
