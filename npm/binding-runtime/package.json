@@ -1,6 +1,6 @@
 {
   "name": "@extendedresearch/binding-runtime",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "The TypeScript half of a package's napi-rs binding: typed errors from error tokens, hardened native classes, and frozen enumeration contracts.",
   "license": "Apache-2.0",
   "repository": {

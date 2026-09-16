@@ -30,7 +30,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="ExtendedResearch.Interop" Version="[0.1.0]" PrivateAssets="all" />
+    <PackageReference Include="ExtendedResearch.Interop" Version="[0.1.1]" PrivateAssets="all" />
   </ItemGroup>
 
 </Project>

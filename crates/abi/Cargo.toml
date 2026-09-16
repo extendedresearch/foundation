@@ -14,7 +14,7 @@
 # grep. `tests/discipline.rs` fails if a second `allow` appears.
 [package]
 name = "extendedresearch-abi"
-version = "0.1.0"
+version = "0.1.1"
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true

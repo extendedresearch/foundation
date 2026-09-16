@@ -62,5 +62,5 @@ manifest: the macros expand to `#[napi]` items in your crate.
 
 ## Status
 
-0.1.0, consumed as a git dependency pinned by `rev`; nothing is frozen.
+0.1.1, consumed as a git dependency pinned by `rev`; nothing is frozen.
 Licensed under Apache-2.0. See `LICENSE` and `NOTICE`.

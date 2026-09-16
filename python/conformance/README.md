@@ -15,7 +15,7 @@ It depends on nothing outside the Python standard library (3.11 or later).
 Install the wheel attached to a foundation release:
 
 ```bash
-pip install https://github.com/extendedresearch/foundation/releases/download/v0.1.0/extendedresearch_conformance-0.1.0-py3-none-any.whl
+pip install https://github.com/extendedresearch/foundation/releases/download/v0.1.1/extendedresearch_conformance-0.1.1-py3-none-any.whl
 ```
 
 The release's `SHA256SUMS` lists the wheel's checksum.
@@ -71,4 +71,4 @@ and checks that each fault fails the row it should.
 
 ## Status
 
-0.1.0, nothing frozen. Licensed under Apache-2.0. See `LICENSE` and `NOTICE`.
+0.1.1, nothing frozen. Licensed under Apache-2.0. See `LICENSE` and `NOTICE`.

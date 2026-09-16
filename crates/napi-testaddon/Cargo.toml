@@ -9,7 +9,7 @@
 # cannot link against symbols nothing supplies. The tests are Node's.
 [package]
 name = "extendedresearch-napi-testaddon"
-version = "0.1.0"
+version = "0.1.1"
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true

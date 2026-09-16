@@ -21,7 +21,7 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
 
     <PackageId>ExtendedResearch.Interop</PackageId>
-    <Version>0.1.0</Version>
+    <Version>0.1.1</Version>
     <Authors>Extended Research</Authors>
     <Copyright>Copyright 2026 Extended Research</Copyright>
     <Description>Internal C# a package's .NET binding compiles into its own assembly: a SafeHandle over the library's _destroy, status-to-exception mapping, measure-then-copy reads, a native library resolver, and enumeration tables. Source only, for netstandard2.1 and net8.0.</Description>

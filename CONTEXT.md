@@ -59,7 +59,7 @@ extendedresearch-abi = { git = "https://github.com/extendedresearch/foundation",
 ```
 
 ```bash
-git rev-parse 'v0.1.0^{commit}'    # the commit a tag points to
+git rev-parse 'v0.1.1^{commit}'    # the commit a tag points to
 ```
 
 The repository is public, so resolving it needs no credential and no secret in
@@ -82,7 +82,7 @@ grep 'source = "git' Cargo.lock \
 **TypeScript: the npm tarball, from the release's download URL:**
 
 ```bash
-npm install https://github.com/extendedresearch/foundation/releases/download/v0.1.0/extendedresearch-binding-runtime-0.1.0.tgz
+npm install https://github.com/extendedresearch/foundation/releases/download/v0.1.1/extendedresearch-binding-runtime-0.1.1.tgz
 ```
 
 npm installs a tarball given as an `http://` or `https://` URL
@@ -105,7 +105,7 @@ assembly as `internal` types.
 **The conformance runner: the wheel, from the release's download URL:**
 
 ```bash
-pip install https://github.com/extendedresearch/foundation/releases/download/v0.1.0/extendedresearch_conformance-0.1.0-py3-none-any.whl
+pip install https://github.com/extendedresearch/foundation/releases/download/v0.1.1/extendedresearch_conformance-0.1.1-py3-none-any.whl
 ```
 
 pip installs from a local or remote archive
@@ -182,8 +182,8 @@ Not built, or not decided:
   describes release immutability, a repository setting under which a published
   release's tag and assets cannot be modified or deleted; whether this
   repository enables it is not recorded here.
-- **0.1.0 is the first version, and nothing is frozen.** A later 0.x release can
-  change any name, code or signature.
+- **Nothing is frozen.** 0.1.0 was the first version, and a later 0.x release
+  can change any name, code or signature.
 - **No registry is decided.** Publishing to crates.io, the npm registry,
   nuget.org or PyPI is a separate decision from this release process.
 - **Where the rest of the shared tooling lives** — the lint table, the

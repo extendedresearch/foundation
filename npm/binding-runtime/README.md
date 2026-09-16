@@ -21,7 +21,7 @@ The package is attached to each foundation release and is not on the npm
 registry. Install the tarball from the release's download URL:
 
 ```bash
-npm install https://github.com/extendedresearch/foundation/releases/download/v0.1.0/extendedresearch-binding-runtime-0.1.0.tgz
+npm install https://github.com/extendedresearch/foundation/releases/download/v0.1.1/extendedresearch-binding-runtime-0.1.1.tgz
 ```
 
 npm installs a tarball given as an `http://` or `https://` URL
@@ -68,5 +68,5 @@ export.
 
 ## Status
 
-0.1.0. A later 0.x release can change any name or signature. Licensed under
+0.1.1. A later 0.x release can change any name or signature. Licensed under
 Apache-2.0. See `LICENSE` and `NOTICE`.
