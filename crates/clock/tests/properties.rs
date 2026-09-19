@@ -9,8 +9,9 @@
 #![allow(clippy::expect_used, clippy::unwrap_used, clippy::indexing_slicing)]
 
 use extendedresearch_clock::{
-    Anchor, Basis, Bound, Domain, Reading, Rounding, SuspendBehaviour, UNBOUNDED, bound_for_read,
-    ns_from_ms, quantum_from_deltas, wall_at,
+    Anchor, Basis, Bound, Domain, Fit, Line, Observation, Reading, Rounding, SlidingWindow,
+    Subsample, SuspendBehaviour, UNBOUNDED, bound_for_read, fit_one_way, ns_from_ms,
+    quantum_from_deltas, wall_at,
 };
 
 /// SplitMix64: small, seeded, and the same on every platform.
@@ -432,4 +433,239 @@ fn ms_to_ns_at_epoch_scale() {
         .max()
         .unwrap();
     assert_eq!(worst, 128);
+}
+
+// ---- clock fits ---------------------------------------------------------------
+
+/// A stream from a source `offset_ns` behind at `skew_ppb`, through a link
+/// with `floor_ns` of delay plus up to `jitter_ns`, sampled every `period_ns`
+/// with up to `wobble_ns` of irregularity, and with one source time in
+/// `reorder_one_in` taken from the observation before it.
+struct Stream {
+    period_ns: u64,
+    wobble_ns: u64,
+    offset_ns: i64,
+    skew_ppb: i64,
+    floor_ns: u64,
+    jitter_ns: u64,
+    reorder_one_in: u64,
+}
+
+impl Stream {
+    fn random(rng: &mut Rng) -> Stream {
+        let period_ns = rng.pick(&[1_000_000u64, 2_500_000, 5_000_000, 33_333_333]);
+        Stream {
+            period_ns,
+            wobble_ns: rng.range(0, period_ns / 4),
+            offset_ns: rng.range(0, 20_000_000) as i64 - 10_000_000,
+            skew_ppb: rng.range(0, 200_000) as i64 - 100_000,
+            floor_ns: rng.range(0, 5_000_000),
+            jitter_ns: rng.pick(&[0u64, 50_000, 2_000_000, 15_000_000]),
+            reorder_one_in: rng.pick(&[0u64, 7, 50]),
+        }
+    }
+
+    fn take(&self, rng: &mut Rng, count: u64) -> Vec<Observation> {
+        let origin = 1_000_000_000_000u64;
+        let mut out: Vec<Observation> = Vec::new();
+        let mut source = origin;
+        for _ in 0..count {
+            source += self.period_ns + rng.range(0, self.wobble_ns);
+            let mut s = source;
+            if self.reorder_one_in > 0 && rng.range(1, self.reorder_one_in) == 1 {
+                if let Some(previous) = out.last() {
+                    s = previous
+                        .source_ns
+                        .saturating_sub(rng.range(0, self.period_ns));
+                }
+            }
+            let drift =
+                (i128::from(s) - i128::from(origin)) * i128::from(self.skew_ppb) / 1_000_000_000;
+            let receipt = i128::from(s)
+                + i128::from(self.offset_ns)
+                + drift
+                + i128::from(self.floor_ns)
+                + i128::from(rng.range(0, self.jitter_ns));
+            out.push(Observation {
+                source_ns: s,
+                receipt_ns: u64::try_from(receipt).unwrap(),
+            });
+        }
+        out
+    }
+}
+
+/// The streaming estimator against the batch fit. At every push, the window
+/// holds exactly what the rule vector 0022 states — modelled here as a range
+/// over everything pushed — and its fit equals `fit_one_way` over that range,
+/// field for field, before and after the cache is filled.
+#[test]
+fn a_window_fit_is_the_batch_fit_over_what_it_holds() {
+    let mut rng = Rng(20_260_919);
+    let mut fitted = 0;
+    let mut skews = 0;
+    for _ in 0..60 {
+        let stream = Stream::random(&mut rng);
+        let window_ns = rng.pick(&[0u64, 50_000_000, 400_000_000, 2_000_000_000]);
+        let capacity = rng.pick(&[1usize, 7, 8, 64, 300]);
+        let pushed = {
+            let count = rng.range(1, 400);
+            stream.take(&mut rng, count)
+        };
+
+        let mut window = SlidingWindow::new(window_ns, capacity);
+        let (mut start, mut latest) = (0usize, 0u64);
+        for (k, &o) in pushed.iter().enumerate() {
+            window.push(o);
+            latest = latest.max(o.source_ns);
+            while start <= k
+                && u128::from(pushed[start].source_ns) + u128::from(window_ns) < u128::from(latest)
+            {
+                start += 1;
+            }
+            start = start.max((k + 1).saturating_sub(capacity));
+            let model = &pushed[start..=k];
+
+            let held: Vec<Observation> = window.observations().collect();
+            assert_eq!(held, model, "window contents after push {k}");
+            let batch = fit_one_way(model);
+            assert_eq!(window.fit(), batch, "fit after push {k}");
+            assert_eq!(window.fit(), batch, "cached fit after push {k}");
+            // A stale source pushed after everything before it has gone is
+            // itself outside the window, and leaves it empty.
+            let Some(batch) = batch else {
+                assert!(model.is_empty());
+                assert_eq!(window.map_to_reference(o.source_ns), o.source_ns);
+                continue;
+            };
+            assert_eq!(
+                window.map_to_reference(o.source_ns),
+                batch.line().map_to_reference(o.source_ns)
+            );
+            fitted += 1;
+            skews += usize::from(batch.skew_estimated());
+        }
+    }
+    // Guards against a generator that never reaches the skew branch.
+    assert!(
+        fitted > 5_000 && skews > 1_000,
+        "{fitted} fits, {skews} with skew"
+    );
+}
+
+/// A session subsample holds fewer than its capacity, spans the session, and
+/// fits exactly as the batch fit over what it holds.
+#[test]
+fn a_subsample_fit_is_the_batch_fit_over_what_it_holds() {
+    let mut rng = Rng(20_260_920);
+    for _ in 0..200 {
+        let stream = Stream::random(&mut rng);
+        let capacity = rng.pick(&[2usize, 8, 16, 256]);
+        let pushed = {
+            let count = rng.range(1, 5_000);
+            stream.take(&mut rng, count)
+        };
+        let mut sample = Subsample::new(capacity);
+        for &o in &pushed {
+            sample.push(o);
+        }
+        assert!(sample.observations().len() < capacity);
+        assert_eq!(sample.observations().first(), pushed.first());
+        assert_eq!(sample.fit(), fit_one_way(sample.observations()));
+    }
+}
+
+/// The fitted offset is the smallest delta, so no observation is mapped
+/// earlier than it was received when no rate is fitted, and the origin is an
+/// observation holding that delta.
+#[test]
+fn the_fitted_offset_is_never_above_a_delta() {
+    let mut rng = Rng(20_260_921);
+    for _ in 0..500 {
+        let stream = Stream::random(&mut rng);
+        let observations = {
+            let count = rng.range(1, 300);
+            stream.take(&mut rng, count)
+        };
+        let fit = fit_one_way(&observations).unwrap();
+        assert_eq!((fit.bias_low_ns, fit.bias_high_ns), (UNBOUNDED, 0));
+        assert!(observations.iter().all(|o| o.delta_ns() >= fit.offset_ns));
+        assert!(
+            observations
+                .iter()
+                .any(|o| o.source_ns == fit.reference_source_ns && o.delta_ns() == fit.offset_ns)
+        );
+        let offset_only = Line {
+            skew_ppb: 0,
+            ..fit.line()
+        };
+        assert!(
+            observations
+                .iter()
+                .all(|o| offset_only.map_to_reference(o.source_ns) <= o.receipt_ns)
+        );
+    }
+}
+
+/// A constant added to every receipt moves the offset by that constant and
+/// changes nothing else: the limit of one-way data, asserted.
+#[test]
+fn a_constant_delay_moves_only_the_offset() {
+    let mut rng = Rng(20_260_922);
+    for _ in 0..500 {
+        let stream = Stream::random(&mut rng);
+        let observations = {
+            let count = rng.range(1, 300);
+            stream.take(&mut rng, count)
+        };
+        let delay = rng.range(0, 50_000_000);
+        let delayed: Vec<Observation> = observations
+            .iter()
+            .map(|o| Observation {
+                receipt_ns: o.receipt_ns + delay,
+                ..*o
+            })
+            .collect();
+        let (a, b) = (
+            fit_one_way(&observations).unwrap(),
+            fit_one_way(&delayed).unwrap(),
+        );
+        assert_eq!(b.offset_ns, a.offset_ns + delay as i64);
+        assert_eq!(
+            Fit {
+                offset_ns: a.offset_ns,
+                ..b
+            },
+            a
+        );
+    }
+}
+
+/// An instant mapped forward and back lands within 1 ns of where it started
+/// whenever the forward image was not clamped and |skew| is at most 10⁶ ppb:
+/// the forward drift truncates and the inverse rounds.
+#[test]
+fn forward_then_inverse_lands_within_one_ns() {
+    let mut rng = Rng(20_260_923);
+    let mut off_by_one = 0;
+    for _ in 0..200_000 {
+        let line = Line {
+            reference_source_ns: rng.range(0, 1 << 50),
+            offset_ns: rng.range(0, 2_000_000_000_000) as i64 - 1_000_000_000_000,
+            skew_ppb: rng.range(0, 2_000_000) as i64 - 1_000_000,
+        };
+        let source = rng.range(0, 1 << 52);
+        let host = line.map_to_reference(source);
+        if host == 0 {
+            continue;
+        }
+        let back = line.inverse_map(host);
+        assert!(
+            back.abs_diff(source) <= 1,
+            "{line:?} {source} -> {host} -> {back}"
+        );
+        off_by_one += u64::from(back != source);
+    }
+    // The 1 ns is real, not a margin: it is reached.
+    assert!(off_by_one > 0);
 }

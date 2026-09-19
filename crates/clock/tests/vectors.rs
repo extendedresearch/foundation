@@ -22,10 +22,10 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use extendedresearch_clock::{
-    Anchor, Basis, Bound, Discontinuity, Domain, DomainId, DriftCheck, DriftThreshold, MsError,
-    Reading, Rounding, SinceError, SuppliedClock, SuspendBehaviour, UNBOUNDED, WallError,
-    bound_for_read, doc_epoch_from, host_clock_epoch_from, ns_from_ms, quantum_from_deltas,
-    wall_at,
+    Anchor, Basis, Bound, Discontinuity, Domain, DomainId, DriftCheck, DriftThreshold, Line,
+    MsError, Observation, Reading, Rounding, SinceError, SlidingWindow, Subsample, SuppliedClock,
+    SuspendBehaviour, UNBOUNDED, WallError, bound_for_read, doc_epoch_from, fit_one_way,
+    host_clock_epoch_from, ns_from_ms, quantum_from_deltas, tolerance_for_rate, wall_at,
 };
 use json::Json;
 
@@ -49,6 +49,11 @@ const VECTORS: &[&str] = &[
     "0015-basis-integers-are-fixed",
     "0016-suspend-behaviour-integers",
     "0017-monotonic-source-literals-are-bare-identifiers",
+    "0018-a-fitted-line-maps-forward-and-back-in-integers",
+    "0019-a-one-way-fit-is-a-min-filter-and-an-envelope-slope",
+    "0020-a-tolerance-is-one-sample-period",
+    "0021-a-session-subsample-halves-and-doubles-its-stride",
+    "0022-a-sliding-window-keeps-a-span-of-source-time",
 ];
 
 /// The fixture strings a vector does not carry.
@@ -697,6 +702,199 @@ fn monotonic_source_vector(vector: &Json) -> Observed {
     out
 }
 
+fn i64_at(value: &Json, key: &str) -> i64 {
+    let s = text(value, key);
+    s.parse()
+        .unwrap_or_else(|_| panic!("{key:?} = {s:?} is not a decimal i64"))
+}
+
+fn u64_list(value: &Json, key: &str) -> Vec<u64> {
+    field(value, key)
+        .as_array()
+        .unwrap_or_else(|| panic!("{key:?} is not an array"))
+        .iter()
+        .map(|x| x.as_str().expect("a decimal string").parse().expect("u64"))
+        .collect()
+}
+
+fn observations_at(value: &Json, key: &str) -> Vec<Observation> {
+    field(value, key)
+        .as_array()
+        .unwrap_or_else(|| panic!("{key:?} is not an array"))
+        .iter()
+        .map(|pair| {
+            let n: Vec<u64> = pair
+                .as_array()
+                .expect("an observation")
+                .iter()
+                .map(|x| x.as_str().expect("decimal").parse().expect("u64"))
+                .collect();
+            assert_eq!(n.len(), 2, "an observation is [source_ns, receipt_ns]");
+            Observation {
+                source_ns: n[0],
+                receipt_ns: n[1],
+            }
+        })
+        .collect()
+}
+
+/// The generator a `synthetic` input stands for, as the vector states it.
+fn synthetic(value: &Json) -> Vec<Observation> {
+    let count = u64_at(value, "count");
+    let period_ns = u64_at(value, "period_ns");
+    let offset_ns = i64_at(value, "offset_ns");
+    let skew_ppb = i64_at(value, "skew_ppb");
+    let floor_ns = u64_at(value, "floor_ns");
+    let jitter = u64_list(value, "jitter_ns");
+    (0..count)
+        .map(|i| {
+            let source_ns = 1_000_000_000 + i * period_ns;
+            let drift =
+                (i128::from(source_ns) - 1_000_000_000) * i128::from(skew_ppb) / 1_000_000_000;
+            let receipt = i128::from(source_ns)
+                + i128::from(offset_ns)
+                + drift
+                + i128::from(floor_ns)
+                + i128::from(jitter[(i % jitter.len() as u64) as usize]);
+            Observation {
+                source_ns,
+                receipt_ns: u64::try_from(receipt).expect("a synthetic receipt fits u64"),
+            }
+        })
+        .collect()
+}
+
+fn mapping_vector(vector: &Json) -> Observed {
+    let mut out = Observed::new();
+    for (name, row) in rows(vector) {
+        let i = input(row);
+        let ns = u64_at(i, "ns");
+        let forward = match text(i, "direction") {
+            "forward" => true,
+            "inverse" => false,
+            other => panic!("direction {other:?}"),
+        };
+        let value = match text(i, "quality") {
+            // Nothing fitted: the live estimator before any observation, which
+            // answers what an unavailable mapping answers.
+            "unavailable" => {
+                let mut window = SlidingWindow::default();
+                if forward {
+                    window.map_to_reference(ns)
+                } else {
+                    window.inverse_map(ns)
+                }
+            }
+            "ok" | "degraded" => {
+                let line = Line {
+                    reference_source_ns: u64_at(i, "reference_source_ns"),
+                    offset_ns: i64_at(i, "offset_ns"),
+                    skew_ppb: i64_at(i, "skew_ppb"),
+                };
+                if forward {
+                    line.map_to_reference(ns)
+                } else {
+                    line.inverse_map(ns)
+                }
+            }
+            other => panic!("quality {other:?}"),
+        };
+        put(&mut out, name, value);
+    }
+    out
+}
+
+fn fit_vector(vector: &Json) -> Observed {
+    let mut out = Observed::new();
+    for (name, row) in rows(vector) {
+        let i = input(row);
+        let observations = match i.get("synthetic") {
+            Some(s) => synthetic(s),
+            None => observations_at(i, "observations"),
+        };
+        let Some(fit) = fit_one_way(&observations) else {
+            put(&mut out, name, "none");
+            continue;
+        };
+        let quality = if fit.is_within(u64_at(i, "tolerance_ns")) {
+            "ok"
+        } else {
+            "degraded"
+        };
+        let mut f = |k: &str, v: String| put(&mut out, format!("{name}.{k}"), v);
+        f("reference_source_ns", fit.reference_source_ns.to_string());
+        f("offset_ns", fit.offset_ns.to_string());
+        f("skew_ppb", fit.skew_ppb.to_string());
+        f("skew_uncertainty_ppb", fit.skew_uncertainty_ppb.to_string());
+        f("residual_spread_ns", fit.residual_spread_ns.to_string());
+        f("observation_count", fit.observation_count.to_string());
+        f("bias_low_ns", fit.bias_low_ns.to_string());
+        f("bias_high_ns", fit.bias_high_ns.to_string());
+        f("quality", quality.to_owned());
+    }
+    out
+}
+
+fn tolerance_vector(vector: &Json) -> Observed {
+    let mut out = Observed::new();
+    for (name, row) in rows(vector) {
+        let rate = u64_at(input(row), "nominal_rate_millihz");
+        put(
+            &mut out,
+            name,
+            tolerance_for_rate(rate).map_or("none".to_owned(), |t| t.to_string()),
+        );
+    }
+    out
+}
+
+fn sources(observations: impl Iterator<Item = Observation>) -> String {
+    observations
+        .map(|o| o.source_ns.to_string())
+        .collect::<Vec<_>>()
+        .join(",")
+}
+
+fn subsample_vector(vector: &Json) -> Observed {
+    let mut out = Observed::new();
+    for (name, row) in rows(vector) {
+        let i = input(row);
+        let capacity = usize::try_from(u64_at(i, "capacity")).expect("capacity");
+        let mut sample = Subsample::new(capacity);
+        for n in 0..u64_at(i, "count") {
+            sample.push(Observation {
+                source_ns: n,
+                receipt_ns: n,
+            });
+        }
+        put(
+            &mut out,
+            format!("{name}.kept"),
+            sources(sample.observations().iter().copied()),
+        );
+        put(&mut out, format!("{name}.stride"), sample.stride());
+    }
+    out
+}
+
+fn sliding_window_vector(vector: &Json) -> Observed {
+    let mut out = Observed::new();
+    for (name, row) in rows(vector) {
+        let i = input(row);
+        let capacity = usize::try_from(u64_at(i, "capacity")).expect("capacity");
+        let mut window = SlidingWindow::new(u64_at(i, "window_ns"), capacity);
+        for o in observations_at(i, "observations") {
+            window.push(o);
+        }
+        put(
+            &mut out,
+            format!("{name}.kept"),
+            sources(window.observations()),
+        );
+    }
+    out
+}
+
 fn run(vector: &Json) -> Observed {
     match text(vector, "function") {
         "host_clock_epoch_from" => host_clock_epoch_vector(vector),
@@ -713,6 +911,11 @@ fn run(vector: &Json) -> Observed {
         "Basis" => basis_vector(vector),
         "SuspendBehaviour" => suspend_vector(vector),
         "monotonic_source" => monotonic_source_vector(vector),
+        "mapping" => mapping_vector(vector),
+        "fit_one_way" => fit_vector(vector),
+        "tolerance_for_rate" => tolerance_vector(vector),
+        "Subsample" => subsample_vector(vector),
+        "SlidingWindow" => sliding_window_vector(vector),
         other => panic!("no runner for function {other:?}"),
     }
 }

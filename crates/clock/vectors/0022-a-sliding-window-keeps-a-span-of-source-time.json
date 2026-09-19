@@ -1,0 +1,17 @@
+{
+  "clock_vector": "0",
+  "id": "0022-a-sliding-window-keeps-a-span-of-source-time",
+  "about": "SlidingWindow(window_ns, capacity), then each observation pushed in order. A capacity of 0 keeps nothing. Otherwise each push appends the observation and raises latest, the largest source_ns pushed so far; then, from the oldest end only, observations whose source_ns + window_ns (without overflow) is less than latest are dropped, stopping at the first that is not; then the oldest are dropped while more than capacity remain. An observation pushed with an old source time therefore stays until those pushed before it have gone. Expect kept, the source_ns of the observations held, comma-separated, oldest first. The expectations were worked by hand from this rule.",
+  "function": "SlidingWindow",
+  "faces": ["native", "browser"],
+  "rows": {
+    "keeps_what_is_within_the_window": {"input": {"window_ns": "10", "capacity": "100", "observations": [["0", "1"], ["5", "6"], ["10", "11"], ["15", "16"], ["20", "21"]]}, "expect": {"kept": "10,15,20"}},
+    "the_capacity_drops_the_oldest": {"input": {"window_ns": "1000", "capacity": "3", "observations": [["0", "1"], ["1", "2"], ["2", "3"], ["3", "4"], ["4", "5"]]}, "expect": {"kept": "2,3,4"}},
+    "eviction_is_from_the_oldest_end_only": {"input": {"window_ns": "10", "capacity": "100", "observations": [["0", "1"], ["20", "21"], ["5", "6"]]}, "expect": {"kept": "20,5"}},
+    "a_late_old_source_goes_once_the_ones_before_it_have": {"input": {"window_ns": "10", "capacity": "100", "observations": [["0", "1"], ["20", "21"], ["5", "6"], ["25", "26"], ["31", "32"]]}, "expect": {"kept": "25,31"}},
+    "a_capacity_of_zero_keeps_nothing": {"input": {"window_ns": "10", "capacity": "0", "observations": [["0", "1"], ["5", "6"]]}, "expect": {"kept": ""}},
+    "a_zero_window_keeps_equal_sources": {"input": {"window_ns": "0", "capacity": "100", "observations": [["5", "6"], ["5", "7"], ["6", "8"]]}, "expect": {"kept": "6"}},
+    "the_window_edge_is_kept": {"input": {"window_ns": "10", "capacity": "100", "observations": [["0", "1"], ["10", "11"]]}, "expect": {"kept": "0,10"}},
+    "the_top_of_u64_does_not_wrap": {"input": {"window_ns": "10", "capacity": "100", "observations": [["18446744073709551610", "18446744073709551611"], ["18446744073709551615", "18446744073709551615"]]}, "expect": {"kept": "18446744073709551610,18446744073709551615"}}
+  }
+}

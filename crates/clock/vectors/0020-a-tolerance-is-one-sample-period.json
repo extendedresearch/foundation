@@ -1,0 +1,16 @@
+{
+  "clock_vector": "0",
+  "id": "0020-a-tolerance-is-one-sample-period",
+  "about": "tolerance_for_rate(nominal_rate_millihz): none for a rate of 0, otherwise 1000000000000 / nominal_rate_millihz in u64, truncating. A rate above 10^12 mHz gives a tolerance of zero. The expectations were computed by the implementation that wrote the fits already recorded.",
+  "function": "tolerance_for_rate",
+  "faces": ["native", "browser"],
+  "rows": {
+    "two_hundred_hertz_is_five_ms": {"input": {"nominal_rate_millihz": "200000"}, "expect": "5000000"},
+    "one_kilohertz_is_one_ms": {"input": {"nominal_rate_millihz": "1000000"}, "expect": "1000000"},
+    "a_thirty_second_trickle": {"input": {"nominal_rate_millihz": "33"}, "expect": "30303030303"},
+    "one_millihertz": {"input": {"nominal_rate_millihz": "1"}, "expect": "1000000000000"},
+    "three_millihertz_truncates": {"input": {"nominal_rate_millihz": "3"}, "expect": "333333333333"},
+    "no_declared_rate": {"input": {"nominal_rate_millihz": "0"}, "expect": "none"},
+    "the_largest_rate_is_a_zero_period": {"input": {"nominal_rate_millihz": "18446744073709551615"}, "expect": "0"}
+  }
+}

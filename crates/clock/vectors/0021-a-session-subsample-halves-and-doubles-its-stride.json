@@ -1,0 +1,17 @@
+{
+  "clock_vector": "0",
+  "id": "0021-a-session-subsample-halves-and-doubles-its-stride",
+  "about": "Subsample(capacity), then count pushes of observations whose source_ns is 0, 1, ..., count - 1. A capacity of 0 keeps nothing. Otherwise, from stride 1 and seen 0, each push adds 1 to seen and is kept only when seen is a multiple of stride; after a keep, when capacity or more are held, the 1st, 3rd, 5th, ... held are retained and the rest dropped, and stride doubles. Expect kept, the source_ns of the observations held, comma-separated in order, and the final stride. The survivors sit near a grid rather than on one: capacity 4 and ten pushes leave 0 and 5. The expectations were computed by the implementation that wrote the fits already recorded.",
+  "function": "Subsample",
+  "faces": ["native", "browser"],
+  "rows": {
+    "fewer_than_the_capacity_keeps_every_one": {"input": {"capacity": "4", "count": "3"}, "expect": {"kept": "0,1,2", "stride": "1"}},
+    "reaching_the_capacity_halves_and_doubles_the_stride": {"input": {"capacity": "4", "count": "4"}, "expect": {"kept": "0,2", "stride": "2"}},
+    "ten_through_a_capacity_of_four": {"input": {"capacity": "4", "count": "10"}, "expect": {"kept": "0,5", "stride": "4"}},
+    "a_capacity_of_two": {"input": {"capacity": "2", "count": "9"}, "expect": {"kept": "0", "stride": "8"}},
+    "a_capacity_of_one": {"input": {"capacity": "1", "count": "5"}, "expect": {"kept": "0", "stride": "8"}},
+    "a_capacity_of_zero_keeps_nothing": {"input": {"capacity": "0", "count": "5"}, "expect": {"kept": "", "stride": "1"}},
+    "a_thousand_through_sixteen": {"input": {"capacity": "16", "count": "1000"}, "expect": {"kept": "0,71,143,207,287,351,415,479,575,639,703,767,831,895,959", "stride": "64"}},
+    "a_hundred_thousand_through_sixty_four": {"input": {"capacity": "64", "count": "100000"}, "expect": {"kept": "0,2111,4223,6271,8447,10495,12543,14591,16895,18943,20991,23039,25087,27135,29183,31231,33791,35839,37887,39935,41983,44031,46079,48127,50175,52223,54271,56319,58367,60415,62463,64511,67583,69631,71679,73727,75775,77823,79871,81919,83967,86015,88063,90111,92159,94207,96255,98303", "stride": "2048"}}
+  }
+}
