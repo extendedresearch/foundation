@@ -197,17 +197,39 @@ package boundary the week after the merge.
 
 ### Phase 3 — the merge, one repository at a time, history preserved
 
-`plugins` first, then `eres`, then `ca3`, then `ranvier` — leaves before
-dependents, smallest blast radius first.
+**Dependency order, not leaf order: `ranvier`, then `ca3`, then `plugins`.**
+`eres` is held out of this wave and joins later.
+
+`ranvier` and `ca3` depend on foundation and on nothing else, so each one's git
+dependency becomes a path dependency on the day it lands. `plugins` is the only
+one that depends on siblings — twelve pinned revisions of `ranvier` and `ca3` —
+so it goes last, when what it depends on is already here.
+
+*This reverses an earlier reading.* Leaves-first was chosen for the smallest
+blast radius, on the reasoning that a merge which has to be undone should be
+cheap to undo. That does not survive contact: a subtree merge is a merge commit
+and costs the same to revert whichever repository it carried, and nothing in the
+tree depends on `plugins` in either ordering, so its arrival is the low-risk one
+either way.
+
+**What dependency order buys is when the benefit is collected.** A repository's
+seams close the moment it arrives, but only if what it depends on is already
+there. `plugins` arriving first would sit in the tree still pinning twelve
+revisions of repositories outside it, with none of its seams closable — the
+whole point of the move, deferred.
+
+Merging `plugins` last also lets its decomposition settle. It is under
+evaluation as several packages rather than one, and merging it before that is
+answered means doing it twice.
 
 ```bash
-git remote add plugins-origin <url>
-git fetch plugins-origin
-git subtree add --prefix=plugins plugins-origin main
+git remote add <repo>-origin <url>
+git fetch <repo>-origin
+git subtree add --prefix=<repo> <repo>-origin main
 ```
 
 `git subtree add` preserves the incoming history under the prefix, so
-`git log --follow plugins/<path>` still reaches the original commits.
+`git log --follow <repo>/<path>` still reaches the original commits.
 
 **After each one, before the next:** the full suite green, `ecosystem/check.py
 all` green, and the newly arrived packages declared. A merge that has to be
@@ -282,10 +304,12 @@ repository's subject area:
 
 **One workspace or several** (§2) — run the resolution comparison first.
 
-**Whether `plugins` belongs at all.** It builds against `ranvier` and `ca3` and
-nothing depends on it. It is the safest pilot for exactly that reason, and it is
-also the one whose absence would cost least. Worth asking whether it is a
-product of this ecosystem or a consumer of it.
+**Whether `plugins` belongs at all**, and **as how many packages**. It builds
+against `ranvier` and `ca3` and nothing depends on it, so it is the one whose
+absence would cost least — worth asking whether it is a product of this
+ecosystem or a consumer of it. Separately, it is roughly twenty directories
+across three declared tiers, and arriving as one package is unlikely to be
+right; a structural evaluation is running.
 
 **What the repository is called** after Phase 5.
 
