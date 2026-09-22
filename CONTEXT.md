@@ -39,13 +39,18 @@ migration is gated, and the gate's first item is what everything waits on.
 
 | # | Step | State | Why here |
 |---|---|---|---|
-| 1 | **Boundary extractors** — TypeScript, Python, C#, Rust | comparator and intermediate form built; **zero extractors** | Gate item 1 of decision 0002. The comparator fails loudly with "no extractor for X" rather than passing, so the skeleton is honest and useless until this lands |
-| 2 | **Timing step 2** — reconcile `Basis` with `LinkKind` | **not started**; an agent was 16 minutes in with nothing committed and was stopped at handoff | `Basis` names where in a path a reading was taken; `LinkKind` names what a stage does. They describe one thing from two directions and nothing connects them |
-| 3 | **Timing step 3** — `Mapping::map` | **not started**, same stopped agent | The defect the whole layer exists to fix: `Fit` computes four uncertainty figures and `Line::map_to_reference` returns a bare integer carrying none of them |
-| 4 | **Timing steps 4–8** — sample clocks, calibration, requirements, the record schema, the ABI projection | not started | Step 7 freezes integers permanently and needs the owner's sign-off first |
-| 5 | **Scope declarations** (`does`/`refuses`/`vocabulary`/`touches`) | designed, not built | §"Decisions waiting" below. Shares its surface-enumeration layer with step 1 |
-| 6 | **A similarity check for diverged forks** | not started | `duplication` hashes files, so a fork differing in two lines out of 663 passes clean. A real case exists in a consumer |
-| 7 | **The remaining README migrations** | 7 of 9 done | `check.py documents` reports the rest as `SOFT`; `--strict` fails on them |
+| 1 | **Boundary extractors** — TypeScript, Python, C#, Rust | comparator and intermediate form built; **zero extractors** | Gate item 1 of foundation decision 0002. The comparator fails loudly with "no extractor for X" rather than passing, so the skeleton is honest and useless until this lands |
+| 2 | **Timing steps 4–8** — sample clocks, calibration, requirements, the record schema, the ABI projection | not started | Step 7 freezes integers permanently and needs the owner's sign-off first |
+| 3 | **Scope declarations** (`does`/`refuses`/`vocabulary`/`touches`) | designed, not built | §"Decisions waiting" below. Shares its surface-enumeration layer with step 1 |
+| 4 | **A similarity check for diverged forks** | not started | `duplication` hashes files, so a fork differing in two lines out of 663 passes clean. A real case exists in a consumer |
+| 5 | **The remaining README migrations** | 7 of 9 done | `check.py documents` reports the rest as `SOFT`; `--strict` fails on them |
+
+**Timing steps 2 and 3 landed.** `Basis` now names the chain position a stamp
+was taken at, so the links after that position contribute nothing to that
+stamp's uncertainty, and `Mapping::map` returns a reading carrying the fit's
+offset bias, its residual spread as a dispersion, and an extrapolation penalty.
+`Line::map_to_reference` is unchanged and a property test pins the new layer to
+it bit for bit, so what is reported changed and what is computed did not.
 
 ---
 
@@ -436,10 +441,13 @@ uncommitted. **Its branch exists; the uncommitted files are still in that
 working tree.** Whoever picks it up should check `git status` there before
 starting, not assume a clean tree.
 
-**One agent in this repository was stopped at handoff with nothing committed.**
-It was 16 minutes into timing steps 2 and 3 — the `Basis`/`LinkKind`
-reconciliation and `Mapping::map`. No branch, no commits; that work is lost and
-has to start again. Steps 2 and 3 in the plan above carry the full brief.
+**One agent in this repository was stopped at handoff with nothing committed,
+and its work was recovered.** It was 16 minutes into timing steps 2 and 3 — the
+`Basis`/`LinkKind` reconciliation and `Mapping::map` — with no branch and no
+commits. The files survived in its working tree, and only formatting was
+failing, because it was killed mid-edit. Both steps have since landed. Stopping
+an agent that has no commits does not discard its work; check the working tree
+before assuming it does.
 
 ## Decisions waiting on the owner
 
@@ -464,7 +472,7 @@ Each has enough here to decide without reading code.
    needs a nightly available and none pinned. Vocabulary means types, constants
    and free functions — not methods, since a type gaining an accessor is not a
    scope change.
-4. **The new package names** (decision 0003), and **the repository's own name**
+4. **The new package names** (foundation decision 0003), and **the repository's own name**
    after the merge. Both are cheap now and impossible after publication.
 5. **Whether a fixture crate outside the package set should be declared.**
    Foundation has two cargo workspaces; the second holds a CI-action fixture
