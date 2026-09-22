@@ -71,11 +71,12 @@ depends on. Renaming them is a **breaking change to a consumer**, not a rename:
 already carry; the package that reads it is a different thing and can be renamed
 without touching it. Parquet files are read by Arrow; nobody renamed the files.
 
-So: the container format may keep the name `.ca3`, including its extension and
-any magic bytes, while the package that implements it is called something that
-says what it does. **If a rename would invalidate a file that already exists,
-that is the signal it is a format decision and not a naming one**, and it needs
-its own record.
+**Decided: `.ca3` stays.** The container format keeps its name, its extension
+and any magic bytes; the package that implements it is renamed for what it does.
+Files already written stay readable and nothing about the format moves.
+
+**If a rename would invalidate a file that already exists, that is the signal it
+is a format decision and not a naming one**, and it needs its own record.
 
 ---
 

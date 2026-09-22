@@ -151,16 +151,42 @@ answer for.
 The sharpest case, and a defect today rather than a hypothesis.
 Suspend-behaviour classification is written in three places: this repository
 owns the enumeration and the literal set, one consumer owns the platform table,
-another owns the function joining them. They have drifted.
-`crates/clock/vectors/0017-monotonic-source-literals-are-bare-identifiers.json`
-declares five literals — `CLOCK_BOOTTIME`, `CLOCK_MONOTONIC_RAW`,
-`QueryPerformanceCounter`, `CLOCK_MONOTONIC`, and `performance.now` for the
-browser. A consumer carries three, so a browser-face recording classifies as
-unclassified.
+and another owns the function joining them.
+
+**The drift runs both ways, which is what makes it the worked example.** Each
+side knows a literal the other does not:
+
+| Literal | the consumer's tables | vector 0017 |
+|---|---|---|
+| `CLOCK_BOOTTIME` | includes suspend | yes |
+| `CLOCK_MONOTONIC_RAW` | includes suspend | yes |
+| `QueryPerformanceCounter` | includes suspend | yes |
+| `CLOCK_MONOTONIC` | excludes suspend | yes |
+| `performance.now` | **absent** | yes |
+| `QueryUnbiasedInterruptTime` | excludes suspend | **absent** |
+
+Four shared, one each way. In one direction the defect is live: a browser face
+emits `performance.now`, and the consumer's classifier answers `Unclassified`.
+In the other it is latent — a face emitting `QueryUnbiasedInterruptTime` would
+fail this repository's check while the consumer classifies it correctly. Checked
+and not currently live: the platform table emits `QueryPerformanceCounter` and
+`CLOCK_BOOTTIME`, and names `QueryUnbiasedInterruptTime` only in a doc comment
+describing what it does *not* use.
+
+The two sides are also different shapes. This repository asks "is this a literal
+a face may emit"; the consumer asks "does this call include suspend or exclude
+it", and answers with two tables. **A similarity check would never find this**,
+because the code does not resemble itself across the boundary — it is one rule
+split into adjacent questions, and nothing holds the answers together.
 
 The vector exists and its own description says every face's live row checks
 against it. Nothing runs that consumer against it. **Three repositories each
 wrote down a piece and none wrote down the join.**
+
+One posture worth preserving into the shared version: the consumer's classifier
+matches exactly and reports a near miss as unknown rather than guessing, on the
+grounds that a producer who wrote something almost right is a producer whose
+string nobody has checked. A fuzzy match would hide exactly the drift above.
 
 ### The distinction that makes this hard: sanctioned duplication
 

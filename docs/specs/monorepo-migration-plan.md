@@ -108,11 +108,53 @@ distinguish "checked and still true" from "never read":
 | **Ecosystem** | Actually about how packages relate rather than about one package. Promoted to the repository-level set; the original is superseded by a pointer so its number keeps resolving |
 | **Superseded** | The refactoring made it false. Marked superseded in place, naming its replacement. Not deleted |
 | **Contradicted** | Conflicts with another repository's record on the same question. Needs adjudication before either moves — this is the class that only exists because nothing reads all four sets today |
-| **Status drifted** | Its *Implementation status* is wrong. Already found once: ca3's calibration records are specified and the grep for their types returns nothing |
+| **Orphaned** | Still true, but about a package that left. Moves *to that package*, not to the repository tier and not to the bin |
+| **Status drifted** | Its *Implementation status* is wrong |
 
-The last class is worth its own pass. A record claiming `Implemented` for
+Status drift is worth its own pass. A record claiming `Implemented` for
 something that does not exist is worse than no record, because the next reader
 plans around it.
+
+### What the audit actually found
+
+All 169 records were classified. The counts matter less than five things it
+turned up, each verified by a command rather than read off a status line.
+
+**Forty-four records are orphaned, not superseded.** An editor application left
+`eres` for a repository of its own, taking 614 files with it, and the records
+describing it stayed behind. They are not wrong; their subject moved. That
+repository has 21 records of its own and re-decides some of the same ground, so
+`eres` 0050–0091 and its 0001–0020 are about the same code under different
+numbers. This is what the **Orphaned** class is for.
+
+**The scope in §1 is incomplete.** Four more repositories sit under `apps/`
+— one with 21 decision records, one with 1 — plus other Rust trees beside
+`core/`. The migration names four repositories and the ecosystem has more. The
+layout and the order both have to account for them before Phase 3.
+
+**Decision citations have leaked into shipped artifacts.** One repository cites
+**34 distinct decision numbers** of which 29 belong to other repositories, and
+**269 of its 336 citation lines name no repository at all** — a bare "decision
+0011" that resolves to a sibling's record while the citing repository has no
+0011. Another carries a decision *filename* as a data field in a generated JSON
+file, and a decision number is compiled into a protobuf descriptor that ships
+inside recordings. **No mechanical renumber or rename can be trusted against
+this**, which retires the last argument for renumbering and raises a new
+requirement: a citation must name its repository.
+
+**Status drift is the rule, not the exception, and it runs both ways.** One
+record reads "Not implemented" while the schema is entirely its shape. Another's
+own re-derivation command reports 7 of 15 where the tree now gives 35 of 69 —
+and the test fails. Three records claim an ABI exports 126 functions over 12
+handles where it exports 359 over 31. Two name a crate that exists on no branch.
+
+**The contradictions are real and one of them is this repository's.** See §4a.
+
+Two things the audit could not do, stated because a green-looking report should
+not be read as coverage: it did not run any test suite, so every test count
+quoted in a record is unverified; and it flagged structural claims rather than
+snapshot counts, so roughly a dozen more records carry stale figures that were
+deliberately not classified as drift.
 
 Done before the merge, in four separate changes within the existing
 repositories, so a collision cannot happen during the merge itself. **No
@@ -173,6 +215,34 @@ collected, and it deletes more than it adds:
 
 `foundation` names a set of building blocks. GitHub redirects the old name, so
 the cost is a redirect now against every stale link later.
+
+---
+
+## 4a. Contradictions found, and who owns each
+
+Every row verified by running the command beside it, not by reading a record.
+
+| Question | The disagreement | Owner |
+|---|---|---|
+| **What is the ecosystem's minimum Rust?** | `foundation` and `ranvier` declare 1.85; `ca3`, `eres` and `plugins` declare 1.88. `docs/conventions/toolchain-pins.md` states 1.85 as *the* pin, so this repository's own convention is wrong about three of five repositories. One of the 1.88s is measured — let-chains fail on 1.87 — so this is not a free choice about a number | **foundation** |
+| **Is this repository one repository?** | One consumer's record says "This repository is one repository. Not a stage in a split", against decision 0002 | that consumer, after 0002 |
+| **When does a package reach a public registry?** | One consumer's record requires registry publication to work; decision 0001 defers registry publishing to v1 | foundation 0001 governs |
+| **May an export carry a figure no sample carried?** | Three documents in one consumer answer it three ways — never, never interpolate, and yes-if-labelled — and the permissive one is what ships | that consumer |
+| **What does a time basis label mean?** | One consumer ships two unrelated vocabularies for one column family: `exact/ok/degraded/unmapped` and `exact/estimated/unchecked`. Both implemented. A reader sees two meanings of `exact` | that consumer |
+| **How is the contribution boundary enforced?** | One repository removed its pre-commit and pre-push hooks and kept a CI job; nothing propagated that, and there are four or five independent copies of the checker with no shared implementation | ecosystem-level; unowned today |
+
+**Two findings that are defects rather than disagreements**, both in this
+repository's subject area:
+
+- A consumer's calibration records are specified and unimplemented, which makes
+  the rule forbidding double-correction **unimplementable**, and that rule is the
+  one its own specification calls the failure mode the format exists to refuse.
+  It is foundation R27 and R28, which that consumer will inherit.
+- **A third clock-fit implementation exists** and no decision record covers it.
+  Its own source says three implementations exist and a disagreement between
+  them is a disagreement about when a recorded event happened. Foundation R42
+  targets exactly the discarded-uncertainty defect in the one it names; whatever
+  supersedes it supersedes all three.
 
 ---
 
