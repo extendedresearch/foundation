@@ -44,9 +44,10 @@ enforcement is free, invisible, and would disappear on the day of the move.
 
 ## Decision
 
-**Move `ranvier`, `ca3`, `eres` and `plugins` into this repository, after — and
+**Move `ranvier`, `ca3` and then `plugins` into this repository, after — and
 only after — the enforcement that repository separation currently provides for
-free exists as a check.**
+free exists as a check.** `eres` is held out of this wave and joins later; the
+reasoning below applies to it unchanged when it does.
 
 This does not contradict decision 0001. That record is about **package**
 independence, not repository count: the boundary is the package, not the
@@ -140,8 +141,9 @@ against the ecosystem *before* it merges, and no amount of downstream bumping
 provides that.
 
 **Move the products and leave `plugins` out**, since nothing depends on it.
-Rejected as a permanent shape, kept as the migration order: `plugins` and `eres`
-are leaves and make the safest pilots.
+Rejected as a permanent shape, and it does not survive as a migration order
+either: the plan orders by dependency rather than by leaf, because a repository's
+seams close only when what it depends on is already there.
 
 **One flat decision-record sequence, renumbering on merge.** Rejected — 169
 records and their citations, including citations from code comments.

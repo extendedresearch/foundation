@@ -59,19 +59,58 @@ napi move in lockstep with every consumer"* — `pyo3-ffi` declares
 `links` and a second copy builds silently. A single lockfile removes the silent
 case.
 
-**The cost, stated plainly:** every crate must agree on every shared dependency
-at the moment of the merge. That is discoverable before committing to it:
+**Measured, 2026-09-22, and the answer is that one workspace is free.** Across
+`foundation`, `ranvier`, `ca3` and `plugins` — the four in this wave — every
+`Cargo.lock` was read and every shared crate compared:
+
+| | |
+|---|---|
+| Crates appearing in more than one repository | **193** |
+| Resolving the same compatibility track to different versions | **21** |
+| On different tracks, where no repository already carries all of them | **3** |
+
+The 21 are `futures`, `wasm-bindgen`, `bitflags`, `syn`, `uuid` and similar,
+differing by a patch or a minor — `0.3.33` against `0.3.34`. **Those unify under
+one lockfile by themselves**: Cargo picks the newest compatible version and
+there is nothing to reconcile.
+
+The 3 are `hashbrown`, `libloading` and `toml_datetime`, transitive in every
+case. Cargo permits several major versions of one crate to coexist, and one of
+these repositories already carries three tracks of `hashbrown` today, so this is
+the resolver's ordinary behaviour rather than a conflict to settle.
+
+**The one that could have been expensive agrees exactly.** `napi` 3.4.0,
+`napi-derive` 3.3.0 and `napi-sys` 3.0.1 are identical across `foundation`,
+`ca3` and `ranvier`. That matters because `napi-sys` declares no `links`, so two
+series build a second copy **silently** — the failure this repository's
+conventions warn about and which nothing currently detects. They agree today; a
+single lockfile makes that structural instead of coincidental.
+
+So the cost the earlier draft feared — "every crate must agree at the moment of
+the merge, and the disagreements are the real migration work" — does not exist.
+Reproduce with:
 
 ```bash
-# For each shared dependency, what does each repository resolve today?
-for r in foundation ranvier ca3 eres plugins; do
-  echo "== $r"; grep -rhn '^name = "\(pyo3\|napi\|serde\|tokio\)"' -A1 $r/Cargo.lock
-done
+python - <<'EOF'
+import re, pathlib, collections
+repos = ["foundation", "ranvier", "ca3", "plugins"]
+seen = collections.defaultdict(lambda: collections.defaultdict(set))
+for r in repos:
+    for lock in pathlib.Path(r).rglob("Cargo.lock"):
+        if any(x in str(lock) for x in ("node_modules", "worktrees", "/target/")): continue
+        for m in re.finditer(r'^name = "([^"]+)"
+version = "([^"]+)"',
+                             lock.read_text(encoding="utf-8", errors="replace"), re.M):
+            seen[m.group(1)][r].add(m.group(2))
+print(sum(1 for v in seen.values() if len(v) > 1), "crates shared across repositories")
+EOF
 ```
 
-Run that first. If the answer is "they already agree", one workspace is free and
-the decision is made. If it is not, the disagreements are the real migration
-work and they are worth knowing before any history is rewritten.
+**`eres` was excluded from this measurement** because it is held out of the
+wave, and it is the one that would have cost something: it resolves `napi`
+3.12.3 against everyone else's 3.4.0, and pins `extendedresearch-*` at 0.1.0
+where the others are at 0.1.1. Both are the kind of disagreement this section
+was written to find, and both wait until eres joins.
 
 ---
 
@@ -197,17 +236,39 @@ package boundary the week after the merge.
 
 ### Phase 3 — the merge, one repository at a time, history preserved
 
-`plugins` first, then `eres`, then `ca3`, then `ranvier` — leaves before
-dependents, smallest blast radius first.
+**Dependency order, not leaf order: `ranvier`, then `ca3`, then `plugins`.**
+`eres` is held out of this wave and joins later.
+
+`ranvier` and `ca3` depend on foundation and on nothing else, so each one's git
+dependency becomes a path dependency on the day it lands. `plugins` is the only
+one that depends on siblings — twelve pinned revisions of `ranvier` and `ca3` —
+so it goes last, when what it depends on is already here.
+
+*This reverses an earlier reading.* Leaves-first was chosen for the smallest
+blast radius, on the reasoning that a merge which has to be undone should be
+cheap to undo. That does not survive contact: a subtree merge is a merge commit
+and costs the same to revert whichever repository it carried, and nothing in the
+tree depends on `plugins` in either ordering, so its arrival is the low-risk one
+either way.
+
+**What dependency order buys is when the benefit is collected.** A repository's
+seams close the moment it arrives, but only if what it depends on is already
+there. `plugins` arriving first would sit in the tree still pinning twelve
+revisions of repositories outside it, with none of its seams closable — the
+whole point of the move, deferred.
+
+Merging `plugins` last also lets its decomposition settle. It is under
+evaluation as several packages rather than one, and merging it before that is
+answered means doing it twice.
 
 ```bash
-git remote add plugins-origin <url>
-git fetch plugins-origin
-git subtree add --prefix=plugins plugins-origin main
+git remote add <repo>-origin <url>
+git fetch <repo>-origin
+git subtree add --prefix=<repo> <repo>-origin main
 ```
 
 `git subtree add` preserves the incoming history under the prefix, so
-`git log --follow plugins/<path>` still reaches the original commits.
+`git log --follow <repo>/<path>` still reaches the original commits.
 
 **After each one, before the next:** the full suite green, `ecosystem/check.py
 all` green, and the newly arrived packages declared. A merge that has to be
@@ -282,10 +343,12 @@ repository's subject area:
 
 **One workspace or several** (§2) — run the resolution comparison first.
 
-**Whether `plugins` belongs at all.** It builds against `ranvier` and `ca3` and
-nothing depends on it. It is the safest pilot for exactly that reason, and it is
-also the one whose absence would cost least. Worth asking whether it is a
-product of this ecosystem or a consumer of it.
+**Whether `plugins` belongs at all**, and **as how many packages**. It builds
+against `ranvier` and `ca3` and nothing depends on it, so it is the one whose
+absence would cost least — worth asking whether it is a product of this
+ecosystem or a consumer of it. Separately, it is roughly twenty directories
+across three declared tiers, and arriving as one package is unlikely to be
+right; a structural evaluation is running.
 
 **What the repository is called** after Phase 5.
 
