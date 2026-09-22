@@ -143,10 +143,16 @@ this**, which retires the last argument for renumbering and raises a new
 requirement: a citation must name its repository.
 
 **Status drift is the rule, not the exception, and it runs both ways.** One
-record reads "Not implemented" while the schema is entirely its shape. Another's
-own re-derivation command reports 7 of 15 where the tree now gives 35 of 69 —
-and the test fails. Three records claim an ABI exports 126 functions over 12
-handles where it exports 359 over 31. Two name a crate that exists on no branch.
+record reads "Not implemented" while the schema is entirely its shape. Three
+records claim an ABI exports 126 functions over 12 handles where it exports 359
+over 31. Two name a crate that exists on no branch. One record's own
+re-derivation reports 7 of 15 where the tree now gives 35 of 69 — **not a
+regression**: that test is deliberately `#[ignore]`d with its reason in the
+attribute, a measuring instrument built to fail, and the proportion moved from
+47% to 51% while the tree quadrupled. The stale thing is the figure written
+beside the command, and that repository's own convention already answers it: no
+number is written beside a command, because a command printed next to a number
+it does not produce looks checked and is not.
 
 **The contradictions are real and one of them is this repository's.** See §4a.
 
@@ -224,7 +230,7 @@ Every row verified by running the command beside it, not by reading a record.
 
 | Question | The disagreement | Owner |
 |---|---|---|
-| **What is the ecosystem's minimum Rust?** | `foundation` and `ranvier` declare 1.85; `ca3`, `eres` and `plugins` declare 1.88. `docs/conventions/toolchain-pins.md` states 1.85 as *the* pin, so this repository's own convention is wrong about three of five repositories. One of the 1.88s is measured — let-chains fail on 1.87 — so this is not a free choice about a number | **foundation** |
+| **What is the ecosystem's minimum Rust?** | `foundation` and `ranvier` declare 1.85; `ca3`, `eres` and `plugins` declare 1.88. The convention stated 1.85 as *the* pin and was wrong about three of five. **Fixed**: 1.85 is this repository's floor, a consumer may declare higher, and the requirement is that the number be measured rather than inherited. A single workspace therefore resolves to 1.88 unless five let-chain call sites are rewritten, which is a decision rather than a side effect | **foundation — done** |
 | **Is this repository one repository?** | One consumer's record says "This repository is one repository. Not a stage in a split", against decision 0002 | that consumer, after 0002 |
 | **When does a package reach a public registry?** | One consumer's record requires registry publication to work; decision 0001 defers registry publishing to v1 | foundation 0001 governs |
 | **May an export carry a figure no sample carried?** | Three documents in one consumer answer it three ways — never, never interpolate, and yes-if-labelled — and the permissive one is what ships | that consumer |
