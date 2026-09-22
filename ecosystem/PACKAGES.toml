@@ -1,0 +1,188 @@
+# The declared shape of this repository's packages.
+#
+# `ecosystem/check.py` compares this file against what the manifests actually
+# resolve, in both directions: an edge that exists and is not declared fails,
+# and an edge that is declared and does not exist fails. A declaration nobody
+# checks is a comment.
+#
+# Adding a dependency between two packages means editing this file in the same
+# change, which is the point — the edge becomes reviewable instead of arriving
+# as a manifest line nobody read.
+
+schema = 1
+
+# ---------------------------------------------------------------------------
+# The documents every published package carries, so that a reader who has used
+# one package knows where to look in the next.
+# ---------------------------------------------------------------------------
+[documents]
+required = ["README.md", "LICENSE", "NOTICE"]
+# Declared now, enforced at v1. `check.py documents` reports these as `pending`
+# rather than as missing, so the standard is visible before it bites.
+at_v1 = ["CHANGELOG.md"]
+
+# The heading order a README follows. Reported in soft mode until the existing
+# READMEs are migrated; `--strict` fails on a mismatch.
+readme_headings = [
+    "What it is",
+    "Install",
+    "Use",
+    "Guarantees",
+    "Limits",
+    "Versioning",
+    "Licence",
+]
+
+# ---------------------------------------------------------------------------
+# Paths no package may contain. A vendored copy is drift with a head start.
+# ---------------------------------------------------------------------------
+forbidden_paths = ["vendor/", "third_party/", "node_modules/", "target/"]
+
+# ---------------------------------------------------------------------------
+# Packages
+# ---------------------------------------------------------------------------
+
+[[package]]
+name = "extendedresearch-abi"
+kind = "rust"
+path = "crates/abi"
+depends = []
+external = []
+
+[[package]]
+name = "extendedresearch-clock"
+kind = "rust"
+path = "crates/clock"
+depends = []
+external = []
+
+[[package]]
+name = "extendedresearch-pyo3"
+kind = "rust"
+path = "crates/pyo3"
+depends = ["extendedresearch-abi"]
+external = ["pyo3"]
+
+[[package]]
+name = "extendedresearch-napi"
+kind = "rust"
+path = "crates/napi"
+depends = ["extendedresearch-abi"]
+external = ["napi"]
+
+[[package]]
+name = "extendedresearch-abi-testlib"
+kind = "rust"
+path = "crates/abi-testlib"
+depends = ["extendedresearch-abi"]
+external = []
+fixture = true
+
+[[package]]
+name = "extendedresearch-napi-testaddon"
+kind = "rust"
+path = "crates/napi-testaddon"
+depends = ["extendedresearch-abi", "extendedresearch-napi"]
+external = ["napi", "napi-derive"]
+fixture = true
+
+[[package]]
+name = "@extendedresearch/binding-runtime"
+kind = "npm"
+path = "npm/binding-runtime"
+depends = []
+# A runtime dependency here would be installed into every consumer of every
+# binding. `typescript` is a development dependency and is listed separately.
+external = []
+external_dev = ["typescript"]
+
+[[package]]
+name = "ExtendedResearch.Interop"
+kind = "dotnet"
+path = "dotnet/Interop.Package"
+depends = []
+external = []
+
+[[package]]
+name = "extendedresearch-conformance"
+kind = "python"
+path = "python/conformance"
+depends = []
+external = []
+
+[[package]]
+name = "extendedresearch-style"
+kind = "tooling"
+path = "style"
+depends = []
+external = []
+
+[[package]]
+name = "extendedresearch-ecosystem"
+kind = "tooling"
+path = "ecosystem"
+depends = []
+external = []
+
+# ---------------------------------------------------------------------------
+# Copies that are intended.
+#
+# Every other pair of byte-identical tracked files is a finding. A copy is
+# declared with the reason it cannot be a dependency instead.
+# ---------------------------------------------------------------------------
+
+[[copy]]
+source = "LICENSE"
+pattern = "**/LICENSE"
+reason = """
+Each package is built from its own directory, so the root file does not reach a
+user who downloads it. Apache-2.0 requires NOTICE to travel with a
+redistribution, and a licence file cannot be a dependency."""
+
+[[copy]]
+source = "NOTICE"
+pattern = "**/NOTICE"
+reason = "As LICENSE."
+
+[[copy]]
+source = "style/configs/editorconfig"
+pattern = ".editorconfig"
+reason = "EditorConfig has no include mechanism, so a shared config is a copy."
+
+[[copy]]
+source = "style/configs/rustfmt.toml"
+pattern = "rustfmt.toml"
+reason = "rustfmt has no `extends`; see style/configs/rustfmt.toml."
+
+[[copy]]
+source = "style/configs/clippy.toml"
+pattern = "clippy.toml"
+reason = "clippy.toml has no `extends`."
+
+[[copy]]
+source = "style/configs/ruff.toml"
+pattern = "ruff.toml"
+reason = "Copied for one distribution mechanism across all seven configs."
+
+[[copy]]
+source = "style/configs/prettierrc.json"
+pattern = ".prettierrc.json"
+reason = "As ruff.toml."
+
+# ---------------------------------------------------------------------------
+# One rule, written more than once.
+#
+# Some rules have to exist in several languages because each language's runtime
+# needs them locally. Hashing cannot detect that kind of duplication, and
+# nothing can check that two implementations agree by reading them. What is
+# enforceable is that every such rule is registered here, that it has one set of
+# language-free vectors, and that every implementation has a test consuming
+# them. A rule implemented twice and not registered is the finding.
+# ---------------------------------------------------------------------------
+
+# None registered yet. The first two to register, both found by the September
+# 2026 audit, are the enumeration short-name rule (Rust in crates/pyo3, and
+# TypeScript in npm/binding-runtime, which disagree on a name collision) and the
+# error-token grammar (Rust in crates/abi, re-implemented in C# in
+# dotnet/Interop/AbiErrors.cs). Registering either means writing the vectors
+# first, which is the work, not the registration.

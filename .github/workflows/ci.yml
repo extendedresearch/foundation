@@ -253,6 +253,31 @@ jobs:
   # `release.yml` runs on a tag, so a release is never the first time the
   # packaging runs. Without a tag the script checks that every version agrees
   # with every other, rather than with a tag. Nothing is uploaded.
+  # **The package boundaries, checked rather than described.** `ecosystem/check.py`
+  # compares `ecosystem/PACKAGES.toml` against what the manifests resolve, in both
+  # directions, refuses an undeclared copy of a file, and checks every package
+  # carries the standard document set. Without this the declaration is a comment
+  # and an unwanted dependency arrives as one manifest line nobody reads.
+  #
+  # Platform-independent, so it runs once rather than in the matrix. Not
+  # `--strict`: README heading order is reported while the existing READMEs are
+  # migrated, and fails the job once they are.
+  ecosystem:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      # `cargo metadata` is how the boundaries check reads every crate's edges.
+      - name: Install toolchain
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Package boundaries, duplication and documents
+        run: python ecosystem/check.py all
+
   release-assets:
     runs-on: ubuntu-latest
     timeout-minutes: 30
