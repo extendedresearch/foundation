@@ -12,6 +12,9 @@
 [workspace]
 resolver = "3"
 members = ["crates/*"]
+# An IDE writing `crates/.idea/` is globbed in as a workspace member, and every
+# cargo command then fails to read a manifest that was never there.
+exclude = ["crates/.idea"]
 
 [workspace.package]
 edition = "2024"
