@@ -99,9 +99,20 @@ not it mentions them in its source, because the export macros expand to
 `#[napi]` items in the consumer's crate and the code `napi-derive` generates
 refers to `napi` by that name.
 
-## The MSRV is 1.85
+## The MSRV is 1.85 here, and a consumer may declare higher
 
 `rust-version = "1.85"` in `[workspace.package]`.
+
+**This is foundation's floor, not the ecosystem's.** A library should compile on
+the oldest toolchain it can; a program built on it is free to need a newer one.
+Three of the consuming repositories declare 1.88 and their reasons are
+measured — let chains, stabilised for edition 2024 in 1.88 — so a document
+claiming 1.85 across the ecosystem would be wrong about the majority of it.
+
+What is required of a consumer is that its floor is **at least** this one, that
+the number is measured rather than inherited, and that a job builds at it rather
+than trusting the line. A repository that cannot say which feature forces its
+floor has a number nobody checked.
 
 1.85 is the release that stabilised edition 2024, and the workspace is on
 edition 2024. The floor is the edition's, not a dependency's: pyo3 0.29
