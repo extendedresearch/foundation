@@ -24,7 +24,12 @@ ignore = [
 convention = "pep257"
 
 [lint.per-file-ignores]
-"tests/**" = ["D", "ANN"]
+# `**/` matters: a bare `tests/**` anchors at the project root, and every test
+# directory in this project is nested — `ecosystem/tests/`,
+# `python/conformance/tests/`. The rule matched nothing for as long as it
+# existed, which is why docstring findings piled up in exactly the files it
+# was written to exempt.
+"**/tests/**" = ["D", "ANN"]
 
 [format]
 quote-style = "double"
