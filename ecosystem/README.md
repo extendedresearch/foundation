@@ -43,7 +43,7 @@ every run fails with the language named. It is deliberately not part of `all`:
 wiring a check that cannot pass into CI teaches everyone to ignore CI.
 
 `affected.py` reads the same declaration to answer a different question: given a
-diff, which packages must be tested. It is gate item 3 of decision 0002 — four
+diff, which packages must be tested. It is gate item 3 of foundation decision 0002 — four
 repositories merge into this one, and a monorepo that runs every test on every
 change gets slow enough that people learn to skip the suite. It does not
 re-derive the graph; `check.py boundaries` is what holds the declaration honest,

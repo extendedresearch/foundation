@@ -330,7 +330,7 @@ jobs:
         run: python docs/docs.tools/check-tier.py --root . --repo foundation
 
   # **What affected-package detection *would* select, computed and nothing
-  # more.** Gate item 3 of `docs/decisions/0002-the-ecosystem-lives-in-one-repository.md`
+  # more.** Gate item 3 of `foundation/docs/decisions/0002-the-ecosystem-lives-in-one-repository.md`
   # exists because a monorepo that runs everything on every change gets slow,
   # and a slow suite is one people learn to skip.
   #

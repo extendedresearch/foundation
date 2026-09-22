@@ -6,7 +6,7 @@
     python ecosystem/affected.py --json                   # for a workflow to consume
     python ecosystem/affected.py --explain                # every package and why
 
-Gate item 3 of `docs/decisions/0002-the-ecosystem-lives-in-one-repository.md`.
+Gate item 3 of `foundation/docs/decisions/0002-the-ecosystem-lives-in-one-repository.md`.
 Four repositories are about to merge into this one. A monorepo that runs every
 test on every change gets slow, and a slow suite is one people learn to skip —
 at which point the ecosystem-wide testing that justified the merge is gone. So

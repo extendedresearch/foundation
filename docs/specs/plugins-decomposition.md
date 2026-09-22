@@ -38,7 +38,7 @@ That is not a coincidence, it is a property the repository already tests:
 `tools/conformance/tests/independence.rs` asserts *"a plugin must be usable with
 `ca3` alone, with `ranvier` alone, or with neither."*
 
-**This is the boundary worth drawing**, by decision 0001's own test: does the
+**This is the boundary worth drawing**, by foundation decision 0001's own test: does the
 split let a consumer avoid depending on something it does not want? Somebody who
 wants the EEG vocabulary should not acquire a streaming runtime with it.
 
@@ -118,7 +118,7 @@ tree already has the shape; the packaging has not caught up with it.
 
 ### Why not one package
 
-The bipartite cut is real and it is the whole point of decision 0001. One
+The bipartite cut is real and it is the whole point of foundation decision 0001. One
 package means a consumer wanting a gaze vocabulary acquires seven device
 integrations, a streaming runtime, a recording bridge and 80,000 lines of React.
 
