@@ -66,10 +66,25 @@ pub mod binding;
 #[allow(unsafe_code)]
 pub mod borrow;
 pub mod buffer;
-pub mod codes;
 pub mod conformance;
 pub mod enumeration;
-pub mod guard;
+
+/// The codes and the [`AbiError`](codes::AbiError) trait, re-exported from
+/// `extendedresearch-status`.
+///
+/// They moved to a crate with no dependencies and no `unsafe`, so a package's
+/// safe core can implement [`codes::AbiError`] without depending on the crate
+/// that dereferences a caller's pointer. This path keeps working;
+/// `extendedresearch_status::codes` is the same module and is where new code
+/// should reach for it.
+pub use extendedresearch_status::codes;
+
+/// The panic guard, re-exported from `extendedresearch-status`.
+///
+/// It moved with [`codes`], which is all it needs. There it sits behind that
+/// crate's default-on `std` feature, which this crate enables, so
+/// [`guard::guard`] and [`guard::contain`] are always available here.
+pub use extendedresearch_status::guard;
 
 // The README's example is the crates.io page's first code a reader sees; this
 // runs it as a doctest so it cannot drift from the crate.

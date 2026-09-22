@@ -7,17 +7,22 @@ JavaScript and .NET bindings sit on one boundary and read it the same way.
 
 A library that exposes a C boundary writes its own `extern "C"` functions.
 This crate holds the part those functions share: how a caller's pointer is
-read, how a variable-length answer is copied out, which codes a failure
-answers, what happens to a panic, how an enumeration is exposed, and how a
-binding written in Rust reads all of that back. It exports no symbol, so
-depending on it changes nothing a C caller sees.
+read, how a variable-length answer is copied out, how an enumeration is
+exposed, and how a binding written in Rust reads all of that back. It exports
+no symbol, so depending on it changes nothing a C caller sees.
+
+The vocabulary of the `int32_t` itself — the codes, the `AbiError` trait and the
+panic guard — is `extendedresearch-status`, a crate with no dependencies and no
+`unsafe`, so a package's safe core can implement `AbiError` without depending on
+the crate that dereferences a caller's pointer. This crate depends on it and
+re-exports `codes` and `guard`, so both paths work.
 
 | Module | For | What it does |
 |---|---|---|
-| `codes` | both sides | `int32_t` codes: zero is success, `-1` to `-15` are boundary failures any library has, and `-16` and below are the library's own. `AbiError` is the trait a package's error type implements so every binding reads its code and name; `status` turns a core `Result` into the code a C adapter answers |
+| `codes` | both sides | Re-exported from `extendedresearch-status`. `int32_t` codes: zero is success, `-1` to `-15` are boundary failures any library has, and `-16` and below are the library's own. `AbiError` is the trait a package's error type implements so every binding reads its code and name; `status` turns a core `Result` into the code a C adapter answers, and `check` turns one back into a `Result` |
 | `borrow` | the library | Every read of a caller's pointer: handles, out-parameters, strings, arrays, and the copy-out calls. The only module that writes `unsafe` |
 | `buffer` | the library | Measure-then-copy: a null destination measures, a short buffer answers `ERR_RANGE` with the size it needed |
-| `guard` | the library | A panic answers `ERR_PANIC` instead of unwinding into C, including inside a `_destroy` |
+| `guard` | the library | Re-exported from `extendedresearch-status`. A panic answers `ERR_PANIC` instead of unwinding into C, including inside a `_destroy` |
 | `enumeration` | the library | The table behind `_count`, `_at` and `_name`, so a binding loops over values instead of transcribing them |
 | `binding` | C-ABI tests and conformance drivers | Reading a measure-then-copy answer from Rust, re-measuring if it grew between calls, and naming a failure code. The Python and Node bindings call the package's Rust core instead |
 | `conformance` | the library's tests | Drives the library's exports through raw pointers, the way a binding does, and panics naming the rule a function broke. Checks the library's table of domain codes, and its error values against that table |

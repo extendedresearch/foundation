@@ -28,3 +28,4 @@ keywords = ["ffi", "abi", "bindings", "conventions"]
 workspace = true
 
 [dependencies]
+extendedresearch-status = { version = "0.1.1", path = "../status" }

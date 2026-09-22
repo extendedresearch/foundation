@@ -218,6 +218,14 @@ jobs:
           rustup default stable
       - name: The clock core compiles for wasm32
         run: cargo check --target wasm32-unknown-unknown -p extendedresearch-clock
+      # `status` is `#![no_std]` without its default `std` feature, which is
+      # what makes the codes usable from firmware. Only a build without that
+      # feature can notice `std` creeping back in, and the default-features
+      # build every other job makes cannot.
+      - name: The status crate compiles without std
+        run: |
+          cargo check -p extendedresearch-status --no-default-features
+          cargo check --target wasm32-unknown-unknown -p extendedresearch-status --no-default-features
 
   # The one check an ordinary test run cannot make. `borrow` makes references
   # from a caller's pointers, and whether that is sound over uninitialised

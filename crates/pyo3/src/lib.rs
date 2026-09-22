@@ -34,7 +34,7 @@
 //! Every message starts with the constant's name as the package's header spells
 //! it — `EXAMPLE_ERR_UTF8: …`, `EXAMPLE_ERR_TRUNCATED: …` — then the error's
 //! `Display`. A boundary name gains the family's `prefix` through
-//! `extendedresearch_abi::codes::token`, the step the Node and .NET layers
+//! `extendedresearch_status::codes::token`, the step the Node and .NET layers
 //! take, so one failure reads the same in all three.
 //!
 //! # pyo3 moves in lockstep with the consumer
@@ -49,8 +49,8 @@
 //! This crate enables `abi3-py311` and leaves `extension-module` to the
 //! consumer's `cdylib`.
 
-use extendedresearch_abi::codes::{self, AbiError, ERR_PANIC, ERR_RANGE, ERR_UTF8, is_domain};
 use extendedresearch_abi::enumeration::Enumeration;
+use extendedresearch_status::codes::{self, AbiError, ERR_PANIC, ERR_RANGE, ERR_UTF8, is_domain};
 use pyo3::exceptions::{PyIndexError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::PyDict;

@@ -83,18 +83,15 @@ impl fmt::Display for ReadError {
 
 impl std::error::Error for ReadError {}
 
-/// `Ok` for [`OK`], and the code otherwise.
+/// `Ok` for [`OK`] and the code otherwise, re-exported from
+/// [`codes`](crate::codes).
 ///
-/// Every non-zero code is a failure to a caller, including one it has never
-/// heard of — which is what lets a library add a code without every binding
-/// knowing it first.
-///
-/// # Errors
-///
-/// The code itself, when it is not [`OK`].
-pub fn check(code: i32) -> Result<(), i32> {
-    if code == OK { Ok(()) } else { Err(code) }
-}
+/// It is the inverse of [`codes::status`](crate::codes::status) and now sits
+/// beside it, in `extendedresearch-status`: a crate reaching for it wants the
+/// vocabulary of a status code, not this module's measure-then-copy reading.
+/// This path keeps working; `extendedresearch_status::codes::check` is the same
+/// function.
+pub use crate::codes::check;
 
 /// Read text a library answers in the measure-then-copy shape.
 ///

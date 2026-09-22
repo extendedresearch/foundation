@@ -8,8 +8,8 @@
 
 use std::fmt;
 
-use extendedresearch_abi::codes::{self, AbiError, DOMAIN_FLOOR};
 use extendedresearch_napi::{Report, SEPARATOR, Tokens, from_u64};
+use extendedresearch_status::codes::{self, AbiError, DOMAIN_FLOOR};
 use napi::Status;
 use napi::bindgen_prelude::BigInt;
 

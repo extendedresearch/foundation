@@ -1,8 +1,9 @@
 # Package restructuring plan
 
-Status: **proposed**, 2026-09-22. Authorised by
-`docs/decisions/0001-foundation-is-a-set-of-independent-packages.md`. Nothing
-has moved.
+Status: **in progress**, 2026-09-22. Authorised by
+`docs/decisions/0001-foundation-is-a-set-of-independent-packages.md`. Step 1 of
+section 4 has landed: `crates/status` exists, `codes` and `guard` live in it,
+and `check` sits beside `status`. Steps 2 to 7 have not.
 
 ---
 
@@ -157,8 +158,8 @@ Each step leaves the tree green, and no step depends on a later one.
 
 | # | Step | Consumer impact |
 |---|---|---|
-| 1 | Create `crates/status`; move `codes.rs` and `guard.rs`; move `check` beside `status`; `extendedresearch-abi` re-exports both modules so nothing breaks | none — re-exports keep every path working |
-| 2 | Point `pyo3`, `napi` and `abi-testlib` at `status` directly | none |
+| 1 | **Done.** Create `crates/status`; move `codes.rs` and `guard.rs`; move `check` beside `status`; `extendedresearch-abi` re-exports both modules so nothing breaks | none — re-exports keep every path working |
+| 2 | **Done**, with step 1. Point `pyo3`, `napi` and `abi-testlib` at `status` directly | none |
 | 3 | Consumers switch their imports to `extendedresearch_status` at their own pace | one import line per file |
 | 4 | Remove the re-exports from `abi` once no consumer uses them | a compile error naming the fix, on the version that removes them |
 | 5 | Land `metrology` (timing plan step 0) | none — additive |

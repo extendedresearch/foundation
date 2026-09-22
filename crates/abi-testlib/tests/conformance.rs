@@ -6,7 +6,6 @@
 
 use std::ffi::CString;
 
-use extendedresearch_abi::codes::{ERR_NULL, ERR_PANIC, ERR_STATE, ERR_UTF8, OK};
 use extendedresearch_abi::{binding, conformance};
 use extendedresearch_abi_testlib::{
     COLORS, Counter, CounterError, ERROR_CODES, TESTLIB_ERR_EMPTY_NAME, TESTLIB_ERR_FULL,
@@ -14,6 +13,7 @@ use extendedresearch_abi_testlib::{
     testlib_counter_create, testlib_counter_destroy, testlib_counter_increment,
     testlib_counter_name, testlib_counter_name_bytes, testlib_destroyed_count, testlib_panic,
 };
+use extendedresearch_status::codes::{ERR_NULL, ERR_PANIC, ERR_STATE, ERR_UTF8, OK};
 
 fn create(name: &str, limit: u32) -> *mut Counter {
     let name = CString::new(name).unwrap();

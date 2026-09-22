@@ -42,11 +42,23 @@ forbidden_paths = ["vendor/", "third_party/", "node_modules/", "target/"]
 # Packages
 # ---------------------------------------------------------------------------
 
+# The vocabulary of an integer crossing a C boundary: the codes, the AbiError
+# trait, both conversions, and the panic guard behind a `std` feature. No
+# `unsafe`, no pointers, no dependencies. This is what a safe core depends on.
+[[package]]
+name = "extendedresearch-status"
+kind = "rust"
+path = "crates/status"
+depends = []
+external = []
+
+# The mechanics of the boundary, and the only crate in the project that
+# dereferences a raw pointer. This is what a C adapter depends on.
 [[package]]
 name = "extendedresearch-abi"
 kind = "rust"
 path = "crates/abi"
-depends = []
+depends = ["extendedresearch-status"]
 external = []
 
 [[package]]
@@ -60,21 +72,21 @@ external = []
 name = "extendedresearch-pyo3"
 kind = "rust"
 path = "crates/pyo3"
-depends = ["extendedresearch-abi"]
+depends = ["extendedresearch-abi", "extendedresearch-status"]
 external = ["pyo3"]
 
 [[package]]
 name = "extendedresearch-napi"
 kind = "rust"
 path = "crates/napi"
-depends = ["extendedresearch-abi"]
+depends = ["extendedresearch-status"]
 external = ["napi"]
 
 [[package]]
 name = "extendedresearch-abi-testlib"
 kind = "rust"
 path = "crates/abi-testlib"
-depends = ["extendedresearch-abi"]
+depends = ["extendedresearch-abi", "extendedresearch-status"]
 external = []
 fixture = true
 

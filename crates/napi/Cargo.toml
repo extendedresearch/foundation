@@ -33,7 +33,7 @@ include = ["src/**", "tests/**", "Cargo.toml", "README.md", "LICENSE", "NOTICE"]
 workspace = true
 
 [dependencies]
-extendedresearch-abi = { version = "0.1.1", path = "../abi" }
+extendedresearch-status = { version = "0.1.1", path = "../status" }
 napi = { version = "3", default-features = false, features = ["napi6"] }
 
 [dev-dependencies]

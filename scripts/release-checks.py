@@ -76,6 +76,7 @@ LICENCE_COPIES = (
     "crates/clock",
     "crates/napi",
     "crates/pyo3",
+    "crates/status",
     "dotnet/Interop.Package",
     "npm/binding-runtime",
     "python/conformance",
