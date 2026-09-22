@@ -1,7 +1,58 @@
 # foundation
 
-Shared code that ranvier, ca3 and eres depend on: the C ABI conventions, and
-the binding layers each package's Python, Node and .NET bindings share.
+Shared code that the consuming repositories depend on: the C ABI conventions,
+and the binding layers each package's Python, Node and .NET bindings share.
+
+---
+
+## Start here
+
+This file grew a lot on 2026-09-22. If you are new, read in this order:
+
+1. **`docs/decisions/0001`** — foundation is a set of independently useful
+   packages, not one shared library. It changes the admission rule and it is
+   the record every other decision leans on.
+2. **`docs/decisions/0002`** and **`docs/specs/monorepo-migration-plan.md`** —
+   the ecosystem moves into one repository, gated on five things, **none of
+   which is done**. §3 of the record is a gate, not a checklist.
+3. **`docs/specs/boundary-enforcement-plan.md`** — the gate's first item, and
+   the critical path for everything else.
+
+Then §"What is left, in order" below.
+
+**One habit this session learned the hard way, twice.** Never read a check's
+result through a pipe. `python check.py | tail -2` discards the exit code, a
+failing run prints a summary that reads as success, and a violation reached
+`main` that way while the checker worked perfectly and nothing listened. Capture
+the status:
+
+```bash
+python ecosystem/check.py all > /tmp/out 2>&1; echo $?
+```
+
+---
+
+## What is left, in order
+
+Nothing below is started unless it says so. The order is the substance: the
+migration is gated, and the gate's first item is what everything waits on.
+
+| # | Step | State | Why here |
+|---|---|---|---|
+| 1 | **Boundary extractors** — TypeScript, Python, C#, Rust | comparator and intermediate form built; **zero extractors** | Gate item 1 of foundation decision 0002. The comparator fails loudly with "no extractor for X" rather than passing, so the skeleton is honest and useless until this lands |
+| 2 | **Timing steps 4–8** — sample clocks, calibration, requirements, the record schema, the ABI projection | not started | Step 7 freezes integers permanently and needs the owner's sign-off first |
+| 3 | **Scope declarations** (`does`/`refuses`/`vocabulary`/`touches`) | designed, not built | §"Decisions waiting" below. Shares its surface-enumeration layer with step 1 |
+| 4 | **A similarity check for diverged forks** | not started | `duplication` hashes files, so a fork differing in two lines out of 663 passes clean. A real case exists in a consumer |
+| 5 | **The remaining README migrations** | 7 of 9 done | `check.py documents` reports the rest as `SOFT`; `--strict` fails on them |
+
+**Timing steps 2 and 3 landed.** `Basis` now names the chain position a stamp
+was taken at, so the links after that position contribute nothing to that
+stamp's uncertainty, and `Mapping::map` returns a reading carrying the fit's
+offset bias, its residual spread as a dispersion, and an extrapolation penalty.
+`Line::map_to_reference` is unchanged and a property test pins the new layer to
+it bit for bit, so what is reported changed and what is computed did not.
+
+---
 
 ## The layered architecture
 
@@ -330,6 +381,119 @@ Not built, or not decided:
   fail when their copy drifts from the root, and
   `python scripts/release-checks.py tree` fails when any tracked copy does, or
   when one of those directories has none.
+
+## What changed on 2026-09-22, and what was re-derived
+
+**Eleven pull requests merged.** The ones whose consequence is easy to miss:
+
+- **`extendedresearch-status` split out of `extendedresearch-abi`.** The reason
+  is not tidiness: every package's safe core was depending on the crate that
+  dereferences raw pointers, because `AbiError` shipped beside `mod borrow`.
+  `abi` re-exports everything, so no consumer changed. One real graph change —
+  `extendedresearch-napi` now depends on `abi` not at all.
+- **`extendedresearch-metrology` landed**, with the uncertainty model and a
+  property test that was **mutation-tested** rather than asserted to work.
+- **Three checkers now run in CI that did not**: the tier rule, the package
+  boundaries, and the citation rule. The tier rule had existed, been documented
+  as a check this repository runs, and never run — a violation reached `main`
+  through it.
+- **The shipped .NET configuration did not pass this repository's own code.** A
+  consumer found it. `AnalysisMode=Recommended` and `GenerateDocumentationFile`
+  are gone from it, because both turn adoption into a tree-wide hard gate on day
+  one, which is the opposite of how every other language here is adopted.
+- **A ruff ignore matched nothing** — `tests/**` anchors at the project root and
+  every test directory here is nested. Wrong in four repositories for as long as
+  it existed.
+
+**Re-derived at handoff, exit code read directly, not through a pipe:**
+`cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`,
+`cargo test --workspace`, `cargo +1.85 test --workspace`,
+`python -m unittest discover -s python/conformance/tests`,
+`python -m unittest discover -s ecosystem/tests`,
+`python scripts/release-checks.py tree`, `python ecosystem/check.py all`,
+`python docs/docs.tools/check-tier.py --root . --repo foundation`,
+`bash style/scripts/check-style.sh --base origin/main --mode soft`,
+`dotnet build dotnet/Interop.Build`, `dotnet test dotnet/Interop.Tests`.
+**All twelve exited 0.**
+
+**Not re-derived at handoff:** Miri, the Node addon test, and
+`scripts/build-release-assets.sh`. CI runs all three on every pull request and
+they were green on the last one; they are slow or need `pip install build`
+locally.
+
+**Counts, re-derived rather than remembered:** 8 crates, 23 clock vectors, 12
+metrology vectors, 3 registered shared rules, 13 declared packages, 3 decision
+records, 7 specification documents.
+
+## Work in other repositories at handoff
+
+**Three consumer sessions were working and are not this repository's to
+report.** Each was sent its own classification of its decision records, a list
+of pre-incorporation requirements, and the instruction to record a handoff in
+its own repository in this shape.
+
+**One agent was preparing a consumer that has no session of its own.** It
+committed twice to a branch named `chore/monorepo-conformance` in that
+repository — a package declaration with the three things its checker cannot see
+there, and a re-derived compiler floor whose stated reason had stopped being
+runnable — then failed on a spend limit with three README files modified and
+uncommitted. **Its branch exists; the uncommitted files are still in that
+working tree.** Whoever picks it up should check `git status` there before
+starting, not assume a clean tree.
+
+**One agent in this repository was stopped at handoff with nothing committed,
+and its work was recovered.** It was 16 minutes into timing steps 2 and 3 — the
+`Basis`/`LinkKind` reconciliation and `Mapping::map` — with no branch and no
+commits. The files survived in its working tree, and only formatting was
+failing, because it was killed mid-edit. Both steps have since landed. Stopping
+an agent that has no commits does not discard its work; check the working tree
+before assuming it does.
+
+## Decisions waiting on the owner
+
+Each has enough here to decide without reading code.
+
+1. **Metrology's enumeration integers**, which freeze permanently at the record
+   schema: `Provenance` Unknown=0 Measured=1 Specified=2 Estimated=3 Bounded=4;
+   `Correlation` Undeclared=0 Independent=1 CorrelatedWith=2;
+   `DistributionKind` Unspecified=0 Gaussian=1 Uniform=2. Zero means "nothing
+   declared" in all three, so a truncated record cannot read as a measurement.
+2. **`performance.now`'s suspend behaviour** is recorded as unspecified rather
+   than included or excluded. The specification defines the clock as monotonic
+   and does not fix its behaviour across a suspend, and engines differ by the
+   platform clock underneath. Forcing it either way is a one-row edit to
+   `crates/clock/vectors/0023`.
+3. **The scope-declaration schema** — `does`, `refuses`, `vocabulary`,
+   `touches` per package, proposed by a consumer and refined here. The load
+   bearing part is an allowlist of each package's public surface, so a new
+   public type fails the check until somebody writes it into the declaration,
+   and **that edit is the review moment**. Enumerated with
+   `cargo +nightly rustdoc -- -Zunstable-options --output-format json`, which
+   needs a nightly available and none pinned. Vocabulary means types, constants
+   and free functions — not methods, since a type gaining an accessor is not a
+   scope change.
+4. **The new package names** (foundation decision 0003), and **the repository's own name**
+   after the merge. Both are cheap now and impossible after publication.
+5. **Whether a fixture crate outside the package set should be declared.**
+   Foundation has two cargo workspaces; the second holds a CI-action fixture
+   crate that `PACKAGES.toml` does not name. It exposes a real gap: the
+   boundary check is both-directions for *edges* and one-direction for
+   *packages* — a declared package absent from the tree fails, a crate in the
+   tree the declaration omits passes unnoticed.
+
+## Corrections to earlier claims in this file
+
+- **The migration order was wrong and is now dependency order.** It read
+  leaves-first, chosen for the smallest blast radius. A subtree merge costs the
+  same to revert whichever repository it carried, so that bought nothing; what
+  dependency order buys is that a repository's seams close the moment it
+  arrives, which needs what it depends on to be there already.
+- **1.85 was stated as the ecosystem's minimum Rust.** It is this repository's
+  floor. Three of the five consumers declare 1.88 and at least two are measured.
+  `docs/conventions/toolchain-pins.md` now requires a consumer's reason to be
+  **re-derivable by a command written next to it**, which a consumer's own
+  correction earned: its manifest named a file that had not contained the
+  feature for months, and the replacement named the wrong crates.
 
 ## Checks
 
