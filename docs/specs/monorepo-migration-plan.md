@@ -84,15 +84,42 @@ Each phase leaves every repository working, and no phase depends on a later one.
 Nothing moves until all five pass. Phases 1 and 2 are how items 1 and 2 get
 done, so they run inside the gate rather than after it.
 
-### Phase 1 — decision records, in place, in their own repositories
+### Phase 1 — audit the decision records, then move them in place
 
-Each of `ranvier`, `ca3`, `eres` and `plugins` moves its `docs/decisions/` to
-`<package>/docs/decisions/` **within its own repository**, keeping every number.
-Foundation's root `docs/decisions/` stays for repository-level records.
+Moving 169 records assumes they are still true, and they are not. The
+restructuring invalidates some outright, several are ecosystem decisions that
+happen to live in one repository, and four independent sets written without
+reading each other will contradict each other on questions all four answered.
 
-Done before the merge, in four separate changes, so a collision cannot happen
-during the merge itself. **No renumbering, ever** — 169 records and their
-citations, some in code comments.
+**The governing principle: supersede, never delete or edit.** A decision record
+is a history of what was believed and why, not a configuration file. A record
+the refactoring invalidated is marked superseded and names what replaced it. A
+reader who finds a wrong decision should be able to see that it was wrong, when
+that was noticed, and what replaced it — deleting it destroys exactly the
+information that makes the set worth keeping.
+
+Every record is classified into one of five, and **every record gets a row,
+including the ones that need nothing** — a report of only the problems cannot
+distinguish "checked and still true" from "never read":
+
+| Class | What happens |
+|---|---|
+| **Live** | Still true. Moves to `<package>/docs/decisions/` unchanged, keeping its number |
+| **Ecosystem** | Actually about how packages relate rather than about one package. Promoted to the repository-level set; the original is superseded by a pointer so its number keeps resolving |
+| **Superseded** | The refactoring made it false. Marked superseded in place, naming its replacement. Not deleted |
+| **Contradicted** | Conflicts with another repository's record on the same question. Needs adjudication before either moves — this is the class that only exists because nothing reads all four sets today |
+| **Status drifted** | Its *Implementation status* is wrong. Already found once: ca3's calibration records are specified and the grep for their types returns nothing |
+
+The last class is worth its own pass. A record claiming `Implemented` for
+something that does not exist is worse than no record, because the next reader
+plans around it.
+
+Done before the merge, in four separate changes within the existing
+repositories, so a collision cannot happen during the merge itself. **No
+renumbering, ever** — 169 records and their citations, some in code comments.
+Promotion to the ecosystem tier gives a record a new number in the root set and
+leaves the original number in place as a superseded pointer, which is what keeps
+a code comment citing "decision 0049" resolving.
 
 ### Phase 2 — conformance, in place
 
