@@ -286,6 +286,14 @@ jobs:
       - name: Package boundaries, duplication and documents
         run: python ecosystem/check.py all
 
+      # **The tier rule, which nothing ran until now.** `check-tier.py` refuses a
+      # tier-1 document that names a consuming repository's path, symbol or
+      # constant — the coupling that makes foundation's documentation rot when a
+      # consumer moves. It existed, it was run by hand, and a violation reached
+      # `main` because a hand-run check is a check somebody has to remember.
+      - name: The tier rule
+        run: python docs/docs.tools/check-tier.py --root . --repo foundation
+
   release-assets:
     runs-on: ubuntu-latest
     timeout-minutes: 30
