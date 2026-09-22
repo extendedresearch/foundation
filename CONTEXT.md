@@ -87,13 +87,19 @@ grep 'source = "git' Cargo.lock \
 npm install @extendedresearch/binding-runtime@0.1.1
 ```
 
-Since 0.1.1 `release.yml` publishes the tarball it built to the registry, as a
-public package, before creating the GitHub Release. An exact version rather
-than a range: the native half is pinned by `rev` to one commit, and both halves
-come from that commit's release.
+Since 0.1.1 `release.yml` publishes the tarball it built to the registry before
+creating the GitHub Release, `--access restricted` in the `@extendedresearch`
+organisation — the access `ranvier`, `ca3` and `eres` publish their own npm
+packages under. So installing it by name needs a credential the organisation
+issued, and without one the registry answers 404, the answer a restricted
+package gives a reader who cannot see it. An exact version rather than a range:
+the native half is pinned by `rev` to one commit, and both halves come from that
+commit's release.
 
-**The same tarball stays attached to the release**, so a package that took it
-by URL before 0.1.1 keeps working and needs no change to move to a new version:
+**The same tarball stays attached to the release, and that URL needs no
+credential**, so a package that took it by URL before 0.1.1 keeps working and
+needs no change to move to a new version — which is how `ranvier` and `ca3` take
+it today:
 
 ```bash
 npm install https://github.com/extendedresearch/foundation/releases/download/v0.1.1/extendedresearch-binding-runtime-0.1.1.tgz
@@ -140,8 +146,8 @@ coexist. A package that exposes one of these crates' types in its own public
 API ties every package built beside it to the same commit.
 
 **One package registry, and one package on it.** Since 0.1.1 the npm tarball is
-published as `@extendedresearch/binding-runtime`, and is also attached to the
-release. The crates are not on crates.io, the `.nupkg` is not on nuget.org, and
+published as `@extendedresearch/binding-runtime`, restricted to the
+organisation, and is also attached to the release. The crates are not on crates.io, the `.nupkg` is not on nuget.org, and
 the wheel is not on PyPI: for those three a release is a GitHub Release and
 nothing else. A crate with a git dependency cannot itself be published to
 crates.io, and no core package is today.
@@ -175,7 +181,7 @@ Built, with the check that shows it beside each:
   `bash scripts/build-release-assets.sh <empty directory>`. It fails unless
   every version agrees, every copy of `LICENSE` and `NOTICE` equals the root's,
   and `npm/binding-runtime/package.json` is one `npm publish` would accept and
-  would publish publicly. It builds the npm tarball, the `.nupkg`, the wheel and
+  would publish restricted. It builds the npm tarball, the `.nupkg`, the wheel and
   the sdist, and fails on an archive holding a file it should not or missing one
   it should. It installs the tarball into a scratch project and imports each
   export from `node_modules`, type-checks a TypeScript consumer against the
@@ -197,12 +203,15 @@ Not built, or not decided:
   no tag has carried it yet, so the first `v0.1.1` push is the first `npm
   publish`. What it publishes is the tarball `release-assets` already builds and
   checks on every pull request; the `npm publish` itself, the `NPM_TOKEN`
-  secret, and `--provenance` are the parts no pull request exercises.
+  secret, and `--access restricted` reaching the registry are the parts no pull
+  request exercises.
 - **Trusted publishing is not configured.** The publish authenticates with the
   `NPM_TOKEN` secret, because npm configures a trusted publisher only on a
   package that already exists. The head of `release.yml` states the three steps
   that move it to OIDC, and the step needs no edit to follow them: with the
-  secret deleted it writes no token line.
+  secret deleted it writes no token line. It also states what to settle before
+  step 2 — npm generates provenance automatically under trusted publishing, and
+  whether a restricted package is skipped or refused is the registry's to say.
 - **A release tag is never moved.** A package pins its `rev` to the commit a
   tag points to and downloads the assets from that tag's release; a tag moved
   to another commit leaves one version naming two trees, and assets built from
