@@ -50,6 +50,7 @@ Nothing to install. Python 3.11 or later, standard library only; the
 ## Use
 
 ```bash
+python -m unittest discover -s ecosystem/tests   # the checks' own tests
 python ecosystem/check.py all
 python ecosystem/check.py boundaries
 python ecosystem/check.py citations
@@ -58,8 +59,13 @@ python ecosystem/check.py all --root ../elsewhere # any repository, against its 
 python ecosystem/comparator.py                    # fails: no extractor exists
 ```
 
-CI runs `all` in the `ecosystem` job on every change. It does not run the
-comparator.
+CI runs the tests and then `all`, in the `ecosystem` job, on every change. It
+does not run the comparator.
+
+`ecosystem/tests/` covers what a passing run cannot show: a table skipped by a
+short-circuited `and`, a workspace that was never read, two packages collapsed
+into one by a shared name, and an index file counted as a malformed record.
+Each of those produces output that reads exactly like a clean tree.
 
 `citations` needs to know which repository it is looking at, so that it can tell
 a citation it should resolve from one it should leave to the repository that
@@ -82,6 +88,17 @@ same change. That is the point: the edge becomes something a reviewer sees.
   not reach a consumer.
 - **Every row is printed, passing rows included.** A report of only failures
   cannot distinguish "checked and clean" from "never checked".
+- **Every table is printed, including the ones after a failure.** `and`
+  short-circuits, so combining verdicts with it stops the output at the first
+  failure and the later tables are absent rather than empty. Each report runs
+  before the verdicts are combined, and `ecosystem/tests/` asserts it — a
+  passing run cannot show you a table that would have been skipped.
+- **Every cargo workspace in the tree is read.** One `cargo metadata` at the
+  root sees one workspace. A repository with nine had eight of them invisible,
+  and the obvious way to make that run green is to delete the true rows.
+- **A package is keyed by name *and* kind.** A Rust crate and a Python
+  distribution can carry the same name and both be right; keyed on the name
+  alone, one replaces the other and an edge is checked against the wrong row.
 - **Line endings are not drift.** Files are hashed with `\r\n` normalised.
 - **A citation in a binary file is reported, not parsed.** A citation reaches a
   compiled protobuf descriptor as a source comment carried through codegen.
@@ -138,6 +155,13 @@ same change. That is the point: the edge becomes something a reviewer sees.
   against.** They were exercised against a throwaway declaration, not against
   this tree. The check prints a row per package saying "no seam declared", which
   is the honest version of a table that would otherwise be empty.
+- **Both directions holds for edges, not for packages.** A package declared
+  here and absent from the tree fails; a crate in the tree that this file does
+  not declare passes unnoticed. Workspace discovery makes that visible for the
+  first time — foundation has two cargo workspaces, and the second holds
+  `prove-tests-ran-live`, a CI-action fixture that `PACKAGES.toml` does not
+  declare. Closing that direction means deciding what a fixture crate outside
+  the package set is, which is a declaration change rather than a checker one.
 - **`comparator.py --edges` reads a file, not a tree.** It exists so the
   comparison rules can be exercised before any extractor is written. A handmade
   file is a claim about the source, not evidence from it, and the run prints

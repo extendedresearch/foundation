@@ -93,6 +93,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -197,8 +198,24 @@ def check_coverage(declaration: dict) -> bool:
 
 
 def compare(declaration: dict, edges: list[Edge]) -> bool:
-    """Rules 2 to 6. Every edge, against what the declaration allows."""
-    packages = {p["name"]: p for p in declaration["package"]}
+    """Rules 2 to 6. Every edge, against what the declaration allows.
+
+    Packages are keyed by `(name, language)` rather than by name. A name is not
+    unique — one repository declares a Rust crate and a Python distribution
+    that are both correctly called `ca3` — and keying on the name alone would
+    check an edge against the wrong package's `depends` and print `ok`. The
+    edge carries its language, so the pair is available without guessing.
+    """
+    packages = {(p["name"], LANGUAGE_OF_KIND.get(p["kind"])): p for p in declaration["package"]}
+    by_name: dict[str, list[dict]] = defaultdict(list)
+    for package in declaration["package"]:
+        by_name[package["name"]].append(package)
+
+    def find(name: str, language: str) -> dict | None:
+        """The package this name means, in this language, or uniquely."""
+        if (name, language) in packages:
+            return packages[(name, language)]
+        return by_name[name][0] if len(by_name[name]) == 1 else None
 
     table = Table(f"Every resolved import is a declared one ({len(edges)} edge(s))")
     if not edges:
@@ -207,16 +224,21 @@ def compare(declaration: dict, edges: list[Edge]) -> bool:
 
     for edge in sorted(edges, key=lambda e: (e.package, e.target, e.source)):
         label = f"{edge.source} -> {edge.target}"
-        package = packages.get(edge.package)
+        package = find(edge.package, edge.language)
         if package is None:
-            table.add(label, "UNKNOWN", f"{edge.package!r} is not a package in this declaration")
+            detail = (
+                f"{edge.package!r} is declared for several languages and none is {edge.language}"
+                if by_name[edge.package]
+                else f"{edge.package!r} is not a package in this declaration"
+            )
+            table.add(label, "UNKNOWN", detail)
             continue
         if edge.kind not in KINDS:
             table.add(label, "KIND", f"{edge.kind!r} is not one of {list(KINDS)}")
             continue
 
         shipped = edge.kind == "normal"
-        if edge.target in packages:
+        if by_name[edge.target]:
             if edge.target in set(package.get("depends", [])):
                 table.add(label, "ok", f"{edge.kind}; declared in {edge.package}'s depends")
             elif shipped:

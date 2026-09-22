@@ -12,6 +12,13 @@ Every check prints every row it compared, passing rows included. A report of
 only failures cannot distinguish "checked and clean" from "never checked", and
 a declaration nobody checks is a comment.
 
+**Every table is reported before the results are combined.** `and`
+short-circuits, so `a.report() and b.report()` stops printing at the first
+failure and `b` is not empty and not failing — it is absent, which is what a
+table that was never reached and a table that had nothing to say look like from
+the outside. This file had that defect at three sites; `ecosystem/tests/` covers
+it, because no passing run can.
+
 `ecosystem/comparator.py` is the fifth check and is deliberately not part of
 `all`: it compares what the source actually imports against this declaration,
 and with no extractor written yet it fails on every language. Wiring a check
@@ -31,6 +38,21 @@ invisible afterwards.
 and it is only kept if adding one fails a build.
 
 **The graph must be acyclic**, and the cycle is named when it is not.
+
+**Every cargo workspace in the tree is read, not just the root's.** One
+`cargo metadata` at the repository root sees one workspace; a consuming
+repository has nine, and against it eight correctly-declared packages reported
+`MISSING`. The obvious way to make that run green is to delete the eight rows,
+which leaves real edges undeclared and unwatched — a checker whose failure mode
+is "delete the true rows" is worse than no checker.
+
+**A package is keyed by its name and its kind, never by its name.** A name is
+not unique: one repository declares a Rust crate and a Python distribution that
+are both correctly called `ca3`. Keyed on the name alone, twenty-three declared
+packages became twenty-two nodes and one silently replaced the other. A
+`depends` entry names a package, so it is resolved to the package of the same
+kind first and to a unique holder of the name second; an entry that could be
+either is reported rather than picked.
 
 **A declared namespace is owned by the package that declares it.** A
 source-only .NET package compiles its files *into* the consumer, where its types
@@ -61,6 +83,12 @@ language-free vectors and a test per implementation consuming them.
 A reader who has used one package should know where to look in the next. The
 required set is checked for presence, and a README's heading order is reported
 against the standard — softly, until the existing READMEs are migrated.
+
+Decision records are numbered uniquely within their package. A `README.md`
+beside them is an index, not a record, and is exempted by name — not by
+loosening the pattern, because the pattern is what stops a record being filed
+under a number nobody can cite, and widening it would admit every unnumbered
+file.
 
 # citations
 
@@ -102,7 +130,7 @@ import subprocess
 import sys
 import tomllib
 from collections import defaultdict
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 # Set by `main` from `--root`, so one copy of this script checks any repository
 # against that repository's own declaration. Every function reads them at call
@@ -163,37 +191,165 @@ def tracked() -> list[str]:
     return [p for p in out.split("\0") if p]
 
 
+def key_of(package: dict) -> tuple[str, str]:
+    """A package's identity: its name and its kind, never the name alone.
+
+    A name is not unique across kinds. One repository in this organisation
+    declares two packages called `ca3` — a Rust crate and a Python
+    distribution, both correctly named — and a dict keyed on the name alone
+    silently keeps one of them. Twenty-three declared packages became
+    twenty-two nodes, and an edge added to either would have been checked
+    against the other's row.
+    """
+    return (package["name"], package["kind"])
+
+
+def labels_for(packages: list[dict]) -> dict[tuple[str, str], str]:
+    """A printable label per package, disambiguated only where it has to be.
+
+    A name shared by two kinds prints as `name (kind)`; every other name prints
+    as itself, so a repository whose names happen to be unique reads the same
+    as it did before the key changed.
+    """
+    seen: dict[str, int] = defaultdict(int)
+    for package in packages:
+        seen[package["name"]] += 1
+    return {
+        key_of(p): (p["name"] if seen[p["name"]] == 1 else f"{p['name']} ({p['kind']})")
+        for p in packages
+    }
+
+
 # ---------------------------------------------------------------------------
 # boundaries
 # ---------------------------------------------------------------------------
 
 
-def rust_edges() -> dict[str, tuple[set[str], set[str]]]:
+def first_line(text: str | None) -> str:
+    lines = (text or "").strip().splitlines()
+    return lines[0] if lines else ""
+
+
+def cargo_manifests() -> list[str]:
+    """Every tracked `Cargo.toml`, as the directory holding it."""
+    return sorted(
+        PurePosixPath(p).parent.as_posix()
+        for p in tracked()
+        if PurePosixPath(p).name == "Cargo.toml"
+    )
+
+
+def opens_a_workspace(directory: str) -> bool:
+    """True when this directory's `Cargo.toml` carries a `[workspace]` table.
+
+    Anchored and exact, so `[workspace.dependencies]` and `[workspace.package]`
+    in a *member*'s manifest are not mistaken for a workspace root.
+    """
+    try:
+        text = (ROOT / directory / "Cargo.toml").read_text(encoding="utf-8")
+    except OSError:
+        return False
+    return re.search(r"(?m)^\[workspace\]\s*$", text) is not None
+
+
+def declares_a_package(directory: str) -> bool:
+    try:
+        text = (ROOT / directory / "Cargo.toml").read_text(encoding="utf-8")
+    except OSError:
+        return False
+    return re.search(r"(?m)^\[package\]\s*$", text) is not None
+
+
+def cargo_metadata(directory: str) -> dict:
+    raw = subprocess.run(
+        ["cargo", "metadata", "--no-deps", "--format-version", "1"],
+        cwd=ROOT / directory,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+    return json.loads(raw)
+
+
+def rust_edges() -> tuple[dict[str, tuple[set[str], set[str]]], Table]:
     """Each Rust package's (intra-repository, third-party) normal dependencies.
 
     Read from `cargo metadata --no-deps`, which is the manifests as cargo
     resolves them rather than as a regex reads them. Development and build
     dependencies are excluded: they do not reach a consumer.
+
+    **Every workspace in the tree is read, not just the root's.** One
+    `cargo metadata` at the repository root sees one workspace; a consuming
+    repository has nine, and against it eight correctly-declared packages
+    reported `MISSING`. The obvious way to make that run green is to delete the
+    eight rows, which would leave real edges undeclared and unwatched — a
+    checker whose failure mode is "delete the true rows" is worse than none.
+
+    A crate in a workspace of its own that no `[workspace]` lists is read on its
+    own afterwards, so a tree with no workspace at all is covered too.
+    `local` is the union across every workspace, because a crate in one
+    workspace depending on a crate in another is still an intra-repository edge.
+
+    Returns the edges and the table saying which workspaces were read, so that a
+    run states its own coverage rather than leaving it to be inferred.
     """
-    raw = subprocess.run(
-        ["cargo", "metadata", "--no-deps", "--format-version", "1"],
-        cwd=ROOT,
-        check=True,
-        capture_output=True,
-        text=True,
-    ).stdout
-    meta = json.loads(raw)
-    local = {p["name"] for p in meta["packages"]}
+    table = Table("Every cargo workspace in the tree was read")
+    directories = [d for d in cargo_manifests() if opens_a_workspace(d)]
+
+    metadata: dict[str, dict] = {}
+    failures: list[tuple[str, str]] = []
+    for directory in directories:
+        try:
+            metadata[directory] = cargo_metadata(directory)
+        except subprocess.CalledProcessError as error:
+            failures.append((directory, first_line(error.stderr)))
+
+    # A crate no workspace listed. Read on its own, so that a repository with no
+    # `[workspace]` anywhere is covered rather than silently empty.
+    seen: set[str] = {
+        str(Path(p["manifest_path"]).resolve()) for m in metadata.values() for p in m["packages"]
+    }
+    for directory in cargo_manifests():
+        if directory in metadata or not declares_a_package(directory):
+            continue
+        if str((ROOT / directory / "Cargo.toml").resolve()) in seen:
+            continue
+        try:
+            metadata[directory] = cargo_metadata(directory)
+        except subprocess.CalledProcessError as error:
+            failures.append((directory, first_line(error.stderr)))
+            continue
+        seen |= {str(Path(p["manifest_path"]).resolve()) for p in metadata[directory]["packages"]}
+
+    local: set[str] = {p["name"] for m in metadata.values() for p in m["packages"]}
     edges: dict[str, tuple[set[str], set[str]]] = {}
-    for package in meta["packages"]:
-        intra: set[str] = set()
-        external: set[str] = set()
-        for dependency in package["dependencies"]:
-            if dependency["kind"] is not None:  # dev or build
+    manifest_of: dict[str, str] = {}
+    collisions: list[tuple[str, str]] = []
+
+    for directory in sorted(metadata):
+        meta = metadata[directory]
+        for package in meta["packages"]:
+            intra: set[str] = set()
+            external: set[str] = set()
+            for dependency in package["dependencies"]:
+                if dependency["kind"] is not None:  # dev or build
+                    continue
+                (intra if dependency["name"] in local else external).add(dependency["name"])
+            manifest = str(Path(package["manifest_path"]).resolve())
+            if package["name"] in manifest_of and manifest_of[package["name"]] != manifest:
+                collisions.append((package["name"], manifest))
                 continue
-            (intra if dependency["name"] in local else external).add(dependency["name"])
-        edges[package["name"]] = (intra, external)
-    return edges
+            manifest_of[package["name"]] = manifest
+            edges[package["name"]] = (intra, external)
+        table.add(directory, "ok", f"{len(meta['packages'])} crate(s)")
+
+    for directory, message in failures:
+        table.add(directory, "CARGO", message or "cargo metadata failed here")
+    for name, manifest in collisions:
+        table.add(name, "COLLISION", f"a second crate of this name at {manifest}")
+    if not metadata and not failures:
+        table.add("(none)", "ok", "no tracked Cargo.toml, so no Rust package to read")
+    return edges, table
 
 
 def npm_edges(path: Path) -> tuple[set[str], set[str]]:
@@ -221,8 +377,12 @@ def check_boundaries(declaration: dict) -> bool:
     packages = declaration["package"]
     declared_names = {p["name"] for p in packages}
 
+    labels = labels_for(packages)
+
+    rust, workspaces = rust_edges()
+    workspaces_ok = workspaces.report()
+
     table = Table("Dependencies: declared and resolved agree, in both directions")
-    rust = rust_edges()
 
     for package in packages:
         name, kind = package["name"], package["kind"]
@@ -230,30 +390,45 @@ def check_boundaries(declaration: dict) -> bool:
         want_intra = set(package.get("depends", []))
         want_external = set(package.get("external", []))
 
-        if kind == "rust":
-            if name not in rust:
-                table.add(name, "MISSING", "declared here, and cargo metadata does not list it")
-                continue
-            have_intra, have_external = rust[name]
-        elif kind == "npm":
-            have_external, have_dev = npm_edges(path)
-            have_intra = have_external & declared_names
-            have_external -= have_intra
-            want_dev = set(package.get("external_dev", []))
-            if have_dev != want_dev:
-                table.add(f"{name} (dev)", "DRIFT", f"resolved {sorted(have_dev)}, declared {sorted(want_dev)}")
-            else:
-                table.add(f"{name} (dev)", "ok", f"{sorted(have_dev) or 'none'}")
-        elif kind == "dotnet":
-            have_external = dotnet_edges(path)
-            have_intra = have_external & declared_names
-            have_external -= have_intra
-        elif kind == "python":
-            have_external = python_edges(path)
-            have_intra = have_external & declared_names
-            have_external -= have_intra
-        else:  # tooling: no manifest, so nothing may be declared either
-            have_intra, have_external = set(), set()
+        label = labels[key_of(package)]
+
+        # A manifest this declaration points at and the tree does not hold used
+        # to end the run with a traceback, which reports nothing about the other
+        # twelve packages. An unreadable manifest is a finding on one row.
+        try:
+            if kind == "rust":
+                if name not in rust:
+                    table.add(
+                        label, "MISSING", "declared here, and cargo metadata does not list it"
+                    )
+                    continue
+                have_intra, have_external = rust[name]
+            elif kind == "npm":
+                have_external, have_dev = npm_edges(path)
+                have_intra = have_external & declared_names
+                have_external -= have_intra
+                want_dev = set(package.get("external_dev", []))
+                if have_dev != want_dev:
+                    table.add(
+                        f"{label} (dev)",
+                        "DRIFT",
+                        f"resolved {sorted(have_dev)}, declared {sorted(want_dev)}",
+                    )
+                else:
+                    table.add(f"{label} (dev)", "ok", f"{sorted(have_dev) or 'none'}")
+            elif kind == "dotnet":
+                have_external = dotnet_edges(path)
+                have_intra = have_external & declared_names
+                have_external -= have_intra
+            elif kind == "python":
+                have_external = python_edges(path)
+                have_intra = have_external & declared_names
+                have_external -= have_intra
+            else:  # tooling: no manifest, so nothing may be declared either
+                have_intra, have_external = set(), set()
+        except (OSError, ValueError) as error:
+            table.add(label, "MANIFEST", f"{package['path']}: {first_line(str(error))}")
+            continue
 
         problems = []
         if have_intra - want_intra:
@@ -266,22 +441,60 @@ def check_boundaries(declaration: dict) -> bool:
             problems.append(f"declared third-party absent {sorted(want_external - have_external)}")
 
         if problems:
-            table.add(name, "DRIFT", "; ".join(problems))
+            table.add(labels[key_of(package)], "DRIFT", "; ".join(problems))
         else:
             inside = sorted(want_intra) or "nothing"
             outside = sorted(want_external) or "nothing"
-            table.add(name, "ok", f"depends on {inside}; third-party {outside}")
+            table.add(labels[key_of(package)], "ok", f"depends on {inside}; third-party {outside}")
 
     graph_ok = table.report()
 
+    # `depends` names a package; a name can belong to more than one. An entry is
+    # resolved to the package of the same kind first, then to a unique holder of
+    # the name, and an entry that could be either is reported rather than picked
+    # — picking would check the edge against the wrong row and print `ok`.
+    nodes = {key_of(p) for p in packages}
+    by_name: dict[str, list[tuple[str, str]]] = defaultdict(list)
+    for package in packages:
+        by_name[package["name"]].append(key_of(package))
+
+    resolution = Table("Every declared edge resolves to exactly one package")
+    edges: dict[tuple[str, str], set[tuple[str, str]]] = {}
+    for package in packages:
+        here = key_of(package)
+        targets: set[tuple[str, str]] = set()
+        for wanted in sorted(package.get("depends", [])):
+            same_kind = (wanted, package["kind"])
+            row = f"{labels[here]} -> {wanted}"
+            if same_kind in nodes:
+                targets.add(same_kind)
+                resolution.add(row, "ok", f"the {package['kind']} package of that name")
+            elif len(by_name.get(wanted, [])) == 1:
+                target = by_name[wanted][0]
+                targets.add(target)
+                resolution.add(row, "ok", f"the only package of that name ({target[1]})")
+            elif by_name.get(wanted):
+                kinds = sorted(k for _, k in by_name[wanted])
+                resolution.add(
+                    row, "AMBIGUOUS", f"{wanted} is declared as {kinds}; the edge cannot say which"
+                )
+            else:
+                resolution.add(row, "UNDECLARED", f"no package named {wanted} is declared here")
+        edges[here] = targets
+    if not resolution.rows:
+        resolution.add(
+            "(no edge)", "ok", f"{len(packages)} package(s), none declaring a dependency"
+        )
+    resolution_ok = resolution.report()
+
     cycles = Table("The dependency graph is acyclic")
-    edges = {p["name"]: set(p.get("depends", [])) for p in packages}
-    state: dict[str, int] = defaultdict(int)  # 0 unseen, 1 on the stack, 2 done
+    state: dict[tuple[str, str], int] = defaultdict(int)  # 0 unseen, 1 on the stack, 2 done
     found: list[str] = []
 
-    def walk(node: str, stack: list[str]) -> None:
+    def walk(node: tuple[str, str], stack: list[tuple[str, str]]) -> None:
         if state[node] == 1:
-            found.append(" -> ".join(stack[stack.index(node) :] + [node]))
+            cycle = stack[stack.index(node) :] + [node]
+            found.append(" -> ".join(labels.get(n, n[0]) for n in cycle))
             return
         if state[node] == 2:
             return
@@ -297,24 +510,27 @@ def check_boundaries(declaration: dict) -> bool:
         for cycle in found:
             cycles.add(cycle, "CYCLE", "an edge here has to go")
     else:
-        depth_of: dict[str, int] = {}
+        depth_of: dict[tuple[str, str], int] = {}
 
-        def depth(node: str) -> int:
+        def depth(node: tuple[str, str]) -> int:
             if node not in depth_of:
                 depth_of[node] = 1 + max((depth(n) for n in edges.get(node, ())), default=0)
             return depth_of[node]
 
-        for node in sorted(edges):
-            cycles.add(node, "ok", f"depth {depth(node)}")
+        for node in sorted(edges, key=lambda n: labels.get(n, n[0])):
+            cycles.add(labels.get(node, node[0]), "ok", f"depth {depth(node)}")
     cycles_ok = cycles.report()
 
-    # Each result is computed before the `and`, because `and` short-circuits
-    # and a short-circuited table is a table that never printed. A check whose
-    # later rows disappear as soon as an earlier one fails cannot tell a reader
-    # whether those rows were clean or were skipped.
-    namespaces_ok = check_namespaces(packages)
-    seams_ok = check_seams(packages)
-    return graph_ok and cycles_ok and namespaces_ok and seams_ok
+    namespaces_ok = check_namespaces(packages, labels)
+    seams_ok = check_seams(packages, labels)
+
+    # Every report is called before the results are combined. `and`
+    # short-circuits, so `a.report() and b.report()` never prints `b` once `a`
+    # has failed — and a table that never printed is not empty and not failing,
+    # it is absent. This file's own docstring says a report of only failures
+    # cannot distinguish "checked and clean" from "never checked"; a
+    # short-circuited table is the same defect one step further along.
+    return all([workspaces_ok, graph_ok, resolution_ok, cycles_ok, namespaces_ok, seams_ok])
 
 
 # ---------------------------------------------------------------------------
@@ -344,7 +560,7 @@ def namespace_users(namespace: str) -> list[str]:
     return found
 
 
-def check_namespaces(packages: list[dict]) -> bool:
+def check_namespaces(packages: list[dict], labels: dict[tuple[str, str], str]) -> bool:
     table = Table("Every declared namespace is used by a .cs file in this tree")
     declared_any = False
     for package in packages:
@@ -354,7 +570,7 @@ def check_namespaces(packages: list[dict]) -> bool:
         declared_any = True
         for namespace in namespaces:
             users = namespace_users(namespace)
-            label = f"{package['name']} :: {namespace}"
+            label = f"{labels[key_of(package)]} :: {namespace}"
             if users:
                 table.add(label, "ok", f"{len(users)} file(s), e.g. {users[0]}")
             else:
@@ -379,15 +595,15 @@ def check_namespaces(packages: list[dict]) -> bool:
 SEAM_KINDS = ("path", "process")
 
 
-def check_seams(packages: list[dict]) -> bool:
+def check_seams(packages: list[dict], labels: dict[tuple[str, str], str]) -> bool:
     table = Table("Every declared seam reaches outside the package that declares it")
     for package in packages:
         seams = package.get("seams", [])
         if not seams:
-            table.add(package["name"], "ok", "no seam declared")
+            table.add(labels[key_of(package)], "ok", "no seam declared")
             continue
         for index, seam in enumerate(seams):
-            label = f"{package['name']}[{index}]"
+            label = f"{labels[key_of(package)]}[{index}]"
             kind = seam.get("kind")
             target = seam.get("target")
             reason = (seam.get("reason") or "").strip()
@@ -495,7 +711,9 @@ def check_duplication(declaration: dict) -> bool:
         else:
             rules.add(rule["name"], "ok", f"{len(rule['implementations'])} implementation(s)")
 
-    return paths_ok and copies_ok and rules.report()
+    # Reported before the results are combined; see `check_boundaries` for why.
+    rules_ok = rules.report()
+    return all([paths_ok, copies_ok, rules_ok])
 
 
 # ---------------------------------------------------------------------------
@@ -509,19 +727,21 @@ def check_documents(declaration: dict, strict: bool) -> bool:
     at_v1 = spec.get("at_v1", [])
     headings = spec.get("readme_headings", [])
 
+    names = labels_for(declaration["package"])
     table = Table("Every published package carries the standard set")
     for package in declaration["package"]:
         if package.get("fixture") or package["kind"] == "tooling":
             continue
         path = ROOT / package["path"]
+        label = names[key_of(package)]
         missing = [d for d in required if not (path / d).is_file()]
         pending = [d for d in at_v1 if not (path / d).is_file()]
         if missing:
-            table.add(package["name"], "MISSING", f"no {', '.join(missing)}")
+            table.add(label, "MISSING", f"no {', '.join(missing)}")
         elif pending:
-            table.add(package["name"], "ok", f"{len(required)} present; pending at v1: {', '.join(pending)}")
+            table.add(label, "ok", f"{len(required)} present; pending at v1: {', '.join(pending)}")
         else:
-            table.add(package["name"], "ok", f"{len(required) + len(at_v1)} present")
+            table.add(label, "ok", f"{len(required) + len(at_v1)} present")
     documents_ok = table.report()
 
     order = Table("README heading order matches the standard (soft until migrated)")
@@ -537,10 +757,11 @@ def check_documents(declaration: dict, strict: bool) -> bool:
         ]
         wanted = [h for h in headings if h in found]
         if wanted == [h for h in found if h in headings] and len(wanted) == len(headings):
-            order.add(package["name"], "ok", "every standard heading, in order")
+            order.add(names[key_of(package)], "ok", "every standard heading, in order")
         else:
             absent = [h for h in headings if h not in found]
-            order.add(package["name"], "SOFT", f"missing {absent}" if absent else "out of order")
+            detail = f"missing {absent}" if absent else "out of order"
+            order.add(names[key_of(package)], "SOFT", detail)
 
     order_ok = order.report(soft=set() if strict else {"SOFT"})
 
@@ -548,15 +769,24 @@ def check_documents(declaration: dict, strict: bool) -> bool:
     # carries the history explaining its shape and two packages never collide.
     # Repository-level records — about how packages relate — live at the root.
     records = Table("Decision records are numbered uniquely within their package")
+    labels = labels_for(declaration["package"])
     seen_any = False
-    for package in [*declaration["package"], {"name": "(repository)", "path": "."}]:
+    for package in [*declaration["package"], {"name": "(repository)", "kind": "", "path": "."}]:
         directory = ROOT / package["path"] / "docs" / "decisions"
         if not directory.is_dir():
             continue
         seen_any = True
+        label = labels.get(key_of(package), package["name"])
         numbers: dict[str, list[str]] = defaultdict(list)
         malformed: list[str] = []
         for record in sorted(directory.glob("*.md")):
+            # An index is not a record. `README.md` is exempted by name rather
+            # than by loosening the pattern, because the pattern is what stops a
+            # record being filed under a number nobody can cite — widening it to
+            # admit `README.md` would admit every other unnumbered file too, and
+            # a record with no number is exactly the thing this row refuses.
+            if record.name == "README.md":
+                continue
             match = re.match(r"^(\d{4})-[a-z0-9]+(-[a-z0-9]+)*\.md$", record.name)
             if match:
                 numbers[match.group(1)].append(record.name)
@@ -564,15 +794,17 @@ def check_documents(declaration: dict, strict: bool) -> bool:
                 malformed.append(record.name)
         collisions = {n: f for n, f in numbers.items() if len(f) > 1}
         if malformed:
-            records.add(package["name"], "MALFORMED", f"not NNNN-kebab-case.md: {malformed[:3]}")
+            records.add(label, "MALFORMED", f"not NNNN-kebab-case.md: {malformed[:3]}")
         elif collisions:
-            records.add(package["name"], "COLLISION", f"number reused: {sorted(collisions)}")
+            records.add(label, "COLLISION", f"number reused: {sorted(collisions)}")
         else:
-            records.add(package["name"], "ok", f"{len(numbers)} record(s), numbers unique")
+            records.add(label, "ok", f"{len(numbers)} record(s), numbers unique")
     if not seen_any:
         records.add("(none)", "ok", "no package carries decision records yet")
 
-    return documents_ok and order_ok and records.report()
+    # Reported before the results are combined; see `check_boundaries` for why.
+    records_ok = records.report()
+    return all([documents_ok, order_ok, records_ok])
 
 
 # ---------------------------------------------------------------------------
@@ -735,7 +967,7 @@ def check_citations(repository: str) -> bool:
     refused_ok = True
     if refused_any:
         refused_ok = refused.report()
-    return identity_ok and table_ok and refused_ok
+    return all([identity_ok, table_ok, refused_ok])
 
 
 def main() -> int:

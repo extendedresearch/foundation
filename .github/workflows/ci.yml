@@ -286,7 +286,23 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Package boundaries, duplication and documents
+      # Run before the checks themselves. Three of these cover failures a
+      # passing run cannot show you — a table that never printed, a workspace
+      # that was never read, a package overwritten by its namesake — and every
+      # one of them produces output indistinguishable from a clean tree.
+      - name: The checks' own tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m unittest discover -s ecosystem/tests -v 2>&1 | tee ecosystem-tests.log
+          # `OK` alone: `OK (skipped=N)` is a test that did not run.
+          if ! grep -qE '^Ran [1-9][0-9]* tests? ' ecosystem-tests.log \
+            || ! grep -qx 'OK' ecosystem-tests.log; then
+            echo "::error::The ecosystem checks' tests ran no test, or skipped one."
+            exit 1
+          fi
+
+      - name: Package boundaries, duplication, documents and citations
         run: python ecosystem/check.py all
 
       # **The tier rule, which nothing ran until now.** `check-tier.py` refuses a
