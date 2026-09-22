@@ -156,7 +156,16 @@ guide says which wins and why. It never leaves the conflict unstated.
 - **S29** `_camelCase` for private fields, `PascalCase` for everything public,
   `camelCase` for locals and parameters (S1).
 - **S30** An `async` method ends in `Async`, except an event handler.
-- **S31** A public type carries an XML doc comment.
+- **S31** A public type that ships carries an XML doc comment, and the project
+  that ships it turns on `GenerateDocumentationFile` itself. The shared
+  configuration does not, because a test project inherits it too and CS1591 then
+  fails a build over documentation nobody reads.
+- **S31a** A repository raises `AnalysisMode` when its own tree is already
+  clean, not on the day it adopts the shared configuration. Raising it with
+  `TreatWarningsAsErrors` already set turns every recommended-tier suggestion
+  into a build error in code nobody was changing — twelve, in one real
+  adoption. Soft first is the rule for every other language here and .NET is not
+  an exception.
 - **S32** No Hungarian notation, and no `m_` prefix.
 
 ## 6. Everything else
