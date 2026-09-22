@@ -59,19 +59,58 @@ napi move in lockstep with every consumer"* — `pyo3-ffi` declares
 `links` and a second copy builds silently. A single lockfile removes the silent
 case.
 
-**The cost, stated plainly:** every crate must agree on every shared dependency
-at the moment of the merge. That is discoverable before committing to it:
+**Measured, 2026-09-22, and the answer is that one workspace is free.** Across
+`foundation`, `ranvier`, `ca3` and `plugins` — the four in this wave — every
+`Cargo.lock` was read and every shared crate compared:
+
+| | |
+|---|---|
+| Crates appearing in more than one repository | **193** |
+| Resolving the same compatibility track to different versions | **21** |
+| On different tracks, where no repository already carries all of them | **3** |
+
+The 21 are `futures`, `wasm-bindgen`, `bitflags`, `syn`, `uuid` and similar,
+differing by a patch or a minor — `0.3.33` against `0.3.34`. **Those unify under
+one lockfile by themselves**: Cargo picks the newest compatible version and
+there is nothing to reconcile.
+
+The 3 are `hashbrown`, `libloading` and `toml_datetime`, transitive in every
+case. Cargo permits several major versions of one crate to coexist, and one of
+these repositories already carries three tracks of `hashbrown` today, so this is
+the resolver's ordinary behaviour rather than a conflict to settle.
+
+**The one that could have been expensive agrees exactly.** `napi` 3.4.0,
+`napi-derive` 3.3.0 and `napi-sys` 3.0.1 are identical across `foundation`,
+`ca3` and `ranvier`. That matters because `napi-sys` declares no `links`, so two
+series build a second copy **silently** — the failure this repository's
+conventions warn about and which nothing currently detects. They agree today; a
+single lockfile makes that structural instead of coincidental.
+
+So the cost the earlier draft feared — "every crate must agree at the moment of
+the merge, and the disagreements are the real migration work" — does not exist.
+Reproduce with:
 
 ```bash
-# For each shared dependency, what does each repository resolve today?
-for r in foundation ranvier ca3 eres plugins; do
-  echo "== $r"; grep -rhn '^name = "\(pyo3\|napi\|serde\|tokio\)"' -A1 $r/Cargo.lock
-done
+python - <<'EOF'
+import re, pathlib, collections
+repos = ["foundation", "ranvier", "ca3", "plugins"]
+seen = collections.defaultdict(lambda: collections.defaultdict(set))
+for r in repos:
+    for lock in pathlib.Path(r).rglob("Cargo.lock"):
+        if any(x in str(lock) for x in ("node_modules", "worktrees", "/target/")): continue
+        for m in re.finditer(r'^name = "([^"]+)"
+version = "([^"]+)"',
+                             lock.read_text(encoding="utf-8", errors="replace"), re.M):
+            seen[m.group(1)][r].add(m.group(2))
+print(sum(1 for v in seen.values() if len(v) > 1), "crates shared across repositories")
+EOF
 ```
 
-Run that first. If the answer is "they already agree", one workspace is free and
-the decision is made. If it is not, the disagreements are the real migration
-work and they are worth knowing before any history is rewritten.
+**`eres` was excluded from this measurement** because it is held out of the
+wave, and it is the one that would have cost something: it resolves `napi`
+3.12.3 against everyone else's 3.4.0, and pins `extendedresearch-*` at 0.1.0
+where the others are at 0.1.1. Both are the kind of disagreement this section
+was written to find, and both wait until eres joins.
 
 ---
 
