@@ -230,7 +230,7 @@ Every row verified by running the command beside it, not by reading a record.
 
 | Question | The disagreement | Owner |
 |---|---|---|
-| **What is the ecosystem's minimum Rust?** | `foundation` and `ranvier` declare 1.85; `ca3`, `eres` and `plugins` declare 1.88. The convention stated 1.85 as *the* pin and was wrong about three of five. **Fixed**: 1.85 is this repository's floor, a consumer may declare higher, and the requirement is that the number be measured rather than inherited. A single workspace therefore resolves to 1.88 unless five let-chain call sites are rewritten, which is a decision rather than a side effect | **foundation — done** |
+| **What is the ecosystem's minimum Rust?** | `foundation` and `ranvier` declare 1.85; `ca3`, `eres` and `plugins` declare 1.88. The convention stated 1.85 as *the* pin and was wrong about three of five. **Fixed**: 1.85 is this repository's floor, a consumer may declare higher, and the requirement is that the number be measured rather than inherited. A single workspace resolves to 1.88, and no subset of a 1.88 consumer comes along at 1.85 — one of them has sixteen let-chain sites across five crates | **foundation — done** |
 | **Is this repository one repository?** | One consumer's record says "This repository is one repository. Not a stage in a split", against decision 0002 | that consumer, after 0002 |
 | **When does a package reach a public registry?** | One consumer's record requires registry publication to work; decision 0001 defers registry publishing to v1 | foundation 0001 governs |
 | **May an export carry a figure no sample carried?** | Three documents in one consumer answer it three ways — never, never interpolate, and yes-if-labelled — and the permissive one is what ships | that consumer |
