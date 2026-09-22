@@ -60,23 +60,78 @@ Both graphs are acyclic, in normal and dev modes.
 
 ---
 
-## 3. The recommendation
+## 3. The criterion the graph cannot supply
 
-**Five packages.**
+The dependency graph says where a split is **possible**. It does not say where a
+split is **valuable**, and for this repository the deciding question is not
+internal coherence — it is:
+
+> Can somebody outside this project add a device integration in an afternoon,
+> without reading the monorepo?
+
+That reframes one of the five. The graph says the seven devices are leaves with
+in-degree zero, so bundling them costs nothing structurally. **The community
+criterion says the opposite: a device is the extension point, so it must be a
+package boundary whether or not the graph forces one.**
+
+If devices ship as one bundled package, a contributor's device has nowhere to
+live except inside it — which means a pull request against the monorepo, a
+review by the owners, and a release cadence they do not control. If each device
+is its own package against a published trait, their device lives in their
+repository and depends on ours. That is the difference between an ecosystem and
+a codebase with contributors.
+
+**So the extension points are package boundaries by definition, and the first
+job of the decomposition is to make the contributor's dependency set small and
+obvious.** For a device author that set is: the provider trait, the one or two
+modality vocabularies they emit, and the transports they use. Nothing else —
+no drawing framework, no shell, no export surface, no other device.
+
+Measured against today's tree, that is already nearly true:
+
+```
+device-screen   -> base-providers, modality-av, modality-av-audio + 3 runtime crates
+device-muse     -> base-providers, base-clock, base-devicestate,
+                   modality-imu, modality-neuro + 5 runtime crates
+device-openxr   -> nothing at all
+```
+
+No device depends on another device, on the surface, or on conformance. The
+tree already has the shape; the packaging has not caught up with it.
+
+---
+
+## 4. The recommendation
+
+**Six packages and a template.**
 
 | # | Package | What it holds | Why it is a boundary |
 |---|---|---|---|
 | 1 | **standard** | The grammar crate and the well-formedness checker | Sink of 21 edges, zero in-repo dependencies, two third-party. Nothing else in the repository is this separable |
 | 2 | **vocabularies** | The four Base schema units, six modalities, four measurements — both languages | Carries zero `ranvier` and zero `ca3`. This is the half a consumer can take without a runtime |
-| 3 | **runtime** | `base-providers`, the seven devices, `Recording/Ca3` | Everything that names `ranvier` or `ca3`. The other side of the bipartite cut |
+| 3 | **providers** | `base-providers` alone — the trait a device implements | **The contributor-facing interface.** 2,238 lines, zero in-repo dependencies. Everything a device author must understand, and nothing else. It is small because it should be |
+| 3b | **devices** | The seven first-party integrations, **each its own package** | Not bundled. A device is the extension point, so each one is both a published package and a worked example a contributor can read end to end |
+| 3c | **recording** | `Recording/Ca3` | The only unit naming both siblings, with one dev-only in-repo edge. Already free-standing on the graph |
 | 4 | **surface** | `Dashboard`, `Workbench`, `Export`, `Viewer`, `Marks` | ~80,000 TypeScript lines with their own two-hub shape and their own third-party graph (React, `@xyflow/react`) |
-| 5 | **conformance** | `tools/conformance`, `tools/fixture` | Must see all of the above — it is what enforces the tier rules, the reachability of the TypeScript build, and the asset gates. A checker is not a participant |
+| 5 | **conformance** | `tools/conformance`, `tools/fixture` | Must see all of the above — it enforces the tier rules, the reachability of the TypeScript build, and the asset gates. A checker is not a participant. **And it has to be runnable by an outsider against their own device**, which it is not today |
+| — | **the device template** | A scaffold, not a package | §5 |
 
 ### Why not one package
 
 The bipartite cut is real and it is the whole point of decision 0001. One
 package means a consumer wanting a gaze vocabulary acquires seven device
 integrations, a streaming runtime, a recording bridge and 80,000 lines of React.
+
+### Why devices are split and vocabularies are not
+
+Both are "many small units the graph says could be bundled". They go opposite
+ways because the criterion is not symmetry, it is **who adds the next one**.
+
+Nobody outside this project adds a modality vocabulary casually — it is a
+schema change with conformance consequences, and the fourteen existing ones
+share a build pipeline and a release cadence. Somebody outside this project
+should add a device every week. One is an extension point; the other is a
+component.
 
 ### Why not twenty-five
 
@@ -121,7 +176,52 @@ I would take (1).
 
 ---
 
-## 5. A second coupling, less structural but worth naming
+## 5. The template, and what "an afternoon" actually requires
+
+A package boundary lets a contributor's device live outside the monorepo. It
+does not make writing one easy. The target — **a working device integration in
+an afternoon, by somebody who has not read this repository** — needs five
+things, and the repository already has three of them built for other purposes.
+
+| What the contributor needs | State today |
+|---|---|
+| **One command that scaffolds a device crate** — manifest, trait stub, proto wiring, a test, a CI job | Does not exist |
+| **A trait small enough to read in one sitting** | `base-providers`, 2,238 lines. Needs a README that is a tutorial, not a reference |
+| **A way to run their device with no hardware** | `tools/fixture` — 5,766 lines, already built, currently internal-only |
+| **A conformance check they can run against their own crate** | `tools/conformance` — 7,916 lines, already built, **depends on 13 in-repo crates**, so an outsider cannot run it without vendoring the tree |
+| **A worked example that is real** | Seven of them, and `device-openxr` is the smallest at 1,819 lines |
+
+**The two that exist but are internal-only are the interesting ones.** A
+conformance suite an outsider cannot run is a conformance suite that only
+polices insiders — and this project already solved that problem once:
+`extendedresearch-conformance` is a pip-installable development tool that runs a
+binding's driver over a cases file and compares the languages, configured by a
+TOML file in the consuming repository. The same shape works here. A device
+author installs the checker, points it at their crate, and gets the same verdict
+CI gives a first-party device.
+
+**The scaffold should generate a device that passes conformance on the first
+run, emitting a fixture stream.** Not a skeleton that compiles — one that works,
+that the contributor then edits into their hardware. The difference decides
+whether the first hour is spent making something run or making something build.
+
+**The seven first-party devices become the examples**, which is the second
+reason not to bundle them: a bundled package is something to read through, seven
+separate ones are seven things to read *one of*.
+
+### What this costs, stated honestly
+
+`tools/conformance` depending on 13 in-repo crates is the real work. It has to
+become a checker that reads a declaration and a built artefact, rather than one
+that imports every crate it checks. That is a substantial rewrite of a
+7,916-line tool and it is the single largest item implied by the community goal.
+
+Nothing else here is large. The scaffold is a template repository or a
+`cargo generate` source; the trait's README is a day.
+
+---
+
+## 6. A second coupling, less structural but worth naming
 
 **Deep subpath imports are the norm.** Of 470 `@extendedresearch/*` import
 sites, the great majority address an internal path — `dashboard/plots/target`,
@@ -139,7 +239,7 @@ cheapest moment to fix it.
 
 ---
 
-## 6. Four things that do not fit anywhere, found on the way
+## 7. Four things that do not fit anywhere, found on the way
 
 **`device-openxr` is not a plugin.** Zero in-repo dependencies, zero `ranvier`,
 zero `ca3`, declares no vocabulary and publishes nothing. It is a 1,819-line
@@ -166,7 +266,7 @@ from is out of the migration entirely.
 
 ---
 
-## 7. What this costs
+## 8. What this costs
 
 **One Cargo workspace and one lockfile** today, whose own header argues that
 resolving once *"is what keeps two plugins from compiling two revisions of the
@@ -185,7 +285,7 @@ package 5 rather than folding it into another.
 
 ---
 
-## 8. What I need from the owner
+## 9. What I need from the owner
 
 1. **The `CONTRACT_VERSION` resolution** (§4). The decomposition rests on it.
 2. **The `Base/Providers` fork disposition** (§6) — upstream, or declare.
