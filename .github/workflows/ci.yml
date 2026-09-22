@@ -289,6 +289,22 @@ jobs:
       - name: Package boundaries, duplication and documents
         run: python ecosystem/check.py all
 
+      # `affected.py` decides what the `affected` job below may one day be
+      # allowed to skip, so its own suite runs where the rest of the ecosystem
+      # tooling is checked rather than inside the job whose answers it governs.
+      # Synthetic graphs and a throwaway git repository; no cargo, no network.
+      - name: The affected-package detection is correct
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m unittest discover -s ecosystem/tests -v 2>&1 | tee affected-test.log
+          # `OK` alone: `OK (skipped=N)` is a test that did not run.
+          if ! grep -qE '^Ran [1-9][0-9]* tests? ' affected-test.log \
+             || ! grep -qx 'OK' affected-test.log; then
+            echo "::error::The affected-package suite ran no test, or skipped one."
+            exit 1
+          fi
+
       # **The tier rule, which nothing ran until now.** `check-tier.py` refuses a
       # tier-1 document that names a consuming repository's path, symbol or
       # constant — the coupling that makes foundation's documentation rot when a
@@ -296,6 +312,122 @@ jobs:
       # `main` because a hand-run check is a check somebody has to remember.
       - name: The tier rule
         run: python docs/docs.tools/check-tier.py --root . --repo foundation
+
+  # **What affected-package detection *would* select, computed and nothing
+  # more.** Gate item 3 of `docs/decisions/0002-the-ecosystem-lives-in-one-repository.md`
+  # exists because a monorepo that runs everything on every change gets slow,
+  # and a slow suite is one people learn to skip.
+  #
+  # **No job is gated on this, deliberately.** Every job above runs
+  # unconditionally and will keep running unconditionally. The only thing this
+  # job does is publish an answer into a real run, next to the jobs that
+  # actually ran, so the two can be compared over a stretch of ordinary changes.
+  # Skipping a test because a script said so is a thing to earn.
+  #
+  # **What would have to be true before any job takes `needs: affected` and an
+  # `if:`**, each of them a check rather than an intention:
+  #
+  #   1. A run of merged pull requests where the selected set is a superset of
+  #      the packages whose suites actually failed. One counter-example — a
+  #      suite that failed for a package the script did not select — is a
+  #      defect that would have shipped, and resets the count.
+  #   2. Every cross-package edge that exists only in a test harness is
+  #      declared, or the packages on both ends are pinned into the selected
+  #      set by hand. The two known today are in `affected.py`'s "what it
+  #      cannot see": `crates/napi-testaddon`'s Node test loading
+  #      `npm/binding-runtime/src/`, and `dotnet/Interop.Tests` running against
+  #      a library built from `crates/abi-testlib`.
+  #   3. `ExtendedResearch.Interop`'s shipped sources live under its declared
+  #      `path`. They are in `dotnet/Interop/` while the package is declared at
+  #      `dotnet/Interop.Package`, so today every change to them lands in the
+  #      global bucket and selects everything — safe, and it means the script
+  #      has never actually been exercised on that package's real diffs.
+  #   4. A required check that cannot be skipped, so a pull request touching
+  #      nothing still has a green tick a branch rule can require. A skipped
+  #      job reports neither success nor failure, and a rule waiting on one
+  #      waits forever.
+  #
+  # `fetch-depth: 0` because the answer is a diff against the base, and a
+  # shallow clone has no merge base. Without it the script widens to everything
+  # and the job is true but useless.
+  affected:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      packages: ${{ steps.compute.outputs.packages }}
+      json: ${{ steps.compute.outputs.json }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      # On a pull request the base is the branch it targets. On a push to main
+      # the base is the commit before it; a first push gives an all-zero SHA
+      # that does not resolve, and the script widens to everything rather than
+      # guessing — which is the answer that cannot lose a test.
+      - name: The base this change is judged against
+        id: base
+        shell: bash
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          if [ -n "${BASE_REF:-}" ]; then
+            echo "ref=origin/$BASE_REF" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=${BEFORE:-origin/main}" >> "$GITHUB_OUTPUT"
+          fi
+      # The full matrix in the log: every changed file with its owning package,
+      # then every package with whether it was selected and why. A report of
+      # only the selected set cannot distinguish "not affected" from "not
+      # considered", and this job exists to be read.
+      #
+      # The base reaches every step below through `env`, never through `${{ }}`
+      # inside a `run:` block. On a pull request it derives from
+      # `github.base_ref`, which a fork's author chooses, and a branch named
+      # with a backtick would otherwise be substituted into the shell before
+      # the shell ever sees it.
+      - name: Every package, selected or not, and why
+        shell: bash
+        env:
+          BASE: ${{ steps.base.outputs.ref }}
+        run: python ecosystem/affected.py --base "$BASE" --explain
+      - name: Expose the selected set
+        id: compute
+        shell: bash
+        env:
+          BASE: ${{ steps.base.outputs.ref }}
+        run: |
+          set -euo pipefail
+          python ecosystem/affected.py --base "$BASE" > affected.txt
+          echo "packages=$(tr '\n' ' ' < affected.txt)" >> "$GITHUB_OUTPUT"
+          {
+            echo 'json<<AFFECTED_JSON'
+            python ecosystem/affected.py --base "$BASE" --json
+            echo 'AFFECTED_JSON'
+          } >> "$GITHUB_OUTPUT"
+      # The comparison item 1 above asks for, made visible without anybody
+      # opening the log.
+      - name: Summary
+        shell: bash
+        env:
+          BASE: ${{ steps.base.outputs.ref }}
+        run: |
+          set -euo pipefail
+          {
+            echo '### Affected packages (advisory — nothing is gated on this)'
+            echo
+            echo "Base: \`$BASE\`"
+            echo
+            python ecosystem/affected.py --base "$BASE" | sed 's/^/- /'
+            echo
+            echo 'Every job in this workflow ran regardless. See the comment above'
+            echo '`affected:` in `.github/workflows/ci.yml` for what would have to'
+            echo 'hold before any job is allowed to skip.'
+          } >> "$GITHUB_STEP_SUMMARY"
 
   release-assets:
     runs-on: ubuntu-latest
