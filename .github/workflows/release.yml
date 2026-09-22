@@ -6,12 +6,14 @@ name: release
 # first time it runs.
 #
 # **One asset also goes to a package registry: the npm tarball.** It is
-# published as `@extendedresearch/binding-runtime` and stays attached to the
-# release as well, so a consumer installs by name or by download URL and gets
-# the same bytes — the file published is the one the script built and checked,
-# not a second `npm pack`. The crates, the `.nupkg` and the wheel reach a
-# package the way `CONTEXT.md` describes, from this release and from nowhere
-# else.
+# published as `@extendedresearch/binding-runtime`, `--access restricted` in the
+# `@extendedresearch` organisation as every sibling repository's npm package is,
+# and stays attached to the release as well. So a consumer installs it by name
+# with a credential the organisation issued, or by download URL with none, and
+# gets the same bytes either way — the file published is the one the script
+# built and checked, not a second `npm pack`. The crates, the `.nupkg` and the
+# wheel reach a package the way `CONTEXT.md` describes, from this release and
+# from nowhere else.
 #
 # **Two ways to authenticate for npm, and this file needs no edit to move
 # between them.** The job holds `id-token: write`, and npm 11.5.1 or later
@@ -30,6 +32,17 @@ name: release
 # With the secret deleted `secrets.NPM_TOKEN` is empty, the publish step writes
 # no token into its `.npmrc`, and OIDC is the only credential left.
 #
+# **Step 2 has one thing to check first, and this file cannot check it.** npm
+# documents that under trusted publishing "provenance attestations are
+# automatically generated for your packages without requiring the --provenance
+# flag" (docs.npmjs.com/generating-provenance-statements), and an attestation is
+# logged in a public transparency ledger. This package publishes
+# `--access restricted`, so whether that automatic generation is skipped or
+# refuses the publish outright is the registry's behaviour to state, and the
+# answer is not in the npm CLI source the publish step quotes. Configure the
+# trusted publisher on a throwaway restricted package and read what it does
+# before moving this one.
+#
 # **A release tag is never moved.** A package pins the Rust crates to the commit
 # the tag points to and downloads the other assets from the tag's release. A tag
 # moved to another commit separates the two, and one version then names two
@@ -42,9 +55,10 @@ on:
 
 # Creating the release and uploading its assets is the one write on GitHub, made
 # with the workflow's own GITHUB_TOKEN. `id-token: write` lets the job ask
-# GitHub for the OIDC token npm exchanges for a publish credential, and is what
-# npm signs a provenance attestation with. `NPM_TOKEN` is the one secret read,
-# by the one step that publishes; `ci.yml` reads none.
+# GitHub for the OIDC token npm exchanges for a publish credential, which is the
+# step-2 path above and is why the permission is held before it is used.
+# `NPM_TOKEN` is the one secret read, by the one step that publishes; `ci.yml`
+# reads none.
 permissions:
   contents: write
   id-token: write
@@ -135,13 +149,19 @@ jobs:
       # also the half no re-run can undo: npm refuses a second publish of a
       # version it holds.
       #
-      # **`--provenance` because this repository is public.** npm builds the
-      # attestation from the OIDC token and the run that produced the tarball,
-      # and generates none from a private repository. `--access public` is passed
-      # as well as set in the manifest's `publishConfig`, because a scoped
-      # package's first publish is restricted unless something says otherwise,
-      # and a restricted package answers 404 to everyone outside the
-      # organisation.
+      # **`--access restricted`, and no `--provenance`.** The two cannot be
+      # combined: npm's publish refuses provenance for a package that is not
+      # public, in `ensureProvenanceGeneration` —
+      #
+      #     if (!visibility.public && opts.provenance === true && opts.access !== 'public')
+      #       throw … "Can't generate provenance for new or private package, you must set `access`…"
+      #
+      # (`workspaces/libnpmpublish/lib/publish.js` in `npm/cli`). An attestation
+      # is signed by Sigstore and logged in a public transparency ledger
+      # (docs.npmjs.com/generating-provenance-statements), which is what a
+      # restricted package does not get. The access is passed here as well as
+      # set in the manifest's `publishConfig`, so nothing publishes this package
+      # to everyone on the strength of one of the two being edited.
       #
       # **The token line is written only when the secret is set.** The `.npmrc`
       # names `NODE_AUTH_TOKEN` and npm expands it while reading the file, so no
@@ -182,7 +202,7 @@ jobs:
             echo "::notice::${name}@${version} is already on the registry; skipping"
             exit 0
           fi
-          npm publish "$tarball" --provenance --access public
+          npm publish "$tarball" --access restricted
 
       # `--verify-tag` aborts when the tag does not already exist on GitHub, so
       # the release attaches to the pushed tag and never creates one.

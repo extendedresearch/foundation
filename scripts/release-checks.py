@@ -21,12 +21,14 @@ internal path dependency (both from `cargo metadata`), the conformance runner's
 NuGet project, and the exact version the NuGet consumer test restores. Given a
 tag, the tag must be `v<major>.<minor>.<patch>` and name that version.
 
-**The npm package still publishes, and still publishes publicly.** `npm publish`
-refuses a manifest carrying `"private": true`, and a scoped package published
-without `access` set to `public` lands restricted, where `npm install` from
-outside the organisation answers 404 and nothing in the release run notices.
-`registry` names where the publish goes, so an `.npmrc` the runner picked up
-elsewhere cannot redirect the tarball.
+**The npm package still publishes, and publishes restricted.** `npm publish`
+refuses a manifest carrying `"private": true`, so a release with one would fail
+at the registry rather than here. `access` is `restricted`, which is what
+`release.yml` passes on the command line as well: this package is the
+organisation's to install, as every sibling repository's npm package is —
+`ranvier`, `ca3` and `eres` each publish `--access restricted`. `registry` names
+where the publish goes, so an `.npmrc` the runner picked up elsewhere cannot
+redirect the tarball.
 
 **Every copy of LICENSE and NOTICE is the root's.** Each asset is built from its
 own directory, so the root files reach a user only as a copy, and Apache-2.0
@@ -233,7 +235,7 @@ def check_versions(tag: str | None) -> bool:
 
 
 def check_npm_publishing() -> bool:
-    table = Table(f"{NPM_NAME}: publishable, and public, on the npm registry")
+    table = Table(f"{NPM_NAME}: publishable, and restricted, on the npm registry")
     manifest = json.loads((NPM / "package.json").read_text(encoding="utf-8"))
     config = manifest.get("publishConfig", {})
     private = manifest.get("private", False)
@@ -245,8 +247,8 @@ def check_npm_publishing() -> bool:
     access = config.get("access")
     table.add(
         "publishConfig access",
-        access if access == "public" else f"{json.dumps(access)}, expected \"public\"",
-        access == "public",
+        access if access == "restricted" else f"{json.dumps(access)}, expected \"restricted\"",
+        access == "restricted",
     )
     registry = config.get("registry")
     table.add(

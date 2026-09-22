@@ -17,6 +17,12 @@ is no root export: import the subpath you need.
 
 ## Install
 
+The package is published `--access restricted` in the `@extendedresearch`
+organisation, so installing it by name needs a credential the organisation
+issued — `npm login`, or an `.npmrc` naming a read token for the
+`@extendedresearch` scope. Without one the registry answers 404, the answer a
+restricted package gives a reader who cannot see it.
+
 ```bash
 npm install @extendedresearch/binding-runtime@0.1.1
 ```
@@ -26,8 +32,9 @@ pins by `rev` to one foundation commit, and this half is published from that
 commit's release. Install the version whose release the `rev` you pin belongs
 to, so both halves come from one commit.
 
-The same tarball stays attached to each foundation release, so you can install
-it by download URL instead, and a package that already did needs no change:
+The same tarball stays attached to each foundation release, and that URL needs
+no credential, so you can install it by download URL instead — and a package
+that already did needs no change:
 
 ```bash
 npm install https://github.com/extendedresearch/foundation/releases/download/v0.1.1/extendedresearch-binding-runtime-0.1.1.tgz
