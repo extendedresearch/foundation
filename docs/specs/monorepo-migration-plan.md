@@ -122,15 +122,26 @@ turned up, each verified by a command rather than read off a status line.
 
 **Forty-four records are orphaned, not superseded.** An editor application left
 `eres` for a repository of its own, taking 614 files with it, and the records
-describing it stayed behind. They are not wrong; their subject moved. That
-repository has 21 records of its own and re-decides some of the same ground, so
-`eres` 0050–0091 and its 0001–0020 are about the same code under different
-numbers. This is what the **Orphaned** class is for.
+describing it stayed behind. They are not wrong; their subject moved.
 
-**The scope in §1 is incomplete.** Four more repositories sit under `apps/`
-— one with 21 decision records, one with 1 — plus other Rust trees beside
-`core/`. The migration names four repositories and the ecosystem has more. The
-layout and the order both have to account for them before Phase 3.
+**Because that repository is out of scope, an orphaned record's destination is
+another repository rather than another directory.** This is the consequence of
+the scope decision above, and it changes what the Orphaned class costs: a record
+whose subject left cannot simply move to the package that owns it, because that
+package is not arriving. Each one is a handoff across a repository boundary,
+or it stays where it is, marked historical and pointing at where its subject
+went. Either is defensible; drifting into the merge undecided is not, because 44
+records describing code that is not in the tree is exactly the shape that makes
+a decision set stop being worth reading.
+
+The two numbering ranges that describe that application — one set inherited, one
+set written after the move — stay in separate repositories and never collide, so
+the merge does not force that question either.
+
+**The scope is exactly the four named, and the applications stay out.** Four
+more repositories sit under `apps/` — one of them with 21 decision records of
+its own — and none of them is part of this migration. That is a decision, not an
+omission, and it has one consequence worth drawing out below.
 
 **Decision citations have leaked into shipped artifacts.** One repository cites
 **34 distinct decision numbers** of which 29 belong to other repositories, and
