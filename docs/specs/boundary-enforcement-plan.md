@@ -1,7 +1,7 @@
 # Source-level boundary enforcement
 
 Status: **proposed**, 2026-09-22. This is gate item 1 of
-`docs/decisions/0002-the-ecosystem-lives-in-one-repository.md`, and nothing
+`foundation/docs/decisions/0002-the-ecosystem-lives-in-one-repository.md`, and nothing
 moves until it exists. Not implemented.
 
 The per-language analysis here was proposed by the `ranvier` session and is
@@ -242,6 +242,6 @@ Stated here so that a green run is not read as a guarantee it cannot give:
 6. **Rust extractor** — last, because the compiler already covers the ordinary
    case.
 
-The gate in decision 0002 is satisfied when steps 1 to 5 are done. Rust can
+The gate in foundation decision 0002 is satisfied when steps 1 to 5 are done. Rust can
 follow the merge, since an undeclared Rust dependency fails to compile whether
 or not this check exists.

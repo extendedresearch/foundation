@@ -286,7 +286,23 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Package boundaries, duplication and documents
+      # Run before the checks themselves. Three of these cover failures a
+      # passing run cannot show you — a table that never printed, a workspace
+      # that was never read, a package overwritten by its namesake — and every
+      # one of them produces output indistinguishable from a clean tree.
+      - name: The checks' own tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m unittest discover -s ecosystem/tests -v 2>&1 | tee ecosystem-tests.log
+          # `OK` alone: `OK (skipped=N)` is a test that did not run.
+          if ! grep -qE '^Ran [1-9][0-9]* tests? ' ecosystem-tests.log \
+            || ! grep -qx 'OK' ecosystem-tests.log; then
+            echo "::error::The ecosystem checks' tests ran no test, or skipped one."
+            exit 1
+          fi
+
+      - name: Package boundaries, duplication, documents and citations
         run: python ecosystem/check.py all
 
       # `affected.py` decides what the `affected` job below may one day be
@@ -314,7 +330,7 @@ jobs:
         run: python docs/docs.tools/check-tier.py --root . --repo foundation
 
   # **What affected-package detection *would* select, computed and nothing
-  # more.** Gate item 3 of `docs/decisions/0002-the-ecosystem-lives-in-one-repository.md`
+  # more.** Gate item 3 of `foundation/docs/decisions/0002-the-ecosystem-lives-in-one-repository.md`
   # exists because a monorepo that runs everything on every change gets slow,
   # and a slow suite is one people learn to skip.
   #

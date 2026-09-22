@@ -330,7 +330,7 @@ def _tier1_rules() -> list[Rule]:
             why="foundation cites a numbered section of a tier-2 specification; "
             "the section number is a promise that repository never made here",
             # The repository name has to be adjacent to the section mark. Every
-            # tree here cites its OWN records as `decision 0036 §4` and the
+            # tree here cites its OWN records as `decision NNNN §4` and the
             # licence as `Apache-2.0 §4(d)`; neither has a repository name in
             # front of the mark, and neither is a cross-tier reference.
             pattern=re.compile(rf"(?<![A-Za-z0-9_])(?:{_T2})(?:'s)?`?\s*§\s*\d"),
@@ -433,7 +433,7 @@ def _tier2_rules(repo: str) -> list[Rule]:
             ),
             canaries=(
                 "`ecosystem`'s workflow",
-                "`extendedresearch-ecosystem` decisions 0014",
+                "`extendedresearch-ecosystem` decisions NNNN",
                 "ecosystem/docs",
                 "the ecosystem repository",
             ),

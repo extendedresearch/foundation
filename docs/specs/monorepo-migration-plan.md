@@ -1,7 +1,7 @@
 # Monorepo migration plan
 
 Status: **proposed**, 2026-09-22. Authorised by
-`docs/decisions/0002-the-ecosystem-lives-in-one-repository.md`, whose §3 is a
+`foundation/docs/decisions/0002-the-ecosystem-lives-in-one-repository.md`, whose §3 is a
 gate this plan does not start before. Nothing has moved.
 
 ---
@@ -118,7 +118,7 @@ was written to find, and both wait until eres joins.
 
 Each phase leaves every repository working, and no phase depends on a later one.
 
-### Phase 0 — the gate (decision 0002 §3)
+### Phase 0 — the gate (foundation decision 0002 §3)
 
 Nothing moves until all five pass. Phases 1 and 2 are how items 1 and 2 get
 done, so they run inside the gate rather than after it.
@@ -217,7 +217,10 @@ repositories, so a collision cannot happen during the merge itself. **No
 renumbering, ever** — 169 records and their citations, some in code comments.
 Promotion to the ecosystem tier gives a record a new number in the root set and
 leaves the original number in place as a superseded pointer, which is what keeps
-a code comment citing "decision 0049" resolving.
+a code comment citing "decision NNNN" resolving. The number in that comment is
+the consumer's own, and the comment does not say so — which is the defect
+`check.py citations` exists to refuse, and the reason this sentence cannot name
+a number either.
 
 ### Phase 2 — conformance, in place
 
@@ -304,8 +307,8 @@ Every row verified by running the command beside it, not by reading a record.
 | Question | The disagreement | Owner |
 |---|---|---|
 | **What is the ecosystem's minimum Rust?** | `foundation` and `ranvier` declare 1.85; `ca3`, `eres` and `plugins` declare 1.88. The convention stated 1.85 as *the* pin and was wrong about three of five. **Fixed**: 1.85 is this repository's floor, a consumer may declare higher, and the requirement is that the number be measured rather than inherited. A single workspace resolves to 1.88, and no subset of a 1.88 consumer comes along at 1.85 — one of them has sixteen let-chain sites across five crates | **foundation — done** |
-| **Is this repository one repository?** | One consumer's record says "This repository is one repository. Not a stage in a split", against decision 0002 | that consumer, after 0002 |
-| **When does a package reach a public registry?** | One consumer's record requires registry publication to work; decision 0001 defers registry publishing to v1 | foundation 0001 governs |
+| **Is this repository one repository?** | One consumer's record says "This repository is one repository. Not a stage in a split", against foundation decision 0002 | that consumer, after 0002 |
+| **When does a package reach a public registry?** | One consumer's record requires registry publication to work; foundation decision 0001 defers registry publishing to v1 | foundation 0001 governs |
 | **May an export carry a figure no sample carried?** | Three documents in one consumer answer it three ways — never, never interpolate, and yes-if-labelled — and the permissive one is what ships | that consumer |
 | **What does a time basis label mean?** | One consumer ships two unrelated vocabularies for one column family: `exact/ok/degraded/unmapped` and `exact/estimated/unchecked`. Both implemented. A reader sees two meanings of `exact` | that consumer |
 | **How is the contribution boundary enforced?** | One repository removed its pre-commit and pre-push hooks and kept a CI job; nothing propagated that, and there are four or five independent copies of the checker with no shared implementation | ecosystem-level; unowned today |
@@ -335,7 +338,7 @@ repository's subject area:
 | A merge goes wrong | One repository at a time, full suite between each; `git subtree add` is a merge commit and is revertible |
 | History is lost | `git subtree add` rather than a copy; verified with `git log --follow` on a file from each repository afterwards |
 | Decision numbers collide | Phase 1, done in each repository before the merge |
-| Visibility becomes all-or-nothing | Decided deliberately at v1, per decision 0002 |
+| Visibility becomes all-or-nothing | Decided deliberately at v1, per foundation decision 0002 |
 
 ---
 
