@@ -68,6 +68,16 @@ path = "crates/clock"
 depends = []
 external = []
 
+# Chains, terms, provenance and budgets: what a measured interval carries so that
+# its uncertainty is stated rather than assumed. Depends on the clock for its
+# units and its UNBOUNDED sentinel, and on nothing else.
+[[package]]
+name = "extendedresearch-metrology"
+kind = "rust"
+path = "crates/metrology"
+depends = ["extendedresearch-clock"]
+external = []
+
 [[package]]
 name = "extendedresearch-pyo3"
 kind = "rust"
@@ -155,6 +165,16 @@ redistribution, and a licence file cannot be a dependency."""
 source = "NOTICE"
 pattern = "**/NOTICE"
 reason = "As LICENSE."
+
+[[copy]]
+source = "crates/clock/tests/support/json.rs"
+pattern = "crates/*/tests/support/json.rs"
+reason = """
+A minimal JSON reader each vector suite uses to read its own vectors. Sharing it
+would mean a `publish = false` support crate, a manifest entry in every suite
+that reads vectors, and a dependency edge that exists only for tests — to save
+one file. The copies are test-only, never shipped, and this rule fails if one
+drifts from the other, which is the property that matters."""
 
 [[copy]]
 source = "style/configs/editorconfig"
