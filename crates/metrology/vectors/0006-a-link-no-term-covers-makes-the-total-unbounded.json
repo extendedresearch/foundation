@@ -1,0 +1,67 @@
+{
+  "metrology_vector": "0",
+  "id": "0006-a-link-no-term-covers-makes-the-total-unbounded",
+  "about": "The composer walks every position of both chains and reports the runs no term covered; a run that exists makes the total unbounded on both sides, by the same rule as an unknown term (R11, R8). This is the failure the whole model exists to prevent: a budget that accounts for only the stages someone remembered to describe composes cleanly and is missing however much the rest contribute. Uncovered runs are maximal and are listed in ascending chain identifier then position, so two runs over the same inputs agree. An implementation that sums the terms it was given and reports a total passes nothing here.",
+  "function": "Composer::compose",
+  "faces": ["native", "browser"],
+  "chains": {
+    "response": { "id": 1, "links": [1, 7, 8, 10] },
+    "stimulus": { "id": 2, "links": [11, 16] }
+  },
+  "terms": {
+    "l0":         { "chain": 1, "from": 0, "to": 0, "early_ns": "1", "late_ns": "1", "bias_provenance": "bounded:1" },
+    "l1":         { "chain": 1, "from": 1, "to": 1, "early_ns": "1", "late_ns": "1", "bias_provenance": "bounded:1" },
+    "l2":         { "chain": 1, "from": 2, "to": 2, "early_ns": "1", "late_ns": "1", "bias_provenance": "bounded:1" },
+    "l3":         { "chain": 1, "from": 3, "to": 3, "early_ns": "1", "late_ns": "1", "bias_provenance": "bounded:1" },
+    "l_span_1_2": { "chain": 1, "from": 1, "to": 2, "early_ns": "2", "late_ns": "2", "bias_provenance": "bounded:1" },
+    "e0":         { "chain": 2, "from": 0, "to": 0, "early_ns": "1", "late_ns": "1", "bias_provenance": "bounded:1" },
+    "e1":         { "chain": 2, "from": 1, "to": 1, "early_ns": "1", "late_ns": "1", "bias_provenance": "bounded:1" }
+  },
+  "rows": {
+    "every_link_covered": {
+      "input": { "later": "response", "earlier": "stimulus", "terms": ["l0", "l1", "l2", "l3", "e0", "e1"] },
+      "expect": {
+        "total.kind": "bounded", "total.early_ns": "6", "total.late_ns": "6",
+        "known.early_ns": "6", "known.late_ns": "6",
+        "unbounded_terms": "none", "uncovered_links": "none",
+        "largest_bounded": "0", "dispersion": "none", "interval_ns": "none"
+      }
+    },
+    "a_gap_in_the_middle": {
+      "input": { "later": "response", "earlier": "stimulus", "terms": ["l0", "l3", "e0", "e1"] },
+      "expect": {
+        "total.kind": "unbounded", "total.early_ns": "unbounded", "total.late_ns": "unbounded",
+        "known.early_ns": "4", "known.late_ns": "4",
+        "unbounded_terms": "none", "uncovered_links": "1:1-2",
+        "largest_bounded": "0", "dispersion": "none", "interval_ns": "none"
+      }
+    },
+    "a_gap_at_each_end_and_on_the_other_chain": {
+      "input": { "later": "response", "earlier": "stimulus", "terms": ["l1", "l2", "e0"] },
+      "expect": {
+        "total.kind": "unbounded", "total.early_ns": "unbounded", "total.late_ns": "unbounded",
+        "known.early_ns": "3", "known.late_ns": "3",
+        "unbounded_terms": "none", "uncovered_links": "1:0-0,1:3-3,2:1-1",
+        "largest_bounded": "0", "dispersion": "none", "interval_ns": "none"
+      }
+    },
+    "a_multi_link_span_covers_every_position_in_it": {
+      "input": { "later": "response", "earlier": "stimulus", "terms": ["l0", "l_span_1_2", "l3", "e0", "e1"] },
+      "expect": {
+        "total.kind": "bounded", "total.early_ns": "6", "total.late_ns": "6",
+        "known.early_ns": "6", "known.late_ns": "6",
+        "unbounded_terms": "none", "uncovered_links": "none",
+        "largest_bounded": "1", "dispersion": "none", "interval_ns": "none"
+      }
+    },
+    "only_the_other_chain_is_described": {
+      "input": { "later": "response", "earlier": "stimulus", "terms": ["e0", "e1"] },
+      "expect": {
+        "total.kind": "unbounded", "total.early_ns": "unbounded", "total.late_ns": "unbounded",
+        "known.early_ns": "2", "known.late_ns": "2",
+        "unbounded_terms": "none", "uncovered_links": "1:0-3",
+        "largest_bounded": "0", "dispersion": "none", "interval_ns": "none"
+      }
+    }
+  }
+}

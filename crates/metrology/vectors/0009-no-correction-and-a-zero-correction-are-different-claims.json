@@ -1,0 +1,53 @@
+{
+  "metrology_vector": "0",
+  "id": "0009-no-correction-and-a-zero-correction-are-different-claims",
+  "about": "A term with no correction and a term whose correction is zero compose to the same value and are not the same term. A zero correction is a positive claim that the right adjustment is zero, and it names who says so; the absence of one claims nothing. This is R6 one field over, where a zero bias is a claim and absence is UNBOUNDED. The claim has a consequence the arithmetic does not: a zero correction is a correction, so a second one over the same span is refused (R27), while a term with no correction may share a span freely. An implementation that stores a correction as a plain integer defaulting to zero passes the first two rows and fails the last two.",
+  "function": "Composer::compose",
+  "faces": ["native", "browser"],
+  "chains": {
+    "response": { "id": 1, "links": [10] },
+    "stimulus": { "id": 2, "links": [16] }
+  },
+  "terms": {
+    "no_correction":     { "chain": 1, "from": 0, "to": 0, "early_ns": "0", "late_ns": "0", "bias_provenance": "bounded:1" },
+    "zero_correction":   { "chain": 1, "from": 0, "to": 0, "early_ns": "0", "late_ns": "0", "bias_provenance": "bounded:1", "correction": { "ns": "0", "provenance": "bounded:1" } },
+    "zero_correction_b": { "chain": 1, "from": 0, "to": 0, "early_ns": "0", "late_ns": "0", "bias_provenance": "bounded:1", "correction": { "ns": "0", "provenance": "bounded:2" } },
+    "stimulus_term":     { "chain": 2, "from": 0, "to": 0, "early_ns": "0", "late_ns": "0", "bias_provenance": "bounded:1" }
+  },
+  "rows": {
+    "no_correction_composes": {
+      "input": { "later": "response", "earlier": "stimulus", "terms": ["no_correction", "stimulus_term"], "later_ns": "1000", "earlier_ns": "400" },
+      "expect": {
+        "total.kind": "bounded", "total.early_ns": "0", "total.late_ns": "0",
+        "known.early_ns": "0", "known.late_ns": "0",
+        "unbounded_terms": "none", "uncovered_links": "none",
+        "largest_bounded": "none", "dispersion": "none", "interval_ns": "600"
+      }
+    },
+    "a_zero_correction_composes_to_the_same_value": {
+      "input": { "later": "response", "earlier": "stimulus", "terms": ["zero_correction", "stimulus_term"], "later_ns": "1000", "earlier_ns": "400" },
+      "expect": {
+        "total.kind": "bounded", "total.early_ns": "0", "total.late_ns": "0",
+        "known.early_ns": "0", "known.late_ns": "0",
+        "unbounded_terms": "none", "uncovered_links": "none",
+        "largest_bounded": "none", "dispersion": "none", "interval_ns": "600"
+      }
+    },
+    "a_zero_correction_beside_an_uncorrected_term_is_accepted": {
+      "input": { "later": "response", "earlier": "stimulus", "terms": ["zero_correction", "no_correction", "stimulus_term"], "later_ns": "1000", "earlier_ns": "400" },
+      "expect": {
+        "total.kind": "bounded", "total.early_ns": "0", "total.late_ns": "0",
+        "known.early_ns": "0", "known.late_ns": "0",
+        "unbounded_terms": "none", "uncovered_links": "none",
+        "largest_bounded": "none", "dispersion": "none", "interval_ns": "600"
+      }
+    },
+    "two_zero_corrections_over_one_span_are_refused": {
+      "input": { "later": "response", "earlier": "stimulus", "terms": ["zero_correction", "zero_correction_b", "stimulus_term"] },
+      "expect": {
+        "refusal": "refused:span_overlap",
+        "refusal.names": "terms=0,1 at=1:0-0 calibrations=none,none"
+      }
+    }
+  }
+}

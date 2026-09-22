@@ -1,0 +1,40 @@
+# The accounting a measured interval has to carry to be evidence: the terms
+# contributing to its uncertainty, how each was arrived at, and what the
+# composed total is — or that there is no total, because something is unknown.
+#
+# **This is the core uncertainty model only** — step 1 of the implementation
+# order in `docs/specs/timing-architecture.md`. It holds chains, spans, terms,
+# provenance, budgets and the composer. Calibrations, requirements, the record
+# schema and the C ABI projection are later steps.
+#
+# **One dependency, `extendedresearch-clock`**, for `UNBOUNDED`. The sentinel is
+# defined once and this crate does not redefine it. Nothing here reads a clock
+# or touches a platform, so the crate compiles for `wasm32-unknown-unknown`
+# alongside the clock core, and CI's `wasm` job holds that.
+#
+# **No `unsafe` and no floating point.** The workspace denies `unsafe_code`; the
+# composer's arithmetic is integer throughout, including the quadrature sum,
+# which accumulates squares in `u128` and takes an exact integer square root.
+[package]
+name = "extendedresearch-metrology"
+version = "0.1.1"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Chains, terms, provenance and budgets: what a measured interval carries so that its uncertainty is stated rather than assumed."
+categories = ["science", "date-and-time"]
+keywords = ["uncertainty", "metrology", "timing", "calibration"]
+include = ["src/**", "tests/**", "vectors/**", "Cargo.toml", "LICENSE", "NOTICE", "README.md"]
+
+[lints]
+workspace = true
+
+[dependencies]
+extendedresearch-clock = { path = "../clock", version = "0.1.1" }
+
+# The vector runner names the clock crate directly, to check that the
+# `UNBOUNDED` this crate re-exports is that crate's constant and not a second
+# one with the same value today.
+[dev-dependencies]
+extendedresearch-clock = { path = "../clock", version = "0.1.1" }

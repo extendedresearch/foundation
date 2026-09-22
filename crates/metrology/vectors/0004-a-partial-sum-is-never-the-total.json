@@ -1,0 +1,56 @@
+{
+  "metrology_vector": "0",
+  "id": "0004-a-partial-sum-is-never-the-total",
+  "about": "A budget keeps the sum of its bounded terms and the identities of its unbounded ones, and never presents the partial sum as the total (R9, R33). The distinction a researcher needs is between '8.0002 ms' and '8.0000 ms of known terms, plus an unmeasured stimulus stage'. So total.early_ns reads 'unbounded' on a poisoned side while known.early_ns still reports what was accounted for. The last two rows are the degenerate ones: a budget of one unknown term, and a budget of no terms at all, both of which keep a partial sum of zero rather than reporting a total of zero. An implementation that falls back to the partial sum when asked for the total passes every bounded row and fails these.",
+  "function": "Composer::compose",
+  "faces": ["native", "browser"],
+  "chains": {
+    "response": { "id": 1, "links": [7, 10] },
+    "stimulus": { "id": 2, "links": [11, 16] }
+  },
+  "terms": {
+    "t1":        { "chain": 1, "from": 0, "to": 0, "early_ns": "2000000", "late_ns": "3000000", "bias_provenance": "bounded:1" },
+    "t2":        { "chain": 1, "from": 1, "to": 1, "early_ns": "1000000", "late_ns": "1000000", "bias_provenance": "bounded:1" },
+    "e1":        { "chain": 2, "from": 0, "to": 0, "early_ns": "4000000", "late_ns": "5000000", "bias_provenance": "bounded:1" },
+    "e2":        { "chain": 2, "from": 1, "to": 1, "early_ns": "100",     "late_ns": "200",     "bias_provenance": "bounded:1" },
+    "e_unknown": { "chain": 2, "from": 1, "to": 1, "early_ns": "18446744073709551615", "late_ns": "18446744073709551615", "bias_provenance": "unknown" }
+  },
+  "rows": {
+    "everything_known": {
+      "input": { "later": "response", "earlier": "stimulus", "terms": ["t1", "t2", "e1", "e2"] },
+      "expect": {
+        "total.kind": "bounded", "total.early_ns": "8000200", "total.late_ns": "8000100",
+        "known.early_ns": "8000200", "known.late_ns": "8000100",
+        "unbounded_terms": "none", "uncovered_links": "none",
+        "largest_bounded": "2", "dispersion": "none", "interval_ns": "none"
+      }
+    },
+    "the_partial_sum_survives_an_unknown": {
+      "input": { "later": "response", "earlier": "stimulus", "terms": ["t1", "t2", "e1", "e_unknown"] },
+      "expect": {
+        "total.kind": "unbounded", "total.early_ns": "unbounded", "total.late_ns": "unbounded",
+        "known.early_ns": "8000000", "known.late_ns": "8000000",
+        "unbounded_terms": "3", "uncovered_links": "none",
+        "largest_bounded": "2", "dispersion": "none", "interval_ns": "none"
+      }
+    },
+    "one_unknown_term_and_nothing_else": {
+      "input": { "later": "response", "earlier": "stimulus", "terms": ["e_unknown"] },
+      "expect": {
+        "total.kind": "unbounded", "total.early_ns": "unbounded", "total.late_ns": "unbounded",
+        "known.early_ns": "0", "known.late_ns": "0",
+        "unbounded_terms": "0", "uncovered_links": "1:0-1,2:0-0",
+        "largest_bounded": "none", "dispersion": "none", "interval_ns": "none"
+      }
+    },
+    "no_terms_at_all": {
+      "input": { "later": "response", "earlier": "stimulus", "terms": [] },
+      "expect": {
+        "total.kind": "unbounded", "total.early_ns": "unbounded", "total.late_ns": "unbounded",
+        "known.early_ns": "0", "known.late_ns": "0",
+        "unbounded_terms": "none", "uncovered_links": "1:0-1,2:0-1",
+        "largest_bounded": "none", "dispersion": "none", "interval_ns": "none"
+      }
+    }
+  }
+}

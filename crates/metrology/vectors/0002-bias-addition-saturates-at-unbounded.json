@@ -1,0 +1,69 @@
+{
+  "metrology_vector": "0",
+  "id": "0002-bias-addition-saturates-at-unbounded",
+  "about": "Width addition saturates at UNBOUNDED (18446744073709551615), and a side whose sum reached the sentinel has no total (R3, R7). A sum one below the sentinel is still a bound. The distinction the last row draws is between a sum that saturated and a term that was itself unbounded: the first leaves unbounded_terms empty and known_early_ns at the sentinel, the second leaves known_early_ns at the bounded contributions alone and names the term. An implementation that wraps on overflow reports a small total and fails; one that reports the saturated sum as a bounded total fails the kind.",
+  "function": "Composer::compose",
+  "faces": ["native", "browser"],
+  "chains": {
+    "response": { "id": 1, "links": [7, 10] },
+    "stimulus": { "id": 2, "links": [16] }
+  },
+  "terms": {
+    "half_a":          { "chain": 1, "from": 0, "to": 0, "early_ns": "9223372036854775808",  "late_ns": "0", "bias_provenance": "bounded:1" },
+    "half_b":          { "chain": 1, "from": 1, "to": 1, "early_ns": "9223372036854775808",  "late_ns": "0", "bias_provenance": "bounded:1" },
+    "half_span":       { "chain": 1, "from": 0, "to": 1, "early_ns": "9223372036854775808",  "late_ns": "0", "bias_provenance": "bounded:1" },
+    "near_max":        { "chain": 1, "from": 0, "to": 1, "early_ns": "18446744073709551613", "late_ns": "0", "bias_provenance": "bounded:1" },
+    "one":             { "chain": 1, "from": 0, "to": 1, "early_ns": "1",                    "late_ns": "0", "bias_provenance": "bounded:1" },
+    "two":             { "chain": 1, "from": 0, "to": 1, "early_ns": "2",                    "late_ns": "0", "bias_provenance": "bounded:1" },
+    "unbounded_early": { "chain": 1, "from": 0, "to": 1, "early_ns": "18446744073709551615", "late_ns": "0", "bias_provenance": "bounded:1" },
+    "stimulus_zero":   { "chain": 2, "from": 0, "to": 0, "early_ns": "0",                    "late_ns": "0", "bias_provenance": "bounded:1" },
+    "stimulus_wide":   { "chain": 2, "from": 0, "to": 0, "early_ns": "0", "late_ns": "9223372036854775808", "bias_provenance": "bounded:1" }
+  },
+  "rows": {
+    "two_halves_reach_the_sentinel": {
+      "input": { "later": "response", "earlier": "stimulus", "terms": ["half_a", "half_b", "stimulus_zero"] },
+      "expect": {
+        "total.kind": "unbounded", "total.early_ns": "unbounded", "total.late_ns": "0",
+        "known.early_ns": "18446744073709551615", "known.late_ns": "0",
+        "unbounded_terms": "none", "uncovered_links": "none",
+        "largest_bounded": "0", "dispersion": "none", "interval_ns": "none"
+      }
+    },
+    "a_sum_one_below_the_sentinel_is_a_bound": {
+      "input": { "later": "response", "earlier": "stimulus", "terms": ["near_max", "one", "stimulus_zero"] },
+      "expect": {
+        "total.kind": "bounded", "total.early_ns": "18446744073709551614", "total.late_ns": "0",
+        "known.early_ns": "18446744073709551614", "known.late_ns": "0",
+        "unbounded_terms": "none", "uncovered_links": "none",
+        "largest_bounded": "1", "dispersion": "none", "interval_ns": "none"
+      }
+    },
+    "a_sum_reaching_the_sentinel_is_not_a_bound": {
+      "input": { "later": "response", "earlier": "stimulus", "terms": ["near_max", "two", "stimulus_zero"] },
+      "expect": {
+        "total.kind": "unbounded", "total.early_ns": "unbounded", "total.late_ns": "0",
+        "known.early_ns": "18446744073709551615", "known.late_ns": "0",
+        "unbounded_terms": "none", "uncovered_links": "none",
+        "largest_bounded": "1", "dispersion": "none", "interval_ns": "none"
+      }
+    },
+    "a_crosswise_sum_saturates_too": {
+      "input": { "later": "response", "earlier": "stimulus", "terms": ["half_span", "stimulus_wide"] },
+      "expect": {
+        "total.kind": "unbounded", "total.early_ns": "unbounded", "total.late_ns": "0",
+        "known.early_ns": "18446744073709551615", "known.late_ns": "0",
+        "unbounded_terms": "none", "uncovered_links": "none",
+        "largest_bounded": "0", "dispersion": "none", "interval_ns": "none"
+      }
+    },
+    "an_unbounded_width_is_not_a_saturated_sum": {
+      "input": { "later": "response", "earlier": "stimulus", "terms": ["unbounded_early", "stimulus_zero"] },
+      "expect": {
+        "total.kind": "unbounded", "total.early_ns": "unbounded", "total.late_ns": "0",
+        "known.early_ns": "0", "known.late_ns": "0",
+        "unbounded_terms": "0", "uncovered_links": "none",
+        "largest_bounded": "none", "dispersion": "none", "interval_ns": "none"
+      }
+    }
+  }
+}

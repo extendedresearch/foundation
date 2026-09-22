@@ -1,0 +1,87 @@
+{
+  "metrology_vector": "0",
+  "id": "0005-two-corrections-over-one-span-are-refused",
+  "about": "Two terms carrying a correction whose spans intersect are refused, and the refusal names both terms, the intersecting positions and the calibrations involved (R27, R28, R31). A trigger-based alignment already contains the device delay; applying both corrects twice, by exactly the size of the term the second one exists to capture. Two BIASES over one span are not this and are accepted: bounding a stage twice is over-conservative rather than wrong, and a one-way fit's estimated offset and argued residual live in one term precisely so that this refusal does not fire on them. Term indices are into the composer's documented order, which sorts by span first. The remaining rows are the other span refusals: a span that runs backwards, one on a chain neither endpoint declared, and one that reaches past its chain.",
+  "function": "Composer::compose",
+  "faces": ["native", "browser"],
+  "chains": {
+    "response": { "id": 1, "links": [1, 7, 10] },
+    "stimulus": { "id": 2, "links": [16] }
+  },
+  "terms": {
+    "cal_a":             { "chain": 1, "from": 0, "to": 1, "early_ns": "0", "late_ns": "0", "bias_provenance": "measured:4", "correction": { "ns": "-5", "provenance": "measured:4" } },
+    "cal_b":             { "chain": 1, "from": 1, "to": 2, "early_ns": "0", "late_ns": "0", "bias_provenance": "measured:9", "correction": { "ns": "-7", "provenance": "measured:9" } },
+    "cal_c":             { "chain": 1, "from": 2, "to": 2, "early_ns": "0", "late_ns": "0", "bias_provenance": "measured:9", "correction": { "ns": "-7", "provenance": "measured:9" } },
+    "argued_correction": { "chain": 1, "from": 0, "to": 0, "early_ns": "0", "late_ns": "0", "bias_provenance": "bounded:1", "correction": { "ns": "3", "provenance": "bounded:1" } },
+    "bias_only_0_1":     { "chain": 1, "from": 0, "to": 1, "early_ns": "1", "late_ns": "1", "bias_provenance": "bounded:1" },
+    "bias_only_0_2":     { "chain": 1, "from": 0, "to": 2, "early_ns": "2", "late_ns": "2", "bias_provenance": "bounded:1" },
+    "stimulus_term":     { "chain": 2, "from": 0, "to": 0, "early_ns": "0", "late_ns": "0", "bias_provenance": "bounded:1" },
+    "backwards":         { "chain": 1, "from": 1, "to": 0, "early_ns": "0", "late_ns": "0", "bias_provenance": "bounded:1" },
+    "off_chain":         { "chain": 9, "from": 0, "to": 0, "early_ns": "0", "late_ns": "0", "bias_provenance": "bounded:1" },
+    "past_end":          { "chain": 1, "from": 0, "to": 5, "early_ns": "0", "late_ns": "0", "bias_provenance": "bounded:1" }
+  },
+  "rows": {
+    "two_calibrations_over_one_link": {
+      "input": { "later": "response", "earlier": "stimulus", "terms": ["cal_a", "cal_b", "stimulus_term"] },
+      "expect": {
+        "refusal": "refused:span_overlap",
+        "refusal.names": "terms=0,1 at=1:1-1 calibrations=4,9"
+      }
+    },
+    "a_correction_resting_on_an_argument_also_counts": {
+      "input": { "later": "response", "earlier": "stimulus", "terms": ["cal_a", "argued_correction", "stimulus_term"] },
+      "expect": {
+        "refusal": "refused:span_overlap",
+        "refusal.names": "terms=0,1 at=1:0-0 calibrations=none,4"
+      }
+    },
+    "two_calibrations_that_do_not_meet_are_accepted": {
+      "input": { "later": "response", "earlier": "stimulus", "terms": ["cal_a", "cal_c", "stimulus_term"] },
+      "expect": {
+        "total.kind": "bounded", "total.early_ns": "0", "total.late_ns": "0",
+        "known.early_ns": "0", "known.late_ns": "0",
+        "unbounded_terms": "none", "uncovered_links": "none",
+        "largest_bounded": "none", "dispersion": "none", "interval_ns": "none"
+      }
+    },
+    "overlapping_biases_are_not_an_overlap": {
+      "input": { "later": "response", "earlier": "stimulus", "terms": ["bias_only_0_1", "bias_only_0_2", "stimulus_term"] },
+      "expect": {
+        "total.kind": "bounded", "total.early_ns": "3", "total.late_ns": "3",
+        "known.early_ns": "3", "known.late_ns": "3",
+        "unbounded_terms": "none", "uncovered_links": "none",
+        "largest_bounded": "1", "dispersion": "none", "interval_ns": "none"
+      }
+    },
+    "one_correction_among_overlapping_terms_is_accepted": {
+      "input": { "later": "response", "earlier": "stimulus", "terms": ["cal_a", "bias_only_0_2", "stimulus_term"] },
+      "expect": {
+        "total.kind": "bounded", "total.early_ns": "2", "total.late_ns": "2",
+        "known.early_ns": "2", "known.late_ns": "2",
+        "unbounded_terms": "none", "uncovered_links": "none",
+        "largest_bounded": "1", "dispersion": "none", "interval_ns": "none"
+      }
+    },
+    "a_span_that_runs_backwards_is_refused": {
+      "input": { "later": "response", "earlier": "stimulus", "terms": ["backwards"] },
+      "expect": {
+        "refusal": "refused:malformed_span",
+        "refusal.names": "term=0 span=1:1-0"
+      }
+    },
+    "a_span_on_an_undeclared_chain_is_refused": {
+      "input": { "later": "response", "earlier": "stimulus", "terms": ["off_chain"] },
+      "expect": {
+        "refusal": "refused:unknown_chain",
+        "refusal.names": "term=0 chain=9"
+      }
+    },
+    "a_span_past_the_chain_is_refused": {
+      "input": { "later": "response", "earlier": "stimulus", "terms": ["past_end"] },
+      "expect": {
+        "refusal": "refused:span_past_chain",
+        "refusal.names": "term=0 span=1:0-5 last=2"
+      }
+    }
+  }
+}

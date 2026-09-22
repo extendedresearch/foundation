@@ -1,0 +1,77 @@
+{
+  "metrology_vector": "0",
+  "id": "0007-dispersions-combine-only-when-the-correlation-is-declared",
+  "about": "Dispersions add in quadrature only between terms that declared independence; terms in one correlation group add linearly and the group's sum then enters the quadrature; and one term whose correlation is undeclared stops the combination entirely, leaving the per-term dispersions and naming the undeclared contributors (R4). Undeclared is the default, because defaulting to independent would produce a SMALLER total, which is wrong whenever two terms share a cause. The quadrature is integer: squares accumulate in u128 and the root is exact. The combined distribution is Gaussian only when every contributor was; a sum of two uniforms is not uniform. An implementation that defaults to independence fails the undeclared rows with a number rather than a refusal.",
+  "function": "Composer::compose",
+  "faces": ["native", "browser"],
+  "chains": {
+    "response": { "id": 1, "links": [7, 10] },
+    "stimulus": { "id": 2, "links": [16] }
+  },
+  "terms": {
+    "d300_indep":     { "chain": 1, "from": 0, "to": 0, "early_ns": "0", "late_ns": "0", "bias_provenance": "bounded:1", "dispersion": { "sd_ns": "300", "kind": 1 }, "correlation": "independent" },
+    "d300_undecl":    { "chain": 1, "from": 0, "to": 0, "early_ns": "0", "late_ns": "0", "bias_provenance": "bounded:1", "dispersion": { "sd_ns": "300", "kind": 1 } },
+    "d150_g1_a":      { "chain": 1, "from": 0, "to": 0, "early_ns": "0", "late_ns": "0", "bias_provenance": "bounded:1", "dispersion": { "sd_ns": "150", "kind": 1 }, "correlation": "correlated:1" },
+    "d150_g1_b":      { "chain": 1, "from": 1, "to": 1, "early_ns": "0", "late_ns": "0", "bias_provenance": "bounded:1", "dispersion": { "sd_ns": "150", "kind": 1 }, "correlation": "correlated:1" },
+    "e_d400_indep":   { "chain": 2, "from": 0, "to": 0, "early_ns": "0", "late_ns": "0", "bias_provenance": "bounded:1", "dispersion": { "sd_ns": "400", "kind": 1 }, "correlation": "independent" },
+    "e_d400_uniform": { "chain": 2, "from": 0, "to": 0, "early_ns": "0", "late_ns": "0", "bias_provenance": "bounded:1", "dispersion": { "sd_ns": "400", "kind": 2 }, "correlation": "independent" },
+    "e_d400_undecl":  { "chain": 2, "from": 0, "to": 0, "early_ns": "0", "late_ns": "0", "bias_provenance": "bounded:1", "dispersion": { "sd_ns": "400", "kind": 1 } },
+    "plain_1":        { "chain": 1, "from": 1, "to": 1, "early_ns": "0", "late_ns": "0", "bias_provenance": "bounded:1" }
+  },
+  "rows": {
+    "declared_independence_adds_in_quadrature": {
+      "input": { "later": "response", "earlier": "stimulus", "terms": ["d300_indep", "plain_1", "e_d400_indep"] },
+      "expect": {
+        "total.kind": "bounded", "total.early_ns": "0", "total.late_ns": "0",
+        "known.early_ns": "0", "known.late_ns": "0",
+        "unbounded_terms": "none", "uncovered_links": "none",
+        "largest_bounded": "none", "dispersion": "500/1", "interval_ns": "none"
+      }
+    },
+    "one_undeclared_term_stops_the_combination": {
+      "input": { "later": "response", "earlier": "stimulus", "terms": ["d300_undecl", "plain_1", "e_d400_indep"] },
+      "expect": {
+        "total.kind": "bounded", "total.early_ns": "0", "total.late_ns": "0",
+        "known.early_ns": "0", "known.late_ns": "0",
+        "unbounded_terms": "none", "uncovered_links": "none",
+        "largest_bounded": "none", "dispersion": "undeclared:0", "interval_ns": "none"
+      }
+    },
+    "two_undeclared_terms_are_both_named": {
+      "input": { "later": "response", "earlier": "stimulus", "terms": ["d300_undecl", "plain_1", "e_d400_undecl"] },
+      "expect": {
+        "total.kind": "bounded", "total.early_ns": "0", "total.late_ns": "0",
+        "known.early_ns": "0", "known.late_ns": "0",
+        "unbounded_terms": "none", "uncovered_links": "none",
+        "largest_bounded": "none", "dispersion": "undeclared:0,2", "interval_ns": "none"
+      }
+    },
+    "a_group_adds_linearly_then_enters_the_quadrature": {
+      "input": { "later": "response", "earlier": "stimulus", "terms": ["d150_g1_a", "d150_g1_b", "e_d400_indep"] },
+      "expect": {
+        "total.kind": "bounded", "total.early_ns": "0", "total.late_ns": "0",
+        "known.early_ns": "0", "known.late_ns": "0",
+        "unbounded_terms": "none", "uncovered_links": "none",
+        "largest_bounded": "none", "dispersion": "500/1", "interval_ns": "none"
+      }
+    },
+    "a_mixed_set_of_distributions_declares_no_kind": {
+      "input": { "later": "response", "earlier": "stimulus", "terms": ["d300_indep", "plain_1", "e_d400_uniform"] },
+      "expect": {
+        "total.kind": "bounded", "total.early_ns": "0", "total.late_ns": "0",
+        "known.early_ns": "0", "known.late_ns": "0",
+        "unbounded_terms": "none", "uncovered_links": "none",
+        "largest_bounded": "none", "dispersion": "500/0", "interval_ns": "none"
+      }
+    },
+    "terms_without_a_dispersion_combine_to_nothing": {
+      "input": { "later": "response", "earlier": "stimulus", "terms": ["plain_1"] },
+      "expect": {
+        "total.kind": "unbounded", "total.early_ns": "unbounded", "total.late_ns": "unbounded",
+        "known.early_ns": "0", "known.late_ns": "0",
+        "unbounded_terms": "none", "uncovered_links": "1:0-0,2:0-0",
+        "largest_bounded": "none", "dispersion": "none", "interval_ns": "none"
+      }
+    }
+  }
+}
