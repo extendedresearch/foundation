@@ -1,0 +1,31 @@
+# Adopted from extendedresearch/foundation style/configs/ruff.toml. S22 to S25.
+line-length = 100
+target-version = "py311"
+
+[lint]
+select = [
+    "E", "W",    # pycodestyle
+    "F",         # pyflakes
+    "I",         # import sorting, replacing isort
+    "N",         # pep8-naming, which is S1 for Python
+    "D",         # pydocstyle, which is S25
+    "UP",        # pyupgrade
+    "B",         # bugbear
+    "ANN",       # S24: annotations on public signatures
+    "RUF",
+]
+ignore = [
+    "D203",      # incompatible with D211; D211 is the one kept
+    "D213",      # incompatible with D212; D212 is the one kept
+    "ANN401",    # `Any` is refused by S19's spirit, but typing a decorator needs it
+]
+
+[lint.pydocstyle]
+convention = "pep257"
+
+[lint.per-file-ignores]
+"tests/**" = ["D", "ANN"]
+
+[format]
+quote-style = "double"
+indent-style = "space"

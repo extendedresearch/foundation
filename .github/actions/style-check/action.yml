@@ -1,0 +1,51 @@
+# Runs the style checks over the files a change touched.
+#
+# **Soft by default.** With `mode: soft` the job reports findings as annotations
+# and succeeds, so a repository adopts the guide without a sweeping rewrite and
+# a contributor is never asked to fix code they did not write. A repository
+# moves to `mode: strict` one language at a time, when that language is clean.
+#
+# **Scoped to the change.** `base` is the ref to diff against; a pull request
+# passes its base branch, and `...` means the merge base, so a change is judged
+# against where it branched rather than against whatever main has since become.
+#
+# **A missing tool is reported, never read as a pass.** The step installs the
+# ones it can and prints `skipped (tool absent)` for the rest, so a green run
+# says what it checked.
+name: style check
+description: Run the shared style checks against the files a change touched.
+
+inputs:
+  base:
+    description: The ref to diff against.
+    required: false
+    default: origin/main
+  mode:
+    description: soft (annotate and pass) or strict (fail on a finding).
+    required: false
+    default: soft
+  install:
+    description: Whether to install the linters this action can install itself.
+    required: false
+    default: "true"
+
+runs:
+  using: composite
+  steps:
+    - name: The tools this action can install
+      if: inputs.install == 'true'
+      shell: bash
+      run: |
+        set -euo pipefail
+        # rustfmt and clippy ride with the toolchain the job already installed.
+        rustup component add rustfmt clippy 2>/dev/null || true
+        python -m pip install --quiet ruff==0.14.2 || true
+        # prettier and eslint come from the repository's own lockfile, so this
+        # installs nothing: `npx --no-install` fails closed and the check reports
+        # the tool as absent rather than resolving a version nobody pinned.
+
+    - name: Style
+      shell: bash
+      env:
+        BASE: ${{ inputs.base }}
+      run: bash style/scripts/check-style.sh --base "$BASE" --mode "${{ inputs.mode }}"
