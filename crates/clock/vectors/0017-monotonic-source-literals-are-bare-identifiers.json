@@ -1,7 +1,7 @@
 {
   "clock_vector": "0",
   "id": "0017-monotonic-source-literals-are-bare-identifiers",
-  "about": "The monotonic_source literals a face may declare: CLOCK_BOOTTIME, CLOCK_MONOTONIC_RAW, QueryPerformanceCounter and CLOCK_MONOTONIC for native targets, performance.now for the browser. Each is a bare identifier, compared by exact match: non-empty, with no whitespace, (, ), :, ; or ,. The with_a_note row is the descriptive form a source string must not take. This vector holds the literal set as data; the core has no literal of its own, and each face's live row checks that it emits one of these.",
+  "about": "The monotonic_source literals a face may declare: CLOCK_BOOTTIME, CLOCK_MONOTONIC_RAW, QueryPerformanceCounter, CLOCK_MONOTONIC and QueryUnbiasedInterruptTime for native targets, performance.now for the browser. Each is a bare identifier, compared by exact match: non-empty, with no whitespace, (, ), :, ; or ,. The with_a_note row is the descriptive form a source string must not take. This vector holds the literal set as data; the core has no literal of its own, and each face's live row checks that it emits one of these. Vector 0023 carries the same six literals with what each one does across a suspend, and crates/clock/tests/vectors.rs fails unless the two sets are equal.",
   "function": "monotonic_source",
   "faces": [
     "native",
@@ -29,6 +29,12 @@
     "clock_monotonic": {
       "input": {
         "monotonic_source": "CLOCK_MONOTONIC"
+      },
+      "expect": "bare_identifier"
+    },
+    "queryunbiasedinterrupttime": {
+      "input": {
+        "monotonic_source": "QueryUnbiasedInterruptTime"
       },
       "expect": "bare_identifier"
     },

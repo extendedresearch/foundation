@@ -49,6 +49,8 @@
 //! This crate enables `abi3-py311` and leaves `extension-module` to the
 //! consumer's `cdylib`.
 
+use std::fmt;
+
 use extendedresearch_abi::enumeration::Enumeration;
 use extendedresearch_status::codes::{self, AbiError, ERR_PANIC, ERR_RANGE, ERR_UTF8, is_domain};
 use pyo3::exceptions::{PyIndexError, PyValueError};
@@ -285,25 +287,76 @@ pub fn short_name(name: &str, strip: usize) -> &str {
     }
 }
 
+/// One name an enumeration would bind to two different values.
+///
+/// A table's contract names are distinct — [`Enumeration::new`] refuses one
+/// that repeats a name — so a collision arrives through the fallback in
+/// [`short_name`]: `RATE_50HZ` keeps its full spelling beside a member whose
+/// short name is also `RATE_50HZ`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ShortNameCollision {
+    /// The name two members would both bind.
+    pub name: &'static str,
+    /// The contract's name for the member that reached it first.
+    pub first: &'static str,
+    /// The contract's name for the member that reached it second.
+    pub second: &'static str,
+}
+
+impl fmt::Display for ShortNameCollision {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "two members of one enumeration share the short name {}: {} and {}",
+            self.name, self.first, self.second
+        )
+    }
+}
+
+impl std::error::Error for ShortNameCollision {}
+
 /// Every name an enumeration binds, in the order they are bound: for each
 /// member, its short name, then the contract's full name as an alias when it
 /// differs.
 ///
 /// The short name comes first so `IntEnum` makes it canonical: `Origin.RAW` is
 /// the member, and `Origin.ORIGIN_RAW` resolves to the same member.
-#[must_use]
-pub fn member_names(table: &Enumeration) -> Vec<(&'static str, i32)> {
+///
+/// # Errors
+///
+/// [`ShortNameCollision`], when two members would bind one name. The contract
+/// is ambiguous at that point and there is no answer to pick; binding the name
+/// to one of the two values and dropping the other is the worse failure,
+/// because it is silent. `@extendedresearch/binding-runtime`'s `contract`
+/// refuses the same table, and
+/// `crates/pyo3/vectors/0001-enumeration-short-names-strip-one-shared-prefix.json`
+/// is the row both run.
+pub fn member_names(table: &Enumeration) -> Result<Vec<(&'static str, i32)>, ShortNameCollision> {
     let names: Vec<&str> = table.entries().iter().map(|(_, name)| *name).collect();
     let strip = shared_prefix(&names);
-    let mut bound = Vec::with_capacity(names.len() * 2);
+    let mut bound: Vec<(&'static str, i32)> = Vec::with_capacity(names.len() * 2);
     for (value, name) in table.entries() {
         let short = short_name(name, strip);
-        bound.push((short, *value));
-        if short != *name {
-            bound.push((*name, *value));
+        for candidate in [short, *name] {
+            if let Some((_, taken)) = bound.iter().find(|(bound, _)| *bound == candidate) {
+                let first = table
+                    .entries()
+                    .iter()
+                    .find(|(value, _)| value == taken)
+                    .map_or(candidate, |(_, name)| *name);
+                return Err(ShortNameCollision {
+                    name: candidate,
+                    first,
+                    second: name,
+                });
+            }
+            bound.push((candidate, *value));
+            if candidate == *name {
+                break;
+            }
         }
     }
-    bound
+    Ok(bound)
 }
 
 /// Build a Python `IntEnum` named `class` from a foundation [`Enumeration`].
@@ -314,8 +367,11 @@ pub fn member_names(table: &Enumeration) -> Vec<(&'static str, i32)> {
 ///
 /// # Errors
 ///
-/// When `enum` cannot be imported, or `IntEnum` refuses the members — which it
-/// does for a name bound twice to different values.
+/// `ValueError` for a [`ShortNameCollision`], which is checked here rather than
+/// left to `IntEnum`: the members are passed as a mapping, so a repeated key
+/// overwrites the earlier entry and the class comes out one member short with
+/// nothing raised. Also whatever `enum` raises when it cannot be imported or
+/// refuses the members.
 pub fn int_enum<'py>(
     py: Python<'py>,
     class: &str,
@@ -324,7 +380,7 @@ pub fn int_enum<'py>(
     table: &Enumeration,
 ) -> PyResult<Bound<'py, PyAny>> {
     let members = PyDict::new(py);
-    for (name, value) in member_names(table) {
+    for (name, value) in member_names(table).map_err(|e| PyValueError::new_err(e.to_string()))? {
         members.set_item(name, value)?;
     }
     let options = PyDict::new(py);

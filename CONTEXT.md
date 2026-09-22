@@ -28,9 +28,9 @@ down.
 
 | Path | What it is |
 |---|---|
-| `crates/status` | `extendedresearch-status`. The vocabulary of an `int32_t` crossing a C boundary: the codes and the range split, `AbiError`, `status` and its inverse `check`, and the panic guard behind a default-on `std` feature. **No dependencies and no `unsafe`**, so a package's safe core and each binding layer take this and not the pointer mechanics. `#![no_std]` with `--no-default-features` |
+| `crates/status` | `extendedresearch-status`. The vocabulary of an `int32_t` crossing a C boundary: the codes and the range split, `AbiError`, `status` and its inverse `check`, and the panic guard behind a default-on `std` feature. **No dependencies and no `unsafe`**, so a package's safe core and each binding layer take this and not the pointer mechanics. `#![no_std]` with `--no-default-features`. `vectors/` holds the error-token grammar, which `dotnet/Interop/AbiErrors.cs` implements independently; `tests/vectors.rs` runs this side and `dotnet/Interop.Tests` runs the other |
 | `crates/abi` | `extendedresearch-abi`. The mechanics of the boundary: the only module that dereferences a caller's pointer, the measure-then-copy buffer shape, the table behind an enumeration's `_count`/`_at`/`_name`, the calling side C-ABI tests use, and a conformance kit a library runs against its own exports and error codes. Depends on `extendedresearch-status` and re-exports its `codes` and `guard`, so both paths compile. It exports no `extern "C"` symbol. The crate docs in `crates/abi/src/lib.rs` state every convention and are the reference for them |
-| `crates/pyo3` | `extendedresearch-pyo3`. `exceptions!` (a package's exception hierarchy, expanded in the consumer), `AbiError` to `PyErr`, and `IntEnum` from an `Enumeration` |
+| `crates/pyo3` | `extendedresearch-pyo3`. `exceptions!` (a package's exception hierarchy, expanded in the consumer), `AbiError` to `PyErr`, and `IntEnum` from an `Enumeration`. `vectors/` holds the enumeration short-name rule, which `npm/binding-runtime/src/enums.ts` implements independently; `tests/vectors.rs` runs this side and `crates/napi-testaddon/test/addon.test.mjs` runs the other |
 | `crates/napi` | `extendedresearch-napi`. The `"<PREFIX>_ERR_X: sentence"` error token protocol (`Tokens`), `BigInt` to `u64` refusing what does not fit, and macros that expand to `#[napi]` exports in the consumer |
 | `crates/clock` | `extendedresearch-clock`. Clock readings that carry their domain and a worst-case bound, and the arithmetic over them: bound composition, epochs, the calendar anchor, the timer quantum, the drift check, and a one-way clock fit with the integer mapping it defines. No dependency and no platform call; CI's `wasm` job checks it for `wasm32-unknown-unknown`. `vectors/` holds language-free JSON conformance vectors, which `tests/vectors.rs` runs |
 | `crates/metrology` | `extendedresearch-metrology`. The accounting a measured interval carries: chains and the links an event travelled, the span of a chain a term covers, a term's worst-case bias and its dispersion kept apart, a correction with its own provenance beside the bias's, and the composer that adds them crosswise into a `Total` that is a sum type. An unknown term, or a link no term covers, leaves no total at all — the partial sum is kept and never presented as one. One dependency, `crates/clock`, for `UNBOUNDED`; no platform call and no floating point, and CI's `wasm` job checks it for `wasm32-unknown-unknown`. `vectors/` holds language-free JSON conformance vectors, which `tests/vectors.rs` runs; `tests/properties.rs` holds the negative property that one unknown term never yields a finite total in any composition order. Step 1 of the timing model: calibrations, the clock mapping, requirements, the record schema and the C ABI projection are later steps |
@@ -236,6 +236,17 @@ Not built, or not decided:
 - **Where the rest of the shared tooling lives** — the lint table, the
   decision-record checker — is undecided. The zero-tests step and the
   conformance runner are here.
+- **The three shared rules have vectors but no registration.**
+  `crates/pyo3/vectors/` (the enumeration short-name rule),
+  `crates/status/vectors/` (the error-token grammar) and
+  `crates/clock/vectors/0023-monotonic-sources-include-or-exclude-suspend.json`
+  (suspend-behaviour classification) each hold one set of language-free rows,
+  and both implementations of the first two run against them. None is yet a
+  `[[shared_rule]]` in `ecosystem/PACKAGES.toml`, so
+  `python ecosystem/check.py duplication` still reports `(none registered)`.
+  The third rule's other two implementations are in consumer repositories,
+  which `ecosystem/check.py` cannot reach as paths until the merge decision
+  0002 describes.
 - **No enumeration of a library's statuses crosses the C ABI.** A .NET
   binding writes its domain codes down and checks them against the header in a
   test. An enumeration trio over the status table (`_status_count`, `_at`,

@@ -135,9 +135,14 @@ states the short-name rule in full.
   that would be empty, or would start with a digit (`RATE_50HZ` becoming
   `50HZ`, which is not an identifier), keeps the contract's full spelling. So
   one family can hold both short and full names.
-- **`int_enum` refuses a table whose short names collide.** Binding one name to
-  two values is an error from `IntEnum`, raised at module init rather than
-  caught at compile time.
+- **`int_enum` refuses a table whose short names collide**, raising
+  `ValueError` at module init rather than failing at compile time. The refusal
+  is `member_names`', not `IntEnum`'s: the members are handed over as a mapping,
+  so a repeated key overwrites the earlier entry and the class would come out
+  one member short with nothing raised. `@extendedresearch/binding-runtime`
+  refuses the same table, and
+  `vectors/0001-enumeration-short-names-strip-one-shared-prefix.json` is what
+  holds the two to one answer.
 - **This crate is for a binding that calls a safe Rust core.** It holds no
   handle type, no pointer reading and no `unsafe`, so it does nothing for a
   Python binding that reaches the library through its C ABI with `ctypes` or

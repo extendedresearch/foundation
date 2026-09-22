@@ -13,8 +13,9 @@ namespace ExtendedResearch.Interop
     /// <remarks>
     /// <para>Names follow the header: a boundary code is the package's prefix
     /// and the boundary name (<c>EXAMPLE_ERR_NULL</c>); a domain code is the
-    /// name the package declares (<c>EXAMPLE_ERR_TIMEOUT</c>); any other code
-    /// is <c>&lt;PREFIX&gt;_ERR_UNKNOWN</c>.</para>
+    /// name the package declares (<c>EXAMPLE_ERR_TIMEOUT</c>), prefixed by
+    /// <see cref="Token(string, string)"/> if the registration left the prefix
+    /// off; any other code is <c>&lt;PREFIX&gt;_ERR_UNKNOWN</c>.</para>
     /// <para>Which exception, when the hook answers null or is absent:</para>
     /// <list type="table">
     /// <item><term>ERR_UTF8</term><description><see cref="ArgumentException"/>, with an <see cref="AbiException"/> inside</description></item>
@@ -73,19 +74,55 @@ namespace ExtendedResearch.Interop
         /// <summary><c>&lt;PREFIX&gt;_ERR_UNKNOWN</c>.</summary>
         public string UnknownCode => Prefix + "_ERR_UNKNOWN";
 
+        /// <summary>
+        /// A constant's name as the package's header spells it: <paramref name="name"/>
+        /// unchanged when it already carries <paramref name="prefix"/> and an
+        /// underscore, and prefixed otherwise.
+        /// </summary>
+        /// <remarks>
+        /// <para>The same step as <c>extendedresearch_status::codes::token</c>
+        /// in Rust, which the Node and Python layers apply. A name that merely
+        /// starts with the same letters is not the prefix, so
+        /// <c>EXAMPLE0_ERR_X</c> under the prefix <c>EXAMPLE</c> becomes
+        /// <c>EXAMPLE_EXAMPLE0_ERR_X</c> — deliberately ugly, because a package
+        /// that produces it has named a constant no header declares.</para>
+        /// <para>The rule is written in both languages and neither can call the
+        /// other, so it is registered as a <c>[[shared_rule]]</c> in
+        /// <c>ecosystem/PACKAGES.toml</c>, and
+        /// <c>crates/status/vectors/0001-an-error-token-is-the-header-spelling-of-a-constant.json</c>
+        /// is the file both run against.
+        /// <c>docs/conventions/error-tokens.md</c> states the grammar.</para>
+        /// </remarks>
+        public static string Token(string prefix, string name)
+        {
+            if (name.Length > prefix.Length
+                && name.StartsWith(prefix, StringComparison.Ordinal)
+                && name[prefix.Length] == '_')
+            {
+                return name;
+            }
+            return prefix + "_" + name;
+        }
+
         /// <summary>The header's name for a code.</summary>
+        /// <remarks>
+        /// A domain name goes through <see cref="Token(string, string)"/> like
+        /// a boundary one. A package that registered a domain code under an
+        /// unprefixed name gets the header's spelling rather than the bare
+        /// name, which is no constant any header declares.
+        /// </remarks>
         public string NameOf(int code)
         {
             if (code == AbiCodes.Ok)
             {
-                return Prefix + "_OK";
+                return Token(Prefix, "OK");
             }
             var boundary = AbiCodes.BoundaryName(code);
             if (boundary != null)
             {
-                return Prefix + "_" + boundary;
+                return Token(Prefix, boundary);
             }
-            return _domain.TryGetValue(code, out var name) ? name : UnknownCode;
+            return _domain.TryGetValue(code, out var name) ? Token(Prefix, name) : UnknownCode;
         }
 
         /// <summary>Return for success; throw what <see cref="ToException"/> builds otherwise.</summary>

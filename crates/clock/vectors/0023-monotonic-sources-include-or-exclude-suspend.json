@@ -1,0 +1,83 @@
+{
+  "clock_vector": "0",
+  "id": "0023-monotonic-sources-include-or-exclude-suspend",
+  "about": "One rule answering the two questions it was split into. Vector 0017 asks whether a string is a monotonic_source literal a face may emit; a consumer asks whether the call that string names advances across a suspend, and answers with two platform tables. Each side knew a literal the other did not, and nothing held the two answers together: a browser face emitting performance.now fell outside the consumer's tables, and a face emitting QueryUnbiasedInterruptTime would have fallen outside 0017. This file holds both answers for one set of six literals, and 0017 carries the same six. Each row says three things. declared is yes when the string is one of the literals 0017 lists and no otherwise. literal is bare_identifier or not_bare by 0017's own test: non-empty, with no whitespace, (, ), :, ; or , in it. suspend_behaviour is the SuspendBehaviour integer of vector 0016, so 0 unspecified, 1 included, 2 excluded. CLOCK_BOOTTIME, CLOCK_MONOTONIC_RAW and QueryPerformanceCounter include suspend; CLOCK_MONOTONIC and QueryUnbiasedInterruptTime exclude it. performance.now is 0: the browser's high resolution time is defined against a monotonic clock whose behaviour across a suspend the specification does not fix, and it differs by engine and by the platform clock underneath, so it is unspecified rather than guessed. 0 is not 1 and is not 2, and no face infers one from the other. Matching is exact, and a string that is not declared is 0. A near miss is reported as unknown rather than resolved to the literal it resembles, because a producer who wrote something almost right is a producer whose string nobody has checked, and a fuzzy match would hide exactly the drift this file exists to stop; the last three rows spell that out — a case variant, a spelling that drops a letter, and the descriptive form a source string must not take, which even states what it excludes and still classifies nothing. What foundation runs against this is the half foundation owns: crates/clock/tests/vectors.rs decides declared by looking each string up in 0017, decides literal with 0017's test, and fails unless every behaviour named here is a variant crates/clock/src/domain.rs declares and unless the two files name the same literals. Foundation holds no platform table and cannot run the consumer's classifier, so for suspend_behaviour this file is the contract rather than a record of an implementation, and the consumer wires its two tables to these rows.",
+  "function": "suspend_classification",
+  "faces": ["native", "browser"],
+  "rows": {
+    "clock_boottime": {
+      "input": { "monotonic_source": "CLOCK_BOOTTIME" },
+      "expect": {
+        "declared": "yes",
+        "literal": "bare_identifier",
+        "suspend_behaviour": "1"
+      }
+    },
+    "clock_monotonic_raw": {
+      "input": { "monotonic_source": "CLOCK_MONOTONIC_RAW" },
+      "expect": {
+        "declared": "yes",
+        "literal": "bare_identifier",
+        "suspend_behaviour": "1"
+      }
+    },
+    "queryperformancecounter": {
+      "input": { "monotonic_source": "QueryPerformanceCounter" },
+      "expect": {
+        "declared": "yes",
+        "literal": "bare_identifier",
+        "suspend_behaviour": "1"
+      }
+    },
+    "clock_monotonic": {
+      "input": { "monotonic_source": "CLOCK_MONOTONIC" },
+      "expect": {
+        "declared": "yes",
+        "literal": "bare_identifier",
+        "suspend_behaviour": "2"
+      }
+    },
+    "queryunbiasedinterrupttime": {
+      "input": { "monotonic_source": "QueryUnbiasedInterruptTime" },
+      "expect": {
+        "declared": "yes",
+        "literal": "bare_identifier",
+        "suspend_behaviour": "2"
+      }
+    },
+    "performance_now": {
+      "input": { "monotonic_source": "performance.now" },
+      "expect": {
+        "declared": "yes",
+        "literal": "bare_identifier",
+        "suspend_behaviour": "0"
+      }
+    },
+    "a_case_variant_is_not_the_literal": {
+      "input": { "monotonic_source": "queryperformancecounter" },
+      "expect": {
+        "declared": "no",
+        "literal": "bare_identifier",
+        "suspend_behaviour": "0"
+      }
+    },
+    "a_dropped_letter_is_not_the_literal": {
+      "input": { "monotonic_source": "CLOCK_BOOTIME" },
+      "expect": {
+        "declared": "no",
+        "literal": "bare_identifier",
+        "suspend_behaviour": "0"
+      }
+    },
+    "a_described_source_classifies_nothing": {
+      "input": {
+        "monotonic_source": "clock_gettime(CLOCK_MONOTONIC) (via std::time::Instant; excludes suspend)"
+      },
+      "expect": {
+        "declared": "no",
+        "literal": "not_bare",
+        "suspend_behaviour": "0"
+      }
+    }
+  }
+}
