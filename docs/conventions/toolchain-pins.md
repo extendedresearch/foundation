@@ -99,9 +99,32 @@ not it mentions them in its source, because the export macros expand to
 `#[napi]` items in the consumer's crate and the code `napi-derive` generates
 refers to `napi` by that name.
 
-## The MSRV is 1.85
+## The MSRV is 1.85 here, and a consumer may declare higher
 
 `rust-version = "1.85"` in `[workspace.package]`.
+
+**This is foundation's floor, not the ecosystem's.** A library should compile on
+the oldest toolchain it can; a program built on it is free to need a newer one.
+Three of the consuming repositories declare 1.88 and their reasons are
+measured — let chains, stabilised for edition 2024 in 1.88 — so a document
+claiming 1.85 across the ecosystem would be wrong about the majority of it.
+
+What is required of a consumer is that its floor is **at least** this one, that
+a job builds at it rather than trusting the line, and that the reason beside it
+is **re-derivable by a command written next to it** — not measured once and
+recorded in prose.
+
+That last clause is not pedantry, and it was earned. A consumer's manifest named
+one file as the reason for its floor; the file had not contained the feature for
+some time. The correction that replaced it named the wrong set of crates, having
+been read off a `grep` piped through `head`. It survived about thirty seconds,
+because by then the comment carried the command that re-derives it and somebody
+ran it.
+
+So a number held by a job and a reason held by nobody is two thirds of a
+convention. A repository that cannot say which feature forces its floor has a
+number nobody checked; one whose reason cannot be re-run has a sentence nobody
+can check.
 
 1.85 is the release that stabilised edition 2024, and the workspace is on
 edition 2024. The floor is the edition's, not a dependency's: pyo3 0.29
