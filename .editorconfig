@@ -1,0 +1,53 @@
+# Adopted from extendedresearch/foundation style/configs/editorconfig.
+# Copy to the repository root as `.editorconfig`; `style/scripts/check-configs.py`
+# fails when this copy drifts from foundation's.
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+max_line_length = 100
+
+[*.{js,mjs,cjs,ts,mts,cts,tsx,json,jsonc,yml,yaml}]
+indent_size = 2
+
+[*.md]
+max_line_length = 80
+trim_trailing_whitespace = false
+
+[Makefile]
+indent_style = tab
+
+# ---- C#: S27 to S32 -------------------------------------------------------
+[*.cs]
+dotnet_sort_system_directives_first = true
+csharp_new_line_before_open_brace = all
+csharp_prefer_braces = true:warning
+dotnet_style_qualification_for_field = false:warning
+dotnet_style_qualification_for_property = false:warning
+
+# S29: naming. Private fields _camelCase, everything public PascalCase.
+dotnet_naming_rule.private_fields_underscore_camel.symbols = private_fields
+dotnet_naming_rule.private_fields_underscore_camel.style = underscore_camel
+dotnet_naming_rule.private_fields_underscore_camel.severity = warning
+dotnet_naming_symbols.private_fields.applicable_kinds = field
+dotnet_naming_symbols.private_fields.applicable_accessibilities = private
+dotnet_naming_style.underscore_camel.required_prefix = _
+dotnet_naming_style.underscore_camel.capitalization = camel_case
+
+dotnet_naming_rule.public_members_pascal.symbols = public_members
+dotnet_naming_rule.public_members_pascal.style = pascal
+dotnet_naming_rule.public_members_pascal.severity = warning
+dotnet_naming_symbols.public_members.applicable_kinds = property,method,event,class,struct,interface,enum,delegate
+dotnet_naming_symbols.public_members.applicable_accessibilities = public,protected,internal
+dotnet_naming_style.pascal.capitalization = pascal_case
+
+# S28: nullable warnings are errors.
+dotnet_diagnostic.CS8600.severity = error
+dotnet_diagnostic.CS8602.severity = error
+dotnet_diagnostic.CS8603.severity = error
+dotnet_diagnostic.CS8625.severity = error

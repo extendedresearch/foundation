@@ -1,0 +1,16 @@
+<!-- Adopted from extendedresearch/foundation style/configs/Directory.Build.props.
+     S28, S31. Place at the root of a repository's .NET tree; every project
+     under it inherits these. `style/scripts/check-configs.py` checks the copy. -->
+<Project>
+  <PropertyGroup>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <WarningsNotAsErrors></WarningsNotAsErrors>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisMode>Recommended</AnalysisMode>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <!-- S31: a public type carries an XML doc comment. -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+</Project>

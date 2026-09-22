@@ -1,4 +1,7 @@
 /target
+# A cargo target/ anywhere, not only at the root: the zero-tests action's live
+# fixture builds into one, and `/target` is root-anchored so it did not cover it.
+target/
 Cargo.lock
 __pycache__/
 *.py[cod]
@@ -10,3 +13,5 @@ build/
 # What npm/binding-runtime's `npm ci` and `npm run build` write.
 node_modules/
 /npm/binding-runtime/dist/
+# IDE state, which cargo also has to be told to ignore (see Cargo.toml).
+.idea/

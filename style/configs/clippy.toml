@@ -1,0 +1,9 @@
+# Adopted from extendedresearch/foundation style/configs/clippy.toml.
+# Levels live in the workspace lint table (S11); this file holds the thresholds
+# those lints compare against.
+too-many-arguments-threshold = 8
+type-complexity-threshold = 500
+cognitive-complexity-threshold = 30
+
+# S8: names a reader has to expand are refused unless they are on the list.
+doc-valid-idents = ["ABI", "API", "CPU", "GPU", "MCAP", "NTP", "PTP", "UTC", "UUID", ".."]

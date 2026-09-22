@@ -1,0 +1,23 @@
+# Adopted from extendedresearch/foundation style/configs/rustfmt.toml.
+# rustfmt has no `extends`, so this file is copied into each repository and
+# `style/scripts/check-configs.py` fails when a copy drifts. S10, S36.
+#
+# **Every setting here is stable.** rustfmt refuses an unstable option on the
+# stable channel and prints a warning per invocation rather than applying it:
+#
+#     Warning: can't set `group_imports = StdExternalCrate`, unstable features
+#     are only available in nightly channel.
+#
+# So `group_imports`, `imports_granularity`, `wrap_comments`, `comment_width`,
+# `format_code_in_doc_comments` and `normalize_comments` are deliberately
+# absent. They would format nothing and would add six warnings to every CI log.
+# S13 records import grouping as a review rule for that reason; moving it to a
+# tool means a nightly rustfmt in a job of its own, which is a separate change.
+
+# `docs/conventions/rustfmt.md` is normative for these two lines: the edition is
+# named twice, and both match `[workspace.package]`.
+edition = "2024"
+style_edition = "2024"
+
+max_width = 100
+newline_style = "Unix"
