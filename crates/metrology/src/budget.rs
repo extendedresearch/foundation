@@ -63,12 +63,33 @@
 //! from the truth. The order is: apply each endpoint's corrections to its
 //! stamp, subtract, then compose the biases crosswise. Doing it the other way
 //! round would let a correction change a width, which is the merge R5 forbids.
+//!
+//! # A stamp is accountable only for what happened before it
+//!
+//! R14. A stamp's [`Basis`] names the chain position the number was taken at,
+//! and the links after that position contribute nothing to it. Declare it with
+//! [`Composer::later_stamped_at`] or [`Composer::earlier_stamped_at`] and the
+//! composer stops accounting there: a term whose span lies wholly after the
+//! stamp is retained in [`Budget::terms`] and contributes nothing, and a
+//! position after the stamp that no term covers is not a gap.
+//!
+//! Undeclared, nothing is shortened. A stamp that does not say where it was
+//! taken cannot be evidence that a stage is outside the number, and a composer
+//! that shortened a chain on an absent basis would be making the R11 mistake on
+//! purpose.
+//!
+//! A term that **straddles** the stamp's position contributes in full. A term is
+//! one quantity over its whole span and cannot be cut in half; counting all of
+//! it is conservative, and dropping it is not. A recorder that wants the
+//! narrower number states the term over the narrower span, which is the claim it
+//! was making anyway.
 
 use std::collections::BTreeMap;
 use std::fmt;
 
-use extendedresearch_clock::UNBOUNDED;
+use extendedresearch_clock::{Basis, UNBOUNDED};
 
+use crate::basis::BasisError;
 use crate::chain::{Chain, Span};
 use crate::ids::{CalibrationId, ChainId, GroupId};
 use crate::term::{Bias, Correction, Correlation, Dispersion, DistributionKind, Term};
@@ -260,6 +281,18 @@ pub struct Budget {
     pub later_chain: ChainId,
     /// The chain the earlier stamp travelled.
     pub earlier_chain: ChainId,
+    /// Where the later stamp was taken, when the caller said (R14).
+    pub later_basis: Option<Basis>,
+    /// Where the earlier stamp was taken, when the caller said (R14).
+    pub earlier_basis: Option<Basis>,
+    /// Indices, in the budget's term order, of the terms a stamp's basis put
+    /// outside the accounting: those whose span lies wholly after the position
+    /// their endpoint's stamp was taken at (R14).
+    ///
+    /// They are kept in [`Budget::terms`] rather than dropped. A term the
+    /// accounting excluded is a fact about the chain, and a record that dropped
+    /// it could not answer why the budget is as narrow as it is.
+    pub after_the_stamp: Vec<usize>,
 }
 
 impl Budget {
@@ -272,12 +305,26 @@ impl Budget {
         }
     }
 
+    /// True when the term at this index lies wholly after the position its
+    /// endpoint's stamp was taken at, so it contributed nothing (R14).
+    ///
+    /// Always false when neither endpoint declared a basis, and false for an
+    /// index past the end of [`Budget::terms`].
+    pub fn is_after_the_stamp(&self, index: usize) -> bool {
+        self.after_the_stamp.contains(&index)
+    }
+
     /// What a term contributes to each side: `(early, late)`, with `None` where
     /// the contribution is unbounded.
     ///
     /// A later-endpoint term contributes `(early_ns, late_ns)`; an
     /// earlier-endpoint term contributes `(late_ns, early_ns)`, which is the
     /// crosswise rule (R3) seen one term at a time.
+    ///
+    /// This is the per-term arithmetic and **not** the R14 rule: it answers for
+    /// a term the accounting excluded exactly as it does for one it counted.
+    /// [`Budget::is_after_the_stamp`] is what tells the two apart, and the
+    /// accessors that walk the whole budget apply it.
     pub fn contribution_of(&self, term: &Term) -> (Option<u64>, Option<u64>) {
         let bias = term.effective_bias();
         let finite = |width: u64| (width != UNBOUNDED).then_some(width);
@@ -301,7 +348,9 @@ impl Budget {
         self.terms
             .iter()
             .enumerate()
-            .filter(|(_, term)| wanted(self.contribution_of(term)))
+            .filter(|(index, term)| {
+                !self.is_after_the_stamp(*index) && wanted(self.contribution_of(term))
+            })
             .map(|(index, _)| index)
             .collect()
     }
@@ -381,6 +430,17 @@ pub enum CompositionError {
         /// The calibrations involved, where each correction named one (R28).
         calibrations: [Option<CalibrationId>; 2],
     },
+    /// A stamp's basis names no position of the chain it was taken on (R14).
+    ///
+    /// The stamp and the chain disagree about what happened, and guessing which
+    /// of the two is right would put a position nobody described into the
+    /// record. [`BasisError`] says which way they disagree.
+    StampBasis {
+        /// Whose stamp.
+        endpoint: Endpoint,
+        /// Why the basis could not be resolved.
+        reason: BasisError,
+    },
     /// The corrected interval does not fit `i64` nanoseconds.
     Overflow,
 }
@@ -437,6 +497,13 @@ impl fmt::Display for CompositionError {
                     [None, None] => Ok(()),
                 }
             }
+            CompositionError::StampBasis { endpoint, reason } => {
+                let whose = match endpoint {
+                    Endpoint::Later => "later",
+                    Endpoint::Earlier => "earlier",
+                };
+                write!(f, "the {whose} stamp's basis does not resolve: {reason}")
+            }
             CompositionError::Overflow => {
                 f.write_str("the corrected interval does not fit i64 nanoseconds")
             }
@@ -478,6 +545,8 @@ pub struct Composer {
     earlier: Chain,
     terms: Vec<Term>,
     stamps: Option<(u64, u64)>,
+    later_basis: Option<Basis>,
+    earlier_basis: Option<Basis>,
 }
 
 impl Composer {
@@ -489,7 +558,61 @@ impl Composer {
             earlier,
             terms: Vec::new(),
             stamps: None,
+            later_basis: None,
+            earlier_basis: None,
         }
+    }
+
+    /// Where the later stamp was taken, so the accounting stops there (R14).
+    ///
+    /// The basis resolves against the later chain, and the links after the
+    /// position it names contribute nothing: no term covering only them is
+    /// counted, and no gap among them makes the total unbounded. A hardware
+    /// stamp does not shrink a term; it shortens the chain, and this is how the
+    /// composer is told the chain is shorter.
+    ///
+    /// Undeclared, nothing is shortened.
+    ///
+    /// ```
+    /// use extendedresearch_metrology::{
+    ///     ArgumentId, Basis, Bias, Chain, ChainId, Composer, Link, LinkKind, Provenance, Span, Term,
+    /// };
+    ///
+    /// let argued = Provenance::Bounded { argument: ArgumentId(1) };
+    /// // The kernel stamps the packet; the queue and the application's own read
+    /// // happen after the number was taken.
+    /// let later = Chain::new(ChainId(1), [
+    ///     Link::of(LinkKind::Transport),
+    ///     Link::of(LinkKind::HostReceive),
+    ///     Link::of(LinkKind::HostQueue),
+    ///     Link::of(LinkKind::HostStamp),
+    /// ]);
+    /// let earlier = Chain::new(ChainId(2), [Link::of(LinkKind::Emission)]);
+    ///
+    /// let mut composer = Composer::new(later, earlier);
+    /// composer
+    ///     .term(Term::new(Span { chain: ChainId(1), from: 0, to: 1 }, Bias::symmetric(50_000), argued))
+    ///     .term(Term::new(Span::at(ChainId(2), 0), Bias::NONE, argued))
+    ///     .later_stamped_at(Basis::KernelSocketTimestamp);
+    ///
+    /// // Positions 2 and 3 are uncovered and do not matter: they are after the
+    /// // stamp.
+    /// let budget = composer.compose()?;
+    /// assert_eq!(budget.total.early_ns(), Some(50_000));
+    /// assert!(budget.total.uncovered_links().is_empty());
+    /// # Ok::<(), extendedresearch_metrology::CompositionError>(())
+    /// ```
+    pub fn later_stamped_at(&mut self, basis: Basis) -> &mut Composer {
+        self.later_basis = Some(basis);
+        self
+    }
+
+    /// Where the earlier stamp was taken, so the accounting stops there (R14).
+    ///
+    /// As [`Composer::later_stamped_at`], for the other endpoint.
+    pub fn earlier_stamped_at(&mut self, basis: Basis) -> &mut Composer {
+        self.earlier_basis = Some(basis);
+        self
     }
 
     /// Adds a term. Its span names which chain, and so which endpoint, it
@@ -535,10 +658,11 @@ impl Composer {
     /// [`CompositionError::ChainTooLong`] for a chain that cannot be walked;
     /// [`CompositionError::MalformedSpan`], [`CompositionError::UnknownChain`]
     /// or [`CompositionError::SpanPastChain`] for a span that does not describe
-    /// positions of a declared chain; [`CompositionError::SpanOverlap`] when two
-    /// terms carrying a correction cover the same position (R27, R31); and
-    /// [`CompositionError::Overflow`] when the corrected interval does not fit
-    /// `i64`.
+    /// positions of a declared chain; [`CompositionError::StampBasis`] when a
+    /// declared basis names no position of its chain (R14);
+    /// [`CompositionError::SpanOverlap`] when two terms carrying a correction
+    /// cover the same position (R27, R31); and [`CompositionError::Overflow`]
+    /// when the corrected interval does not fit `i64`.
     ///
     /// A link no term covers is **not** an error: it is an unbounded total with
     /// the uncovered runs named (R11).
@@ -591,11 +715,46 @@ impl Composer {
             }
         }
 
-        overlap_refusal(&terms)?;
+        // R14. The accounting stops where each stamp was taken; with no basis
+        // declared it runs to the end of the chain.
+        let stop_of = |basis, chain: &Chain, endpoint, last| match basis {
+            None => Ok(last),
+            Some(basis) => chain
+                .position_of(basis)
+                .map_err(|reason| CompositionError::StampBasis { endpoint, reason }),
+        };
+        let later_stop = stop_of(self.later_basis, &self.later, Endpoint::Later, later_last)?;
+        let earlier_stop = stop_of(
+            self.earlier_basis,
+            &self.earlier,
+            Endpoint::Earlier,
+            earlier_last,
+        )?;
+        let stop_for = |chain: ChainId| {
+            if chain == self.later.id {
+                later_stop
+            } else {
+                earlier_stop
+            }
+        };
+
+        // A term whose span begins after its stamp describes stages the number
+        // could not have passed through. One that straddles the stamp is
+        // counted in full: a term is one quantity over its whole span, and
+        // over-counting is conservative where dropping it is not.
+        let after_the_stamp: Vec<usize> = terms
+            .iter()
+            .enumerate()
+            .filter(|(_, term)| term.covers.from > stop_for(term.covers.chain))
+            .map(|(index, _)| index)
+            .collect();
+        let counted = |index: &usize| !after_the_stamp.contains(index);
+
+        overlap_refusal(&terms, &after_the_stamp)?;
 
         let uncovered_links = uncovered(
             &terms,
-            [(&self.later, later_last), (&self.earlier, earlier_last)],
+            [(&self.later, later_stop), (&self.earlier, earlier_stop)],
         );
 
         let shell = Budget {
@@ -609,13 +768,16 @@ impl Composer {
             interval_ns: None,
             later_chain: self.later.id,
             earlier_chain: self.earlier.id,
+            later_basis: self.later_basis,
+            earlier_basis: self.earlier_basis,
+            after_the_stamp: after_the_stamp.clone(),
         };
 
         let mut partial = Bias::NONE;
         let mut early_unbounded = false;
         let mut late_unbounded = false;
         let mut unbounded_terms = Vec::new();
-        for (index, term) in terms.iter().enumerate() {
+        for (index, term) in terms.iter().enumerate().filter(|(index, _)| counted(index)) {
             let (early, late) = shell.contribution_of(term);
             match early {
                 Some(width) => partial.early_ns = partial.early_ns.saturating_add(width),
@@ -659,6 +821,7 @@ impl Composer {
         let largest_bounded = terms
             .iter()
             .enumerate()
+            .filter(|(index, _)| counted(index))
             .filter_map(|(index, term)| {
                 let (early, late) = shell.contribution_of(term);
                 let width = early.unwrap_or(0).max(late.unwrap_or(0));
@@ -672,10 +835,10 @@ impl Composer {
             })
             .map(|(_, index)| index);
 
-        let interval_ns = self.corrected_interval(&terms)?;
+        let interval_ns = self.corrected_interval(&terms, &after_the_stamp)?;
 
         Ok(Budget {
-            dispersion: combine_dispersions(&terms),
+            dispersion: combine_dispersions(&terms, &after_the_stamp),
             terms,
             total,
             largest_bounded,
@@ -686,15 +849,26 @@ impl Composer {
 
     /// Each stamp with its endpoint's corrections applied, then subtracted
     /// (R32).
-    fn corrected_interval(&self, terms: &[Term]) -> Result<Option<i64>, CompositionError> {
+    ///
+    /// A correction for a stage after the stamp is not applied: the number was
+    /// taken before that stage happened, so there is nothing of it in the value
+    /// to correct (R14).
+    fn corrected_interval(
+        &self,
+        terms: &[Term],
+        after_the_stamp: &[usize],
+    ) -> Result<Option<i64>, CompositionError> {
         let Some((later_ns, earlier_ns)) = self.stamps else {
             return Ok(None);
         };
         let corrected = |ns: u64, chain: ChainId| {
             terms
                 .iter()
-                .filter(|term| term.covers.chain == chain)
-                .try_fold(i128::from(ns), |value, term| {
+                .enumerate()
+                .filter(|(index, term)| {
+                    term.covers.chain == chain && !after_the_stamp.contains(index)
+                })
+                .try_fold(i128::from(ns), |value, (_, term)| {
                     value.checked_add(i128::from(term.correction_ns()))
                 })
         };
@@ -718,11 +892,15 @@ impl Composer {
 /// Only corrections. Two biases over one position are over-conservative rather
 /// than wrong, and refusing them would make a one-way fit — an estimated offset
 /// and an argued residual over one span — unrepresentable.
-fn overlap_refusal(terms: &[Term]) -> Result<(), CompositionError> {
+///
+/// A term the stamp's basis put outside the accounting corrects nothing, so it
+/// cannot correct twice: refusing over it would be a refusal about a term that
+/// contributes nothing to the number (R14).
+fn overlap_refusal(terms: &[Term], after_the_stamp: &[usize]) -> Result<(), CompositionError> {
     let correcting: Vec<(usize, &Term)> = terms
         .iter()
         .enumerate()
-        .filter(|(_, term)| term.corrects())
+        .filter(|(index, term)| term.corrects() && !after_the_stamp.contains(index))
         .collect();
     for (position, &(first, one)) in correcting.iter().enumerate() {
         for &(second, other) in correcting.iter().skip(position + 1) {
@@ -749,6 +927,10 @@ fn overlap_refusal(terms: &[Term]) -> Result<(), CompositionError> {
 /// A term covering several positions covers every one of them: a recorder that
 /// takes one stamp for [`HostReceive`](crate::LinkKind::HostReceive) and
 /// [`HostQueue`](crate::LinkKind::HostQueue) together leaves neither uncovered.
+///
+/// The walk stops at each chain's `stop` position, which is where its stamp was
+/// taken (R14) or its last position when no basis was declared. A position after
+/// the stamp is not in the number, so nothing covering it is missing.
 fn uncovered(terms: &[Term], chains: [(&Chain, u16); 2]) -> Vec<Span> {
     let mut chains = chains;
     chains.sort_by_key(|(chain, _)| chain.id);
@@ -789,10 +971,14 @@ fn uncovered(terms: &[Term], chains: [(&Chain, u16); 2]) -> Vec<Span> {
 }
 
 /// Combines the terms' dispersions, or reports that they do not combine (R4).
-fn combine_dispersions(terms: &[Term]) -> CombinedDispersion {
+///
+/// A term the stamp's basis put outside the accounting contributes no spread
+/// either: its stage happened after the number was taken (R14).
+fn combine_dispersions(terms: &[Term], after_the_stamp: &[usize]) -> CombinedDispersion {
     let contributors: Vec<(usize, Dispersion, Correlation)> = terms
         .iter()
         .enumerate()
+        .filter(|(index, _)| !after_the_stamp.contains(index))
         .filter_map(|(index, term)| {
             term.dispersion
                 .map(|dispersion| (index, dispersion, term.correlation))
@@ -1242,6 +1428,287 @@ mod tests {
         let message = c.compose().expect_err("refuses").to_string();
         assert!(message.contains("1:1-1"), "{message}");
         assert!(message.contains("calibrations 4 and 9"), "{message}");
+    }
+
+    // ---- R14: the accounting stops where the stamp was taken -----------------
+
+    /// A four-link acquisition chain: transport, receive, queue, the
+    /// application's own read.
+    fn received() -> Chain {
+        Chain::new(
+            LATER,
+            [
+                Link::of(LinkKind::Transport),
+                Link::of(LinkKind::HostReceive),
+                Link::of(LinkKind::HostQueue),
+                Link::of(LinkKind::HostStamp),
+            ],
+        )
+    }
+
+    fn stamped(basis: Basis, terms: impl IntoIterator<Item = Term>) -> Composer {
+        let mut c = Composer::new(received(), chain(EARLIER, 1));
+        c.terms(terms).later_stamped_at(basis);
+        c
+    }
+
+    #[test]
+    fn a_link_after_the_stamp_is_not_an_uncovered_link() {
+        // The kernel stamped it at position 1. Positions 2 and 3 happen after
+        // the number was taken, so nothing is missing.
+        let budget = stamped(
+            Basis::KernelSocketTimestamp,
+            [
+                bounded(LATER, 0, 1, Bias::new(10, 20)),
+                bounded(EARLIER, 0, 0, Bias::new(3, 4)),
+            ],
+        )
+        .compose()
+        .expect("composes");
+        assert!(budget.total.uncovered_links().is_empty());
+        assert_eq!(
+            budget.total,
+            Total::Bounded {
+                early_ns: 14,
+                late_ns: 23
+            }
+        );
+        assert_eq!(budget.later_basis, Some(Basis::KernelSocketTimestamp));
+        assert_eq!(budget.earlier_basis, None);
+    }
+
+    #[test]
+    fn a_term_wholly_after_the_stamp_contributes_nothing() {
+        // The queue term is unbounded, and would poison the total if it were in
+        // the number at all. The stamp was taken before it.
+        let budget = stamped(
+            Basis::KernelSocketTimestamp,
+            [
+                bounded(LATER, 0, 1, Bias::new(10, 20)),
+                Term::unknown(Span {
+                    chain: LATER,
+                    from: 2,
+                    to: 3,
+                }),
+                bounded(EARLIER, 0, 0, Bias::new(3, 4)),
+            ],
+        )
+        .compose()
+        .expect("composes");
+        assert_eq!(
+            budget.total,
+            Total::Bounded {
+                early_ns: 14,
+                late_ns: 23
+            }
+        );
+        // The term is kept, named, and reported as excluded.
+        assert_eq!(budget.terms.len(), 3);
+        assert_eq!(budget.after_the_stamp, vec![1]);
+        assert!(budget.is_after_the_stamp(1));
+        assert!(!budget.is_after_the_stamp(0));
+        assert!(budget.unbounded_early_terms().is_empty());
+        assert!(budget.unbounded_late_terms().is_empty());
+        // And the same terms with no basis declared do poison it, which is what
+        // makes the basis the load-bearing statement.
+        let mut without = Composer::new(received(), chain(EARLIER, 1));
+        without.terms(budget.terms.iter().copied());
+        assert_eq!(without.compose().expect("composes").total.early_ns(), None);
+    }
+
+    #[test]
+    fn a_term_straddling_the_stamp_is_counted_in_full() {
+        // One term over positions 1 to 2 with the stamp at 1: a term is one
+        // quantity over its whole span and cannot be halved, so all of it
+        // counts. Over-counting is conservative; dropping it is not.
+        let budget = stamped(
+            Basis::KernelSocketTimestamp,
+            [
+                bounded(LATER, 0, 0, Bias::new(1, 1)),
+                bounded(LATER, 1, 2, Bias::new(10, 20)),
+                bounded(EARLIER, 0, 0, Bias::NONE),
+            ],
+        )
+        .compose()
+        .expect("composes");
+        assert_eq!(
+            budget.total,
+            Total::Bounded {
+                early_ns: 11,
+                late_ns: 21
+            }
+        );
+        assert!(budget.after_the_stamp.is_empty());
+    }
+
+    #[test]
+    fn a_correction_after_the_stamp_does_not_move_the_value() {
+        let mut c = stamped(
+            Basis::KernelSocketTimestamp,
+            [
+                bounded(LATER, 0, 1, Bias::NONE),
+                bounded(LATER, 2, 3, Bias::NONE)
+                    .with_correction(Correction::new(-18_200_000, argued())),
+                bounded(EARLIER, 0, 0, Bias::NONE),
+            ],
+        );
+        c.stamps(1_000_000_000, 0);
+        let budget = c.compose().expect("composes");
+        assert_eq!(budget.interval_ns, Some(1_000_000_000));
+    }
+
+    #[test]
+    fn two_corrections_are_not_refused_when_one_is_after_the_stamp() {
+        // Refusing here would be a refusal about a term that contributes
+        // nothing to the number.
+        let budget = stamped(
+            Basis::KernelSocketTimestamp,
+            [
+                bounded(LATER, 0, 1, Bias::NONE).with_correction(Correction::new(-5, argued())),
+                bounded(LATER, 1, 3, Bias::NONE).with_correction(Correction::new(-7, argued())),
+                bounded(EARLIER, 0, 0, Bias::NONE),
+            ],
+        )
+        .compose();
+        // Both still cover position 1, so this pair is still refused.
+        assert!(matches!(
+            budget.expect_err("refuses"),
+            CompositionError::SpanOverlap { .. }
+        ));
+        // Moved wholly past the stamp, the second one is inert and accepted.
+        stamped(
+            Basis::KernelSocketTimestamp,
+            [
+                bounded(LATER, 0, 1, Bias::NONE).with_correction(Correction::new(-5, argued())),
+                bounded(LATER, 2, 3, Bias::NONE).with_correction(Correction::new(-7, argued())),
+                bounded(EARLIER, 0, 0, Bias::NONE),
+            ],
+        )
+        .compose()
+        .expect("composes");
+    }
+
+    #[test]
+    fn a_dispersion_after_the_stamp_does_not_combine() {
+        let budget = stamped(
+            Basis::KernelSocketTimestamp,
+            [
+                bounded(LATER, 0, 1, Bias::NONE)
+                    .with_dispersion(Dispersion::new(300, DistributionKind::Gaussian))
+                    .with_correlation(Correlation::Independent),
+                bounded(LATER, 2, 3, Bias::NONE)
+                    .with_dispersion(Dispersion::new(400, DistributionKind::Gaussian)),
+                bounded(EARLIER, 0, 0, Bias::NONE),
+            ],
+        )
+        .compose()
+        .expect("composes");
+        // The undeclared term is after the stamp, so it does not stop the
+        // combination, and its 400 ns is not in it.
+        assert_eq!(
+            budget.dispersion,
+            CombinedDispersion::Known(Dispersion::new(300, DistributionKind::Gaussian))
+        );
+    }
+
+    #[test]
+    fn an_undeclared_basis_shortens_nothing() {
+        let terms = [
+            bounded(LATER, 0, 1, Bias::new(10, 20)),
+            bounded(EARLIER, 0, 0, Bias::new(3, 4)),
+        ];
+        let mut c = Composer::new(received(), chain(EARLIER, 1));
+        c.terms(terms);
+        let budget = c.compose().expect("composes");
+        assert_eq!(
+            budget.total.uncovered_links(),
+            &[Span {
+                chain: LATER,
+                from: 2,
+                to: 3
+            }]
+        );
+        assert_eq!(budget.later_basis, None);
+        assert!(budget.after_the_stamp.is_empty());
+    }
+
+    #[test]
+    fn a_basis_the_chain_does_not_describe_is_refused() {
+        let error = stamped(
+            Basis::AudioOutputBuffer,
+            [
+                bounded(LATER, 0, 3, Bias::NONE),
+                bounded(EARLIER, 0, 0, Bias::NONE),
+            ],
+        )
+        .compose()
+        .expect_err("refuses");
+        assert!(matches!(
+            error,
+            CompositionError::StampBasis {
+                endpoint: Endpoint::Later,
+                reason: BasisError::NoSuchLink { .. }
+            }
+        ));
+        let message = error.to_string();
+        assert!(message.contains("later stamp"), "{message}");
+        assert!(message.contains("chain 1"), "{message}");
+    }
+
+    #[test]
+    fn an_unspecified_basis_is_refused_rather_than_ignored() {
+        // A stamp that does not say where it was taken is not evidence that a
+        // stage is outside the number. Declaring `Unspecified` is a caller
+        // asking for a shortening it has no grounds for, and asking is a
+        // different act from not declaring one at all.
+        let error = stamped(
+            Basis::Unspecified,
+            [
+                bounded(LATER, 0, 3, Bias::NONE),
+                bounded(EARLIER, 0, 0, Bias::NONE),
+            ],
+        )
+        .compose()
+        .expect_err("refuses");
+        assert!(matches!(
+            error,
+            CompositionError::StampBasis {
+                reason: BasisError::NamesNoPosition { .. },
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn the_earlier_stamp_is_shortened_the_same_way() {
+        let mut c = Composer::new(
+            chain(LATER, 1),
+            Chain::new(
+                EARLIER,
+                [
+                    Link::of(LinkKind::ApplicationSubmit),
+                    Link::of(LinkKind::Compositor),
+                    Link::of(LinkKind::Conversion),
+                    Link::of(LinkKind::Emission),
+                ],
+            ),
+        );
+        c.term(bounded(LATER, 0, 0, Bias::NONE))
+            .term(bounded(EARLIER, 0, 1, Bias::new(3, 4)))
+            // The frame time is the compositor's, so scanout and the panel's
+            // response are after it.
+            .earlier_stamped_at(Basis::DisplayFrame);
+        let budget = c.compose().expect("composes");
+        assert_eq!(budget.earlier_basis, Some(Basis::DisplayFrame));
+        assert!(budget.total.uncovered_links().is_empty());
+        // Crosswise: the earlier chain's late width lands on the early side.
+        assert_eq!(
+            budget.total,
+            Total::Bounded {
+                early_ns: 4,
+                late_ns: 3
+            }
+        );
     }
 
     #[test]

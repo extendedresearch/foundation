@@ -78,9 +78,38 @@ pub fn bound_for_read(resolution_ns: Option<u64>, rounding: Rounding) -> Bound {
 ///
 /// The integers are this crate's definition and are part of its contract: a
 /// basis crosses a boundary, and is written to a record, as its integer, so a
-/// value is never renumbered or reused. Values 7 to 10 are provisional until
-/// the owner confirms them. The set is closed at each release; a new basis is
-/// a reviewed change, appended with the next integer.
+/// value is never renumbered or reused. The set is closed at each release; a
+/// new basis is a reviewed change, appended with the next integer.
+///
+/// # A basis names a position, and what follows it is not in the number
+///
+/// A reading stamped [`Basis::KernelSocketTimestamp`] was taken before
+/// scheduling happened, so scheduling contributes nothing to it. A hardware
+/// stamp does not shrink a term; it **shortens the chain**, and a record shows
+/// the shorter chain rather than a smaller number. Which stage each value names
+/// is the mapping in `extendedresearch-metrology`'s `basis` module, which is
+/// where the rule is applied; this crate carries the vocabulary and not the
+/// chain model.
+///
+/// # Values 7 to 10
+///
+/// Confirmed at their current integers, and two of the four had their meaning
+/// pinned when the chain model arrived — the integers did not move, the
+/// sentences did:
+///
+/// - [`Basis::DisplayFrame`] is the **compositor's** frame time. Scanout and
+///   the panel's own response are still ahead of it, and leaving that to the
+///   reader is how a panel's output lag disappears out of a budget without
+///   anything looking wrong.
+/// - [`Basis::ClockRead`] is the one value that names a **method** rather than
+///   a position: a direct read of this domain's clock is the application's own
+///   stamp at the end of an acquisition chain and its submit at the start of a
+///   stimulus chain. The chain decides which, so the reconciliation resolves it
+///   against the chain rather than answering one position for both.
+///
+/// [`Basis::AudioOutputBuffer`] and [`Basis::PlatformEventTimestamp`] needed no
+/// change. No value names an instrument's own timestamp, which is the link
+/// removal worth the most; adding one is an append, and a reviewed change.
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[non_exhaustive]
@@ -99,11 +128,14 @@ pub enum Basis {
     BrowserEventHandler = 5,
     /// Stamped when the data was read from a file.
     FileRead = 6,
-    /// A stimulus quantised to a display refresh; the reading names the frame.
+    /// A stimulus quantised to a display refresh; the reading names the frame
+    /// the compositor scheduled it into, so conversion and emission follow it.
     DisplayFrame = 7,
-    /// A sound scheduled into an audio output buffer.
+    /// A sound scheduled into an audio output buffer, so conversion and
+    /// emission follow it.
     AudioOutputBuffer = 8,
-    /// A direct read of this domain's clock, bounded by [`bound_for_read`].
+    /// A direct read of this domain's clock, bounded by [`bound_for_read`]. It
+    /// names the method, and the chain says which end of itself it sits at.
     ClockRead = 9,
     /// An occurrence time the platform supplies with an event, on this
     /// domain's clock.

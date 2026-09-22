@@ -36,8 +36,10 @@
 //!
 //! This crate defines the clock vocabulary: the field names, and the integers
 //! of [`Basis`] and [`SuspendBehaviour`], are its own and part of its contract.
-//! Several choices here are provisional until confirmed: the crate name,
-//! [`Basis`] values 7 to 10, the browser `host_id` and epoch format
+//! [`Basis`] values 7 to 10 are confirmed at their current integers, two of
+//! them with their meaning pinned rather than their value moved; the type's own
+//! documentation says which and why. Several choices here are still
+//! provisional: the crate name, the browser `host_id` and epoch format
 //! ([`doc_epoch_from`]), and [`QUANTUM_TOL_DEN`].
 //!
 //! # Conformance
