@@ -68,7 +68,7 @@ namespace ExtendedResearch.Interop
         /// </exception>
         public static byte[] ToUtf8Z(string value, string what)
         {
-            if (value.IndexOf('\0') >= 0)
+            if (value.Contains('\0'))
             {
                 throw new ArgumentException(what + " contains a null character, which cannot cross the C ABI");
             }
