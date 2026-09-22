@@ -56,6 +56,9 @@ import tomllib
 from collections import defaultdict
 from pathlib import Path
 
+# Set by `main` from `--root`, so one copy of this script checks any repository
+# against that repository's own declaration. Every function reads them at call
+# time.
 ROOT = Path(__file__).resolve().parent.parent
 DECLARATION = ROOT / "ecosystem" / "PACKAGES.toml"
 
@@ -368,14 +371,63 @@ def check_documents(declaration: dict, strict: bool) -> bool:
             absent = [h for h in headings if h not in found]
             order.add(package["name"], "SOFT", f"missing {absent}" if absent else "out of order")
 
-    return documents_ok and order.report(soft=set() if strict else {"SOFT"})
+    order_ok = order.report(soft=set() if strict else {"SOFT"})
+
+    # Decision records are per package, numbered locally, so that a package
+    # carries the history explaining its shape and two packages never collide.
+    # Repository-level records — about how packages relate — live at the root.
+    records = Table("Decision records are numbered uniquely within their package")
+    seen_any = False
+    for package in [*declaration["package"], {"name": "(repository)", "path": "."}]:
+        directory = ROOT / package["path"] / "docs" / "decisions"
+        if not directory.is_dir():
+            continue
+        seen_any = True
+        numbers: dict[str, list[str]] = defaultdict(list)
+        malformed: list[str] = []
+        for record in sorted(directory.glob("*.md")):
+            match = re.match(r"^(\d{4})-[a-z0-9]+(-[a-z0-9]+)*\.md$", record.name)
+            if match:
+                numbers[match.group(1)].append(record.name)
+            else:
+                malformed.append(record.name)
+        collisions = {n: f for n, f in numbers.items() if len(f) > 1}
+        if malformed:
+            records.add(package["name"], "MALFORMED", f"not NNNN-kebab-case.md: {malformed[:3]}")
+        elif collisions:
+            records.add(package["name"], "COLLISION", f"number reused: {sorted(collisions)}")
+        else:
+            records.add(package["name"], "ok", f"{len(numbers)} record(s), numbers unique")
+    if not seen_any:
+        records.add("(none)", "ok", "no package carries decision records yet")
+
+    return documents_ok and order_ok and records.report()
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("check", choices=["boundaries", "duplication", "documents", "all"])
     parser.add_argument("--strict", action="store_true", help="soft findings fail too")
+    parser.add_argument(
+        "--root",
+        type=Path,
+        default=None,
+        help=(
+            "the repository to check; defaults to this script's own. "
+            "It must carry its own ecosystem/PACKAGES.toml, since a declaration "
+            "describes one repository's packages and never another's."
+        ),
+    )
     args = parser.parse_args()
+
+    if args.root is not None:
+        global ROOT, DECLARATION
+        ROOT = args.root.resolve()
+        DECLARATION = ROOT / "ecosystem" / "PACKAGES.toml"
+        if not DECLARATION.is_file():
+            print(f"no ecosystem/PACKAGES.toml under {ROOT}", file=sys.stderr)
+            print("a repository declares its own packages; copy the format from foundation's", file=sys.stderr)
+            return 2
 
     declaration = load()
     results = []
