@@ -56,6 +56,9 @@ import tomllib
 from collections import defaultdict
 from pathlib import Path
 
+# Set by `main` from `--root`, so one copy of this script checks any repository
+# against that repository's own declaration. Every function reads them at call
+# time.
 ROOT = Path(__file__).resolve().parent.parent
 DECLARATION = ROOT / "ecosystem" / "PACKAGES.toml"
 
@@ -405,7 +408,26 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("check", choices=["boundaries", "duplication", "documents", "all"])
     parser.add_argument("--strict", action="store_true", help="soft findings fail too")
+    parser.add_argument(
+        "--root",
+        type=Path,
+        default=None,
+        help=(
+            "the repository to check; defaults to this script's own. "
+            "It must carry its own ecosystem/PACKAGES.toml, since a declaration "
+            "describes one repository's packages and never another's."
+        ),
+    )
     args = parser.parse_args()
+
+    if args.root is not None:
+        global ROOT, DECLARATION
+        ROOT = args.root.resolve()
+        DECLARATION = ROOT / "ecosystem" / "PACKAGES.toml"
+        if not DECLARATION.is_file():
+            print(f"no ecosystem/PACKAGES.toml under {ROOT}", file=sys.stderr)
+            print("a repository declares its own packages; copy the format from foundation's", file=sys.stderr)
+            return 2
 
     declaration = load()
     results = []
