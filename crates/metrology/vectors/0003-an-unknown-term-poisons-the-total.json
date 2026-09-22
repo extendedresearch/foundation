@@ -1,0 +1,68 @@
+{
+  "metrology_vector": "0",
+  "id": "0003-an-unknown-term-poisons-the-total",
+  "about": "One term unbounded on a side leaves the total unbounded on that side (R8), and a term whose bias provenance is unknown is unbounded on both sides whatever its bias field holds (R10). The lying row is the one that matters: a term written with provenance unknown and a bias of (0, 0) must not compose to a finite total, because the fields are public and the rule belongs where the number is used. A vendor's specified figure is not unknown: provenance changes how a number should be read, never the arithmetic. An implementation that reads the bias field directly passes every other row and fails the lying one.",
+  "function": "Composer::compose",
+  "faces": ["native", "browser"],
+  "chains": {
+    "response": { "id": 1, "links": [1, 7, 10] },
+    "stimulus": { "id": 2, "links": [16] }
+  },
+  "terms": {
+    "a":              { "chain": 1, "from": 0, "to": 0, "early_ns": "10", "late_ns": "20", "bias_provenance": "bounded:1" },
+    "b":              { "chain": 1, "from": 1, "to": 1, "early_ns": "1",  "late_ns": "2",  "bias_provenance": "bounded:1" },
+    "c":              { "chain": 1, "from": 2, "to": 2, "early_ns": "3",  "late_ns": "4",  "bias_provenance": "bounded:1" },
+    "e":              { "chain": 2, "from": 0, "to": 0, "early_ns": "5",  "late_ns": "6",  "bias_provenance": "bounded:1" },
+    "unknown_c":      { "chain": 1, "from": 2, "to": 2, "early_ns": "18446744073709551615", "late_ns": "18446744073709551615", "bias_provenance": "unknown" },
+    "lying_c":        { "chain": 1, "from": 2, "to": 2, "early_ns": "0",  "late_ns": "0",  "bias_provenance": "unknown" },
+    "half_unknown_c": { "chain": 1, "from": 2, "to": 2, "early_ns": "18446744073709551615", "late_ns": "4", "bias_provenance": "bounded:1" },
+    "specified_c":    { "chain": 1, "from": 2, "to": 2, "early_ns": "3",  "late_ns": "4",  "bias_provenance": "specified:7" }
+  },
+  "rows": {
+    "every_term_bounded": {
+      "input": { "later": "response", "earlier": "stimulus", "terms": ["a", "b", "c", "e"] },
+      "expect": {
+        "total.kind": "bounded", "total.early_ns": "20", "total.late_ns": "31",
+        "known.early_ns": "20", "known.late_ns": "31",
+        "unbounded_terms": "none", "uncovered_links": "none",
+        "largest_bounded": "0", "dispersion": "none", "interval_ns": "none"
+      }
+    },
+    "one_unknown_term": {
+      "input": { "later": "response", "earlier": "stimulus", "terms": ["a", "b", "unknown_c", "e"] },
+      "expect": {
+        "total.kind": "unbounded", "total.early_ns": "unbounded", "total.late_ns": "unbounded",
+        "known.early_ns": "17", "known.late_ns": "27",
+        "unbounded_terms": "2", "uncovered_links": "none",
+        "largest_bounded": "0", "dispersion": "none", "interval_ns": "none"
+      }
+    },
+    "a_zero_bias_under_an_unknown_provenance_is_still_unknown": {
+      "input": { "later": "response", "earlier": "stimulus", "terms": ["a", "b", "lying_c", "e"] },
+      "expect": {
+        "total.kind": "unbounded", "total.early_ns": "unbounded", "total.late_ns": "unbounded",
+        "known.early_ns": "17", "known.late_ns": "27",
+        "unbounded_terms": "2", "uncovered_links": "none",
+        "largest_bounded": "0", "dispersion": "none", "interval_ns": "none"
+      }
+    },
+    "one_unbounded_side_poisons_only_that_side": {
+      "input": { "later": "response", "earlier": "stimulus", "terms": ["a", "b", "half_unknown_c", "e"] },
+      "expect": {
+        "total.kind": "unbounded", "total.early_ns": "unbounded", "total.late_ns": "31",
+        "known.early_ns": "17", "known.late_ns": "31",
+        "unbounded_terms": "2", "uncovered_links": "none",
+        "largest_bounded": "0", "dispersion": "none", "interval_ns": "none"
+      }
+    },
+    "a_specified_figure_is_not_unknown": {
+      "input": { "later": "response", "earlier": "stimulus", "terms": ["a", "b", "specified_c", "e"] },
+      "expect": {
+        "total.kind": "bounded", "total.early_ns": "20", "total.late_ns": "31",
+        "known.early_ns": "20", "known.late_ns": "31",
+        "unbounded_terms": "none", "uncovered_links": "none",
+        "largest_bounded": "0", "dispersion": "none", "interval_ns": "none"
+      }
+    }
+  }
+}

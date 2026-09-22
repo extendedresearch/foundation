@@ -201,12 +201,12 @@ jobs:
         with:
           log: cargo-test.log
 
-  # The clock crate's core is target-independent: the browser face compiles it
-  # to wasm, and a platform type or a `cfg` that leaked into it would stop that
-  # build while every native job stayed green. A different target is a
-  # different compiled graph, so it is its own job. `cargo check` rather than a
-  # test run: the vectors run against the same source in `check`, and
-  # `wasm32-unknown-unknown` has no test runner.
+  # The clock and metrology crates are target-independent: the browser face
+  # compiles them to wasm, and a platform type or a `cfg` that leaked into
+  # either would stop that build while every native job stayed green. A
+  # different target is a different compiled graph, so it is its own job.
+  # `cargo check` rather than a test run: the vectors run against the same
+  # source in `check`, and `wasm32-unknown-unknown` has no test runner.
   wasm:
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -226,6 +226,9 @@ jobs:
         run: |
           cargo check -p extendedresearch-status --no-default-features
           cargo check --target wasm32-unknown-unknown -p extendedresearch-status --no-default-features
+
+      - name: The metrology core compiles for wasm32
+        run: cargo check --target wasm32-unknown-unknown -p extendedresearch-metrology
 
   # The one check an ordinary test run cannot make. `borrow` makes references
   # from a caller's pointers, and whether that is sound over uninitialised

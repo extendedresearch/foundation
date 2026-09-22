@@ -1,0 +1,27 @@
+{
+  "metrology_vector": "0",
+  "id": "0011-link-kind-integers-are-fixed",
+  "about": "LinkKind as integers, which are this crate's own definition and a wire contract (R13, R59). The set is derived from the two directions a measurement chain can run: a physical event becoming a number (acquisition, 1 to 10, in order) and a command becoming a physical event (stimulus, 11 to 16, in order), plus the two stages that apply to either (17 and 18). A chain omits the stages it does not have. A link kind is written to a record as its integer, so no value is renumbered or reused, and a new stage is a reviewed addition appended with the next integer. Row names are the variant names in snake case. A face that renumbers, or appends in another order, fails a row.",
+  "function": "LinkKind",
+  "faces": ["native", "browser"],
+  "rows": {
+    "transduction":        { "expect": "1" },
+    "analog_conditioning": { "expect": "2" },
+    "quantisation":        { "expect": "3" },
+    "device_filter":       { "expect": "4" },
+    "device_buffer":       { "expect": "5" },
+    "device_stamp":        { "expect": "6" },
+    "transport":           { "expect": "7" },
+    "host_receive":        { "expect": "8" },
+    "host_queue":          { "expect": "9" },
+    "host_stamp":          { "expect": "10" },
+    "application_submit":  { "expect": "11" },
+    "framework_queue":     { "expect": "12" },
+    "compositor":          { "expect": "13" },
+    "output_buffer":       { "expect": "14" },
+    "conversion":          { "expect": "15" },
+    "emission":            { "expect": "16" },
+    "clock_mapping":       { "expect": "17" },
+    "serialisation":       { "expect": "18" }
+  }
+}

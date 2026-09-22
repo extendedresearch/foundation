@@ -1,0 +1,55 @@
+{
+  "metrology_vector": "0",
+  "id": "0010-a-term-may-cover-several-links",
+  "about": "A chain is not required to give each link its own term. A recorder taking one stamp that covers the host's receive and its queue attributes one term to a span of two; a trigger alignment covers a contiguous run; one bound can cover a whole chain. Coverage (R11) treats every position inside a span as covered, so a multi-link term leaves no gap, and a whole-chain term leaves none at all. A span is still a span: one that reaches past the chain's last position is refused rather than clipped, because a term describing a stage the chain does not have is a term about something else. An implementation that marks only a span's endpoints as covered reports a gap in the first two rows.",
+  "function": "Composer::compose",
+  "faces": ["native", "browser"],
+  "chains": {
+    "response": { "id": 1, "links": [1, 7, 8, 10] },
+    "stimulus": { "id": 2, "links": [11, 16] }
+  },
+  "terms": {
+    "whole_response":  { "chain": 1, "from": 0, "to": 3, "early_ns": "250000", "late_ns": "250000", "bias_provenance": "bounded:1" },
+    "front_pair":      { "chain": 1, "from": 0, "to": 1, "early_ns": "200000", "late_ns": "190000", "bias_provenance": "bounded:1" },
+    "host_pair":       { "chain": 1, "from": 2, "to": 3, "early_ns": "50000",  "late_ns": "60000",  "bias_provenance": "bounded:1" },
+    "past_the_end":    { "chain": 1, "from": 0, "to": 4, "early_ns": "1",      "late_ns": "1",      "bias_provenance": "bounded:1" },
+    "whole_stimulus":  { "chain": 2, "from": 0, "to": 1, "early_ns": "100",    "late_ns": "200",    "bias_provenance": "bounded:1" },
+    "stimulus_first":  { "chain": 2, "from": 0, "to": 0, "early_ns": "10",     "late_ns": "20",     "bias_provenance": "bounded:1" }
+  },
+  "rows": {
+    "one_term_over_the_whole_chain": {
+      "input": { "later": "response", "earlier": "stimulus", "terms": ["whole_response", "whole_stimulus"] },
+      "expect": {
+        "total.kind": "bounded", "total.early_ns": "250200", "total.late_ns": "250100",
+        "known.early_ns": "250200", "known.late_ns": "250100",
+        "unbounded_terms": "none", "uncovered_links": "none",
+        "largest_bounded": "0", "dispersion": "none", "interval_ns": "none"
+      }
+    },
+    "two_multi_link_spans_partition_the_chain": {
+      "input": { "later": "response", "earlier": "stimulus", "terms": ["front_pair", "host_pair", "whole_stimulus"] },
+      "expect": {
+        "total.kind": "bounded", "total.early_ns": "250200", "total.late_ns": "250100",
+        "known.early_ns": "250200", "known.late_ns": "250100",
+        "unbounded_terms": "none", "uncovered_links": "none",
+        "largest_bounded": "0", "dispersion": "none", "interval_ns": "none"
+      }
+    },
+    "a_multi_link_span_does_not_cover_the_other_chain": {
+      "input": { "later": "response", "earlier": "stimulus", "terms": ["whole_response", "stimulus_first"] },
+      "expect": {
+        "total.kind": "unbounded", "total.early_ns": "unbounded", "total.late_ns": "unbounded",
+        "known.early_ns": "250020", "known.late_ns": "250010",
+        "unbounded_terms": "none", "uncovered_links": "2:1-1",
+        "largest_bounded": "0", "dispersion": "none", "interval_ns": "none"
+      }
+    },
+    "a_span_reaching_one_past_the_chain_is_refused": {
+      "input": { "later": "response", "earlier": "stimulus", "terms": ["past_the_end", "whole_stimulus"] },
+      "expect": {
+        "refusal": "refused:span_past_chain",
+        "refusal.names": "term=0 span=1:0-4 last=3"
+      }
+    }
+  }
+}

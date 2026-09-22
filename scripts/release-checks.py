@@ -74,6 +74,7 @@ PYTHON_DIST = "extendedresearch_conformance"
 LICENCE_COPIES = (
     "crates/abi",
     "crates/clock",
+    "crates/metrology",
     "crates/napi",
     "crates/pyo3",
     "crates/status",

@@ -1,0 +1,66 @@
+{
+  "metrology_vector": "0",
+  "id": "0001-bias-widths-add-crosswise",
+  "about": "Composer::compose adds the two endpoints' widths crosswise (R3). A term on the later stamp's chain puts its early width on the interval's early side and its late width on the late side; a term on the earlier stamp's chain puts its LATE width on the early side and its early width on the late side, because the later event happening early and the earlier one happening late both shrink the interval. Swapping which chain is the later endpoint swaps the two totals. An implementation that adds the widths side by side, or that applies the swap to the wrong endpoint, fails a row. Every row here is asymmetric, because a symmetric one passes either way.",
+  "function": "Composer::compose",
+  "faces": ["native", "browser"],
+  "chains": {
+    "response": { "id": 1, "links": [10] },
+    "stimulus": { "id": 2, "links": [16] }
+  },
+  "terms": {
+    "response_asym":      { "chain": 1, "from": 0, "to": 0, "early_ns": "10", "late_ns": "20",   "bias_provenance": "bounded:1" },
+    "stimulus_asym":      { "chain": 2, "from": 0, "to": 0, "early_ns": "3",  "late_ns": "4",    "bias_provenance": "bounded:1" },
+    "response_zero":      { "chain": 1, "from": 0, "to": 0, "early_ns": "0",  "late_ns": "0",    "bias_provenance": "bounded:1" },
+    "stimulus_zero":      { "chain": 2, "from": 0, "to": 0, "early_ns": "0",  "late_ns": "0",    "bias_provenance": "bounded:1" },
+    "response_late_only": { "chain": 1, "from": 0, "to": 0, "early_ns": "0",  "late_ns": "1000", "bias_provenance": "bounded:1" },
+    "stimulus_late_only": { "chain": 2, "from": 0, "to": 0, "early_ns": "0",  "late_ns": "1000", "bias_provenance": "bounded:1" }
+  },
+  "rows": {
+    "both_asymmetric": {
+      "input": { "later": "response", "earlier": "stimulus", "terms": ["response_asym", "stimulus_asym"] },
+      "expect": {
+        "total.kind": "bounded", "total.early_ns": "14", "total.late_ns": "23",
+        "known.early_ns": "14", "known.late_ns": "23",
+        "unbounded_terms": "none", "uncovered_links": "none",
+        "largest_bounded": "0", "dispersion": "none", "interval_ns": "none"
+      }
+    },
+    "the_earlier_chains_late_width_lands_on_the_early_side": {
+      "input": { "later": "response", "earlier": "stimulus", "terms": ["response_zero", "stimulus_late_only"] },
+      "expect": {
+        "total.kind": "bounded", "total.early_ns": "1000", "total.late_ns": "0",
+        "known.early_ns": "1000", "known.late_ns": "0",
+        "unbounded_terms": "none", "uncovered_links": "none",
+        "largest_bounded": "1", "dispersion": "none", "interval_ns": "none"
+      }
+    },
+    "the_later_chains_late_width_lands_on_the_late_side": {
+      "input": { "later": "response", "earlier": "stimulus", "terms": ["response_late_only", "stimulus_zero"] },
+      "expect": {
+        "total.kind": "bounded", "total.early_ns": "0", "total.late_ns": "1000",
+        "known.early_ns": "0", "known.late_ns": "1000",
+        "unbounded_terms": "none", "uncovered_links": "none",
+        "largest_bounded": "0", "dispersion": "none", "interval_ns": "none"
+      }
+    },
+    "swapping_the_endpoints_swaps_the_sides": {
+      "input": { "later": "stimulus", "earlier": "response", "terms": ["response_asym", "stimulus_asym"] },
+      "expect": {
+        "total.kind": "bounded", "total.early_ns": "23", "total.late_ns": "14",
+        "known.early_ns": "23", "known.late_ns": "14",
+        "unbounded_terms": "none", "uncovered_links": "none",
+        "largest_bounded": "0", "dispersion": "none", "interval_ns": "none"
+      }
+    },
+    "zero_widths_compose_to_zero": {
+      "input": { "later": "response", "earlier": "stimulus", "terms": ["response_zero", "stimulus_zero"] },
+      "expect": {
+        "total.kind": "bounded", "total.early_ns": "0", "total.late_ns": "0",
+        "known.early_ns": "0", "known.late_ns": "0",
+        "unbounded_terms": "none", "uncovered_links": "none",
+        "largest_bounded": "none", "dispersion": "none", "interval_ns": "none"
+      }
+    }
+  }
+}

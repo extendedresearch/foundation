@@ -1,0 +1,20 @@
+{
+  "metrology_vector": "0",
+  "id": "0012-provenance-correlation-and-distribution-integers",
+  "about": "Provenance, Correlation and DistributionKind as integers, each a wire contract (R59). Zero means the absence of a declaration in all three: unknown provenance, undeclared correlation, unspecified distribution. That direction is deliberate. A decoder that never filled a field, or a record truncated before it, reads zero, and zero has to mean 'nothing was claimed' rather than 'measured' or 'independent' — the two values that would let a truncated record claim provenance it never had, or compose in quadrature when nothing licensed it. A face that numbers from one, or puts measured at zero, fails a row.",
+  "function": "enumerations",
+  "faces": ["native", "browser"],
+  "rows": {
+    "provenance.unknown":          { "expect": "0" },
+    "provenance.measured":         { "expect": "1" },
+    "provenance.specified":        { "expect": "2" },
+    "provenance.estimated":        { "expect": "3" },
+    "provenance.bounded":          { "expect": "4" },
+    "correlation.undeclared":      { "expect": "0" },
+    "correlation.independent":     { "expect": "1" },
+    "correlation.correlated_with": { "expect": "2" },
+    "distribution.unspecified":    { "expect": "0" },
+    "distribution.gaussian":       { "expect": "1" },
+    "distribution.uniform":        { "expect": "2" }
+  }
+}

@@ -1,0 +1,62 @@
+{
+  "metrology_vector": "0",
+  "id": "0008-corrections-apply-before-bias-composition",
+  "about": "Corrections apply to each stamp before the difference is taken, and the biases compose crosswise afterwards (R32). A correction moves the value and never widens a bound (R5): the photodiode row corrects by -18.2 ms, bounds by its 0.9 ms residual and carries its 0.4 ms standard deviation as a dispersion, and the three stay three. The second row is the same budget without the corrections, so the interval differs by exactly the corrections and the widths do not differ at all. A negative interval is kept as a negative interval. An implementation that widened the bound by the measured latency, or that subtracted first and corrected after, fails the first row.",
+  "function": "Composer::compose",
+  "faces": ["native", "browser"],
+  "chains": {
+    "response": { "id": 1, "links": [10] },
+    "stimulus": { "id": 2, "links": [16] }
+  },
+  "terms": {
+    "photodiode":          { "chain": 1, "from": 0, "to": 0, "early_ns": "900000", "late_ns": "900000", "bias_provenance": "measured:4", "correction": { "ns": "-18200000", "provenance": "measured:4" }, "dispersion": { "sd_ns": "400000", "kind": 1 }, "correlation": "independent" },
+    "panel":               { "chain": 2, "from": 0, "to": 0, "early_ns": "100", "late_ns": "200", "bias_provenance": "bounded:1", "correction": { "ns": "500", "provenance": "bounded:1" } },
+    "panel_uncorrected":   { "chain": 2, "from": 0, "to": 0, "early_ns": "100", "late_ns": "200", "bias_provenance": "bounded:1" },
+    "response_plain":      { "chain": 1, "from": 0, "to": 0, "early_ns": "0", "late_ns": "0", "bias_provenance": "bounded:1" }
+  },
+  "rows": {
+    "a_calibration_moves_the_value_and_leaves_the_widths_alone": {
+      "input": { "later": "response", "earlier": "stimulus", "terms": ["photodiode", "panel"], "later_ns": "1000000000", "earlier_ns": "250000000" },
+      "expect": {
+        "total.kind": "bounded", "total.early_ns": "900200", "total.late_ns": "900100",
+        "known.early_ns": "900200", "known.late_ns": "900100",
+        "unbounded_terms": "none", "uncovered_links": "none",
+        "largest_bounded": "0", "dispersion": "400000/1", "interval_ns": "731799500"
+      }
+    },
+    "without_the_corrections_the_value_differs_by_them": {
+      "input": { "later": "response", "earlier": "stimulus", "terms": ["response_plain", "panel_uncorrected"], "later_ns": "1000000000", "earlier_ns": "250000000" },
+      "expect": {
+        "total.kind": "bounded", "total.early_ns": "200", "total.late_ns": "100",
+        "known.early_ns": "200", "known.late_ns": "100",
+        "unbounded_terms": "none", "uncovered_links": "none",
+        "largest_bounded": "1", "dispersion": "none", "interval_ns": "750000000"
+      }
+    },
+    "a_negative_interval_is_kept": {
+      "input": { "later": "response", "earlier": "stimulus", "terms": ["response_plain", "panel_uncorrected"], "later_ns": "0", "earlier_ns": "250000000" },
+      "expect": {
+        "total.kind": "bounded", "total.early_ns": "200", "total.late_ns": "100",
+        "known.early_ns": "200", "known.late_ns": "100",
+        "unbounded_terms": "none", "uncovered_links": "none",
+        "largest_bounded": "1", "dispersion": "none", "interval_ns": "-250000000"
+      }
+    },
+    "without_stamps_there_is_no_value_and_the_widths_are_the_same": {
+      "input": { "later": "response", "earlier": "stimulus", "terms": ["photodiode", "panel"] },
+      "expect": {
+        "total.kind": "bounded", "total.early_ns": "900200", "total.late_ns": "900100",
+        "known.early_ns": "900200", "known.late_ns": "900100",
+        "unbounded_terms": "none", "uncovered_links": "none",
+        "largest_bounded": "0", "dispersion": "400000/1", "interval_ns": "none"
+      }
+    },
+    "an_interval_that_does_not_fit_i64_is_refused": {
+      "input": { "later": "response", "earlier": "stimulus", "terms": ["response_plain", "panel_uncorrected"], "later_ns": "18446744073709551615", "earlier_ns": "0" },
+      "expect": {
+        "refusal": "refused:overflow",
+        "refusal.names": ""
+      }
+    }
+  }
+}
