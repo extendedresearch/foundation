@@ -31,6 +31,8 @@
 //! | **Unknown poisons the total** | A term unbounded on a side makes the total unbounded on that side, and no accessor returns a partial sum where a total is asked for (R8, R9) |
 //! | **A link nothing covers is unknown** | The composer walks every position of both chains; a run no term covers makes the total unbounded and is named in it (R11) |
 //! | **Coverage is a span** | A term covers a closed range of one chain's positions, not a kind tag — two devices can both have a "device delay", and one stamp can cover several links (R16) |
+//! | **A stamp is accountable only for what came before it** | A stamp's [`Basis`] names the chain position the number was taken at, and the links after it contribute nothing. A hardware stamp shortens the chain rather than shrinking a term (R14) |
+//! | **A mapping reports its uncertainty** | [`Mapping::map`] emits the fit's offset bias, its residual spread as dispersion and its extrapolation penalty, over one span, and returns a bounded reading rather than a bare integer (R39–R42) |
 //! | **Correcting twice is refused** | At most one term covering a position may carry a [`Correction`]; two are refused with both terms and the intersecting positions named (R27, R28, R31) |
 //! | **Corrections move the value, biases describe it** | Corrections apply to each stamp, then the difference is taken, then the biases compose crosswise (R3, R32) |
 //! | **Deterministic** | Terms compose in [`Term`]'s own order, so two runs over the same inputs produce equal budgets whatever order they were submitted in (R30) |
@@ -38,23 +40,30 @@
 //!
 //! # What is here, and what is not
 //!
-//! This is step 1 of the implementation order in `timing-architecture.md`: the
-//! core uncertainty model.
+//! This is steps 1 to 3 of the implementation order in
+//! `timing-architecture.md`: the core uncertainty model, the chain model
+//! reconciled with a stamp's basis, and the clock mapping that reports its
+//! uncertainty.
 //!
 //! - chains and coverage: [`Chain`], [`Link`], [`LinkKind`], [`Span`];
 //! - terms: [`Bias`], [`Dispersion`], [`Correction`], [`Correlation`],
 //!   [`Provenance`], [`Term`];
 //! - composition: [`Composer`], [`Budget`], [`Total`], [`CombinedDispersion`],
-//!   [`CompositionError`].
+//!   [`CompositionError`];
+//! - a stamp's position in its chain: [`Basis`], [`link_kinds`],
+//!   [`Chain::position_of`], [`Chain::through`], [`BasisError`];
+//! - the clock mapping: [`Mapping`], [`MappedReading`], [`MappingProvenance`],
+//!   [`MapError`].
 //!
-//! Not here yet: calibrations and their conditions and expiry (step 5), the
-//! uncertainty-carrying clock mapping (step 3), sample clocks (step 4),
+//! Not here yet: sample clocks and the caller-stated extrapolation limit
+//! (step 4), calibrations and their conditions and expiry (step 5),
 //! requirements and profiles (step 6), the record schema (step 7), and the C
 //! ABI projection (step 8).
 //!
 //! Nothing here reads a clock or touches a platform. The one dependency is
-//! `extendedresearch-clock`, for [`UNBOUNDED`], which is defined once and not
-//! redefined here.
+//! `extendedresearch-clock`, for [`UNBOUNDED`] and [`Basis`], and for the
+//! `Fit`, `Line`, `Reading` and `Bound` [`Mapping`] is built from. Each is
+//! defined once, there, and none of them is redefined here.
 //!
 //! # A term carries two provenances
 //!
@@ -117,17 +126,31 @@
 //! # Ok::<(), extendedresearch_metrology::CompositionError>(())
 //! ```
 
+mod basis;
 mod budget;
 mod chain;
 mod ids;
+mod mapping;
 mod term;
 
+pub use basis::{BasisError, link_kinds};
 pub use budget::{Budget, CombinedDispersion, Composer, CompositionError, Endpoint, Total};
 pub use chain::{Chain, Link, LinkKind, Span};
 pub use ids::{
     ArgumentId, CalibrationId, ChainId, DeviceId, DocumentId, EstimatorId, GroupId, InputsId,
 };
+pub use mapping::{MapError, MappedReading, Mapping, MappingProvenance};
 pub use term::{Bias, Correction, Correlation, Dispersion, DistributionKind, Provenance, Term};
+
+/// Where in the path a reading was taken, re-exported from
+/// `extendedresearch-clock`.
+///
+/// This crate's own surface takes one — [`Chain::position_of`],
+/// [`Composer::later_stamped_at`] — so a caller reconciling a stamp with a chain
+/// needs the type, and re-exporting it means it is the same type and not a
+/// parallel one that drifts. The integers are the clock crate's contract and are
+/// not redefined here.
+pub use extendedresearch_clock::Basis;
 
 /// No bound is known in this direction: `u64::MAX`, re-exported from
 /// `extendedresearch-clock`.
