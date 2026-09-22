@@ -201,6 +201,15 @@ source = "style/configs/prettierrc.json"
 pattern = ".prettierrc.json"
 reason = "As ruff.toml."
 
+[[copy]]
+source = "style/configs/Directory.Build.props"
+pattern = "**/Directory.Build.props"
+reason = """
+MSBuild finds this file by walking up from a project, so it has to sit at the
+root of a .NET tree and cannot be imported from elsewhere. Foundation carries
+its own copy so that it builds under the configuration it ships — which is how
+two defects in that configuration were found."""
+
 # ---------------------------------------------------------------------------
 # One rule, written more than once.
 #
