@@ -1,0 +1,39 @@
+# The vocabulary of an integer crossing a C boundary, and nothing else.
+#
+# **This crate has no dependencies and writes no `unsafe`.** It holds the
+# boundary codes, the predicates and names over them, the `AbiError` trait a
+# package's error type implements, the two conversions between a Rust `Result`
+# and a C status, and the panic guard. A package's safe core can implement
+# `AbiError` without depending on the crate that dereferences a caller's
+# pointer; that separation is why this crate exists.
+#
+# **`guard` sits behind a default-on `std` feature**, because containing a panic
+# is `std::panic::catch_unwind`. Without it the crate is `#![no_std]` and usable
+# from firmware:
+#
+#     cargo check -p extendedresearch-status --no-default-features
+#
+# `token` allocates a `String`, so the crate links `alloc` either way.
+[package]
+name = "extendedresearch-status"
+version = "0.1.1"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "The codes an int32_t C boundary answers, the AbiError trait behind them, and the panic guard."
+readme = "README.md"
+categories = ["api-bindings", "development-tools::ffi", "no-std"]
+keywords = ["ffi", "abi", "bindings", "error-codes"]
+include = ["src/**", "tests/**", "Cargo.toml", "README.md", "LICENSE", "NOTICE"]
+
+[features]
+default = ["std"]
+# `guard`, which needs `std::panic::catch_unwind`. Everything else compiles
+# without it.
+std = []
+
+[lints]
+workspace = true
+
+[dependencies]

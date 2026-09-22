@@ -32,6 +32,10 @@
 //! is talking to before it can read a code, which is the situation this
 //! ecosystem was in when this crate was written.
 
+use alloc::borrow::ToOwned;
+use alloc::format;
+use alloc::string::String;
+
 /// The call succeeded.
 ///
 /// Zero, and it is the only non-negative value any fallible function answers.
@@ -41,14 +45,15 @@ pub const OK: i32 = 0;
 ///
 /// Null where one is required is this rather than a crash. A handle that was
 /// *already destroyed* is undefined and is the one error a boundary cannot
-/// detect — see [`crate::borrow`].
+/// detect — see `extendedresearch-abi`'s `borrow` module.
 pub const ERR_NULL: i32 = -1;
 
 /// A caller's buffer was too small, or an index or length was past what the call
 /// can reach.
 ///
 /// For a buffer, answered with `*out_len` still set to what was needed, so a
-/// caller that guessed low allocates exactly and retries. See [`crate::buffer`].
+/// caller that guessed low allocates exactly and retries. See
+/// `extendedresearch-abi`'s `buffer` module.
 pub const ERR_RANGE: i32 = -2;
 
 /// Text crossing the boundary was not valid UTF-8.
@@ -119,7 +124,7 @@ pub const fn name(code: i32) -> Option<&'static str> {
 /// twice changes nothing. Every binding layer spells a failure with it.
 ///
 /// ```
-/// use extendedresearch_abi::codes::token;
+/// use extendedresearch_status::codes::token;
 ///
 /// assert_eq!(token("EXAMPLE", "ERR_NULL"), "EXAMPLE_ERR_NULL");
 /// assert_eq!(token("EXAMPLE", "EXAMPLE_ERR_TRUNCATED"), "EXAMPLE_ERR_TRUNCATED");
@@ -157,14 +162,13 @@ pub fn token(prefix: &str, name: &str) -> String {
 /// `Display` is the sentence a person reads. It says what happened; the code
 /// and the name say which failure it was, and a caller branches on those.
 ///
-/// [`conformance::error_codes`](crate::conformance::error_codes) checks a
-/// package's declared domain codes, and
-/// [`conformance::errors`](crate::conformance::errors) checks its error values
-/// against them.
+/// `extendedresearch-abi`'s `conformance::error_codes` checks a package's
+/// declared domain codes, and its `conformance::errors` checks the package's
+/// error values against them.
 ///
 /// ```
 /// use std::fmt;
-/// use extendedresearch_abi::codes::{self, AbiError};
+/// use extendedresearch_status::codes::{self, AbiError};
 ///
 /// pub const THING_ERR_REFUSED: i32 = -16;
 ///
@@ -200,7 +204,7 @@ pub fn token(prefix: &str, name: &str) -> String {
 ///
 /// assert_eq!(ThingError::Refused("full".into()).code(), -16);
 /// ```
-pub trait AbiError: std::fmt::Display {
+pub trait AbiError: core::fmt::Display {
     /// The negative `int32_t` the C ABI answers for this failure.
     fn code(&self) -> i32;
 
@@ -217,7 +221,7 @@ pub trait AbiError: std::fmt::Display {
 /// copy-out call answered. `Err` answers the error's [`AbiError::code`].
 ///
 /// ```
-/// use extendedresearch_abi::codes::{self, AbiError};
+/// use extendedresearch_status::codes::{self, AbiError};
 /// # use std::fmt;
 /// # struct Full;
 /// # impl fmt::Display for Full {
@@ -236,8 +240,8 @@ pub trait AbiError: std::fmt::Display {
 ///
 /// **An error whose code is not negative answers [`ERR_STATE`]**, so a defect
 /// in an error type cannot read as success to `if (rc < 0)`.
-/// [`conformance::errors`](crate::conformance::errors) is the test that finds
-/// such a type before a caller does.
+/// `extendedresearch-abi`'s `conformance::errors` is the test that finds such a
+/// type before a caller does.
 #[must_use]
 pub fn status<T, E, F>(result: Result<T, E>, deliver: F) -> i32
 where
@@ -251,6 +255,33 @@ where
             _ => ERR_STATE,
         },
     }
+}
+
+/// Turn a status a C boundary answered back into a `Result`: the other
+/// direction of [`status`].
+///
+/// `Ok` for [`OK`], and the code itself otherwise. Every non-zero code is a
+/// failure to a caller, **including one it has never heard of** — which is what
+/// lets a library add a code without every binding knowing it first.
+///
+/// This is what Rust code calling a C ABI does with each returned `int32_t`:
+/// a package's tests of its own C adapter, a conformance driver, an adapter
+/// wrapping another library's boundary.
+///
+/// ```
+/// use extendedresearch_status::codes::{self, ERR_NULL};
+///
+/// assert_eq!(codes::check(codes::OK), Ok(()));
+/// assert_eq!(codes::check(ERR_NULL), Err(ERR_NULL));
+/// // A code this crate has no name for is still a failure.
+/// assert_eq!(codes::check(-42), Err(-42));
+/// ```
+///
+/// # Errors
+///
+/// The code itself, when it is not [`OK`].
+pub fn check(code: i32) -> Result<(), i32> {
+    if code == OK { Ok(()) } else { Err(code) }
 }
 
 /// What a boundary code means, as a sentence a binding can put in an error.
@@ -367,6 +398,35 @@ mod tests {
         for code in [OK, 1, i32::MAX] {
             assert_eq!(status(Err::<(), _>(Failing(code)), |()| OK), ERR_STATE);
         }
+    }
+
+    #[test]
+    fn check_is_the_inverse_of_status_on_the_codes_status_answers() {
+        assert_eq!(check(OK), Ok(()));
+        for code in [
+            ERR_NULL,
+            ERR_RANGE,
+            ERR_UTF8,
+            ERR_PANIC,
+            ERR_STATE,
+            DOMAIN_FLOOR,
+        ] {
+            assert_eq!(check(code), Err(code));
+            assert_eq!(
+                check(status(Err::<(), _>(Failing(code)), |()| OK)),
+                Err(code)
+            );
+        }
+    }
+
+    #[test]
+    fn check_refuses_a_code_it_has_no_name_for() {
+        // A binding that only knew this crate's codes would still read these as
+        // failures, which is what `rc < 0` buys.
+        assert_eq!(check(-42), Err(-42));
+        assert_eq!(check(i32::MIN), Err(i32::MIN));
+        // And a positive answer is not success either: only zero is.
+        assert_eq!(check(1), Err(1));
     }
 
     #[test]

@@ -21,7 +21,7 @@ use crate::codes::ERR_PANIC;
 /// Run the body of an exported function, turning a panic into [`ERR_PANIC`].
 ///
 /// ```
-/// use extendedresearch_abi::{codes, guard::guard};
+/// use extendedresearch_status::{codes, guard::guard};
 ///
 /// assert_eq!(guard(|| codes::OK), codes::OK);
 /// assert_eq!(guard(|| panic!("a bug")), codes::ERR_PANIC);
@@ -48,18 +48,20 @@ where
 /// comes from.
 ///
 /// ```
-/// use extendedresearch_abi::{borrow, guard};
+/// use extendedresearch_status::guard;
 ///
 /// struct Thing;
 ///
-/// // Stands in for a library's `extern "C" fn thing_destroy(thing: *mut Thing)`.
-/// fn thing_destroy(thing: *mut Thing) {
-///     // SAFETY: the caller's handle came from `into_handle` and is destroyed once.
-///     guard::contain(|| drop(unsafe { borrow::reclaim(thing) }));
+/// // The body of a library's `extern "C" fn thing_destroy(thing: *mut Thing)`,
+/// // once the raw pointer has been turned back into the box that owns it —
+/// // which is `extendedresearch_abi::borrow::reclaim`, and the null handle a
+/// // `_destroy` tolerates is the `None`.
+/// fn destroy(thing: Option<Box<Thing>>) -> bool {
+///     guard::contain(|| drop(thing))
 /// }
 ///
-/// thing_destroy(borrow::into_handle(Thing));
-/// thing_destroy(std::ptr::null_mut()); // null-tolerant
+/// assert!(destroy(Some(Box::new(Thing))));
+/// assert!(destroy(None));
 /// assert!(!guard::contain(|| panic!("a Drop that panics")));
 /// ```
 pub fn contain<F>(body: F) -> bool

@@ -53,12 +53,12 @@ crate that knew one package's prefix could not serve another. The header,
 though, declares them prefixed, because a C header has one flat namespace and
 two libraries in one process both declaring `ERR_NULL` would collide.
 
-`extendedresearch_abi::codes::token` is that step, and it is idempotent: a name
+`extendedresearch_status::codes::token` is that step, and it is idempotent: a name
 that already carries the prefix and an underscore comes back unchanged, so
 applying it to either kind is correct and applying it twice changes nothing.
 
 ```rust
-use extendedresearch_abi::codes::token;
+use extendedresearch_status::codes::token;
 
 assert_eq!(token("EXAMPLE", "ERR_NULL"), "EXAMPLE_ERR_NULL");
 assert_eq!(token("EXAMPLE", "EXAMPLE_ERR_TRUNCATED"), "EXAMPLE_ERR_TRUNCATED");
@@ -72,7 +72,7 @@ sends a reader to `grep` a header for a constant that is not in it.
 
 | Layer | Where the prefix lives |
 |---|---|
-| Rust, the boundary itself | `extendedresearch_abi::codes::token` |
+| Rust, the boundary itself | `extendedresearch_status::codes::token`, re-exported as `extendedresearch_abi::codes::token` |
 | Node | `extendedresearch_napi::Tokens`, constructed with the prefix; `Tokens::token` is `codes::token` |
 | Python | the required `prefix` on the family `extendedresearch_pyo3::exceptions!` generates, read as `ExceptionFamily::PREFIX` |
 | .NET | the `prefix` an `AbiErrors` is constructed with; `AbiErrors.NameOf` applies it |

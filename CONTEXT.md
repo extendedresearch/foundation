@@ -6,7 +6,9 @@ the binding layers each package's Python, Node and .NET bindings share.
 ## The layered architecture
 
 Each package has a **safe Rust core** whose error type implements
-`extendedresearch_abi::codes::AbiError`. Above it:
+`extendedresearch_status::codes::AbiError` — a crate with no dependencies and
+no `unsafe`, so the core does not depend on the crate that dereferences a
+caller's pointer. Above it:
 
 - **Python (PyO3) and Node (napi-rs) bindings call the core directly.** No raw
   handle and no `unsafe`. They convert the core's errors and enumerations with
@@ -18,14 +20,16 @@ Each package has a **safe Rust core** whose error type implements
   each core `Result` into the status it answers. The .NET binding reads that
   adapter with `ExtendedResearch.Interop`.
 
-Error codes use this crate's numbering: `0` is success, `-1` to `-15` are the
-boundary's (`codes.rs`), and each library numbers its own from `-16` down.
+Error codes use one numbering: `0` is success, `-1` to `-15` are the boundary's
+(`crates/status/src/codes.rs`), and each library numbers its own from `-16`
+down.
 
 ## What is here
 
 | Path | What it is |
 |---|---|
-| `crates/abi` | `extendedresearch-abi`. Error codes and the `AbiError` trait, the only module that dereferences a caller's pointer, the measure-then-copy buffer shape, the panic guard, the table behind an enumeration's `_count`/`_at`/`_name`, the calling side C-ABI tests use, and a conformance kit a library runs against its own exports and error codes. It exports no `extern "C"` symbol. The crate docs in `crates/abi/src/lib.rs` state every convention and are the reference for them |
+| `crates/status` | `extendedresearch-status`. The vocabulary of an `int32_t` crossing a C boundary: the codes and the range split, `AbiError`, `status` and its inverse `check`, and the panic guard behind a default-on `std` feature. **No dependencies and no `unsafe`**, so a package's safe core and each binding layer take this and not the pointer mechanics. `#![no_std]` with `--no-default-features` |
+| `crates/abi` | `extendedresearch-abi`. The mechanics of the boundary: the only module that dereferences a caller's pointer, the measure-then-copy buffer shape, the table behind an enumeration's `_count`/`_at`/`_name`, the calling side C-ABI tests use, and a conformance kit a library runs against its own exports and error codes. Depends on `extendedresearch-status` and re-exports its `codes` and `guard`, so both paths compile. It exports no `extern "C"` symbol. The crate docs in `crates/abi/src/lib.rs` state every convention and are the reference for them |
 | `crates/pyo3` | `extendedresearch-pyo3`. `exceptions!` (a package's exception hierarchy, expanded in the consumer), `AbiError` to `PyErr`, and `IntEnum` from an `Enumeration` |
 | `crates/napi` | `extendedresearch-napi`. The `"<PREFIX>_ERR_X: sentence"` error token protocol (`Tokens`), `BigInt` to `u64` refusing what does not fit, and macros that expand to `#[napi]` exports in the consumer |
 | `crates/clock` | `extendedresearch-clock`. Clock readings that carry their domain and a worst-case bound, and the arithmetic over them: bound composition, epochs, the calendar anchor, the timer quantum, the drift check, and a one-way clock fit with the integer mapping it defines. No dependency and no platform call; CI's `wasm` job checks it for `wasm32-unknown-unknown`. `vectors/` holds language-free JSON conformance vectors, which `tests/vectors.rs` runs |
@@ -35,7 +39,7 @@ boundary's (`codes.rs`), and each library numbers its own from `-16` down.
 | `dotnet/Interop.PackageTest` | A consumer that restores the `.nupkg` from a local folder source and compiles it for both targets, C# 8, warnings as errors |
 | `dotnet/Interop.Build` | Compiles `dotnet/Interop` for both targets, C# 8, warnings as errors |
 | `dotnet/Interop.Tests` | xUnit on net8.0, P/Invoking `crates/abi-testlib` |
-| `crates/abi-testlib` | `publish = false`. A cdylib shaped like a package — a safe core and a C adapter over it — for the .NET tests and for Miri. `tests/interop_codes.rs` compares `dotnet/Interop/AbiCodes.cs` with `extendedresearch_abi::codes` |
+| `crates/abi-testlib` | `publish = false`. A cdylib shaped like a package — a safe core and a C adapter over it — for the .NET tests and for Miri. `tests/interop_codes.rs` compares `dotnet/Interop/AbiCodes.cs` with `extendedresearch_status::codes` |
 | `crates/napi-testaddon` | `publish = false`. A Node addon consuming `extendedresearch-napi`'s macros; `test/addon.test.mjs` loads it and runs `npm/binding-runtime/src/` against it |
 | `python/conformance` | `extendedresearch-conformance`, a pip-installable development tool: runs every language binding's driver over one cases file and compares each with the C header and with every other binding. Configured per repository by `conformance.toml`; standard library only |
 | `scripts/build-release-assets.sh` | Builds every release asset into one directory, checks each, and writes `SHA256SUMS`. `scripts/release-checks.py` holds the checks: versions, the npm manifest's publishability, licence copies, and each archive's contents |
@@ -161,8 +165,11 @@ and `publish = false`.
 
 Built, with the check that shows it beside each:
 
-- `crates/abi`, `crates/pyo3`, `crates/napi`, `crates/abi-testlib`:
-  `cargo test --workspace`, on stable and on 1.85.
+- `crates/status`, `crates/abi`, `crates/pyo3`, `crates/napi`,
+  `crates/abi-testlib`: `cargo test --workspace`, on stable and on 1.85.
+- `crates/status` without `std`, which is what keeps the codes usable from
+  firmware: `cargo check -p extendedresearch-status --no-default-features`, in
+  CI's `wasm` job for the host and for `wasm32-unknown-unknown`.
 - The napi macros registering in a real consumer, and the TypeScript sources
   running against it: `node --test crates/napi-testaddon/test/addon.test.mjs`.
 - `ExtendedResearch.Interop` compiling for `netstandard2.1` and `net8.0`
@@ -319,6 +326,7 @@ cargo fmt --all --check
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
 cargo +1.85 test --workspace
+cargo check -p extendedresearch-status --no-default-features   # the crate is #![no_std] without it
 # Miri cannot read files, so the discipline test and doctests are left out.
 cargo +nightly miri test -p extendedresearch-abi --lib --test borrow --test buffer --test conformance --test enumeration --test binding
 cargo +nightly miri test -p extendedresearch-abi-testlib --test conformance

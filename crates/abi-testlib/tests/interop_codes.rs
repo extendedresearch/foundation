@@ -1,5 +1,5 @@
 //! The boundary codes and names `dotnet/Interop/AbiCodes.cs` states are
-//! `extendedresearch-abi`'s.
+//! `extendedresearch-status`'s.
 //!
 //! The C# is the .NET form of `codes`, written by hand, so nothing but this
 //! comparison notices a value or a name that differs. It sits in this crate,
@@ -10,7 +10,7 @@
 
 use std::path::Path;
 
-use extendedresearch_abi::codes;
+use extendedresearch_status::codes;
 
 fn abi_codes_cs() -> String {
     let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../dotnet/Interop/AbiCodes.cs");

@@ -43,8 +43,22 @@ fn a_failure_code_is_passed_through_and_named() {
         binding::bytes(|_, _, _| -42).unwrap_err().to_string(),
         "the library answered -42"
     );
+}
+
+/// `check` moved to `extendedresearch_status::codes`, beside the `status` it
+/// inverts. Consumers reach it through this path until they migrate, so the
+/// re-export is checked rather than assumed.
+#[test]
+fn check_is_still_reachable_through_this_module() {
     assert_eq!(binding::check(OK), Ok(()));
     assert_eq!(binding::check(ERR_NULL), Err(ERR_NULL));
+    for code in [OK, ERR_NULL, ERR_STATE, -42, 1] {
+        assert_eq!(
+            binding::check(code),
+            extendedresearch_status::codes::check(code),
+            "the re-export and the function it names disagree about {code}",
+        );
+    }
 }
 
 #[test]

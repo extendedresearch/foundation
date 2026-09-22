@@ -8,9 +8,9 @@
 
 use std::fmt;
 
-use extendedresearch_abi::codes::{self, AbiError, DOMAIN_FLOOR};
 use extendedresearch_abi::enumeration::Enumeration;
 use extendedresearch_pyo3::{ExceptionFamily, Raise, code_error, error, exceptions, int_enum};
+use extendedresearch_status::codes::{self, AbiError, DOMAIN_FLOOR};
 use pyo3::exceptions::{PyIndexError, PyOSError, PyTimeoutError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::PyModule;

@@ -44,7 +44,7 @@
 
 use std::fmt::Display;
 
-use extendedresearch_abi::codes::{self, AbiError};
+use extendedresearch_status::codes::{self, AbiError};
 use napi::bindgen_prelude::BigInt;
 use napi::{Error, Status};
 
@@ -89,7 +89,7 @@ impl Tokens {
     /// carries it (`EXAMPLE_ERR_TRUNCATED`) is unchanged. [`AbiError::name`]
     /// answers the first kind for boundary codes and the second for domain
     /// codes, so this is the one step between them. It is
-    /// `extendedresearch_abi::codes::token`, which the pyo3 layer applies too.
+    /// `extendedresearch_status::codes::token`, which the pyo3 layer applies too.
     #[must_use]
     pub fn token(&self, name: &str) -> String {
         codes::token(self.prefix, name)
@@ -229,7 +229,7 @@ impl<T, E: AbiError> Report<T> for Result<T, E> {
 /// Export `statusCodes()` and `bindingCodes()` from the consuming crate.
 ///
 /// ```text
-/// use extendedresearch_abi::codes::{ERR_NULL, ERR_PANIC, ERR_RANGE, ERR_UTF8};
+/// use extendedresearch_status::codes::{ERR_NULL, ERR_PANIC, ERR_RANGE, ERR_UTF8};
 ///
 /// static TOKENS: extendedresearch_napi::Tokens = extendedresearch_napi::Tokens::new("EXAMPLE");
 /// const BOUNDARY_CODES: &[i32] = &[ERR_NULL, ERR_RANGE, ERR_UTF8, ERR_PANIC];

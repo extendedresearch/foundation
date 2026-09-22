@@ -31,3 +31,4 @@ workspace = true
 
 [dependencies]
 extendedresearch-abi = { path = "../abi" }
+extendedresearch-status = { path = "../status" }

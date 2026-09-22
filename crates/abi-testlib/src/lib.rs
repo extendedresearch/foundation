@@ -30,9 +30,10 @@ use std::ffi::c_char;
 use std::fmt;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use extendedresearch_abi::codes::{self, AbiError, DOMAIN_FLOOR, ERR_NULL, ERR_STATE, OK};
+use extendedresearch_abi::borrow;
 use extendedresearch_abi::enumeration::Enumeration;
-use extendedresearch_abi::{borrow, guard};
+use extendedresearch_status::codes::{self, AbiError, DOMAIN_FLOOR, ERR_NULL, ERR_STATE, OK};
+use extendedresearch_status::guard;
 
 /// The ABI version this library implements.
 pub const TESTLIB_ABI_VERSION: u32 = 1;
