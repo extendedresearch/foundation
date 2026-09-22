@@ -212,7 +212,34 @@ reason = "As ruff.toml."
 # them. A rule implemented twice and not registered is the finding.
 # ---------------------------------------------------------------------------
 
-# None registered yet. The first two to register, both found by the September
+[[shared_rule]]
+name = "enumeration short names"
+vectors = "crates/pyo3/vectors/0001-enumeration-short-names-strip-one-shared-prefix.json"
+implementations = [
+  "crates/pyo3/src/lib.rs",
+  "npm/binding-runtime/src/enums.ts",
+]
+
+[[shared_rule]]
+name = "error token grammar"
+vectors = "crates/status/vectors/0001-an-error-token-is-the-header-spelling-of-a-constant.json"
+implementations = [
+  "crates/status/src/codes.rs",
+  "dotnet/Interop/AbiErrors.cs",
+]
+
+# One implementation listed, and the gap is the point: the platform table and
+# the classifier that joins it to these literals live in consuming
+# repositories, where nothing runs them against this file. That is what
+# decision 0002's merge closes.
+[[shared_rule]]
+name = "suspend behaviour classification"
+vectors = "crates/clock/vectors/0023-monotonic-sources-include-or-exclude-suspend.json"
+implementations = [
+  "crates/clock/src/domain.rs",
+]
+
+# Previously none were registered. The first two to register, both found by the September
 # 2026 audit, are the enumeration short-name rule (Rust in crates/pyo3, and
 # TypeScript in npm/binding-runtime, which disagree on a name collision) and the
 # error-token grammar (Rust in crates/abi, re-implemented in C# in
