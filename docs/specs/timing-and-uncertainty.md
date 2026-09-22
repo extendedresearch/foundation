@@ -187,8 +187,28 @@ any of these has optimised the smallest term.
 
 ## 6. Terms and provenance
 
-- **R17** A term MUST carry: the span it covers, a bias, an optional
-  dispersion, an optional correction, and a provenance.
+- **R17** A term MUST carry: the span it covers, a bias, the provenance of
+  that bias, an optional dispersion, and an optional correction — where a
+  correction carries **its own provenance**, distinct from the bias's.
+
+  *A single provenance per term cannot represent a real case.* A one-way clock
+  fit over one span produces a correction whose provenance is `Estimated` (the
+  fitted offset, from a versioned estimator over stored observations) and a
+  residual bias of `(UNBOUNDED, 0)` whose provenance is `Bounded` — the argument
+  being that transport delay is never negative. They are two epistemic objects
+  about one span, and flattening them loses which of the two a reviewer should
+  attack.
+- **R17a** An absent correction and a zero correction are different claims.
+  `None` means no correction was applied; a correction of zero asserts that the
+  correct adjustment is zero. A recorder that applies no clock correction at all
+  — session time is receipt time — states the first, and the transport delay is
+  then present in the number and absent from any correction. This is R6 for
+  corrections.
+- **R17b** A term MAY cover several links. A chain does not have to give each
+  link its own term: a host that takes one stamp covering both its receive path
+  and its scheduling queue, and can quantify only their sum, attributes one term
+  to a span of two links. A link inside a covered span is covered for the
+  purposes of R11.
 - **R18** A term MUST be fixed-size and `Copy`. Free text MUST NOT appear in a
   term; it lives in a side table of the record, addressed by identifier. This
   keeps a term usable in a hot path and representable across the C ABI without
@@ -202,6 +222,13 @@ any of these has optimised the smallest term.
   are different epistemic objects. They MUST NOT flatten to the same
   representation. They age differently, they compose with different confidence,
   and a reviewer will ask which you had.
+- **R19a** A `Bounded` argument MUST state the **assumption** its bound rests
+  on, not the arithmetic that produced it. The motivating case is a round-trip
+  bound of ±`min_rtt`/2, which holds only if the path is symmetric — ordinary to
+  violate on radio, and on any link whose uplink and downlink differ. Nothing in
+  the observations reveals the asymmetry, so a reader given the arithmetic
+  without the assumption takes a conditional bound as unconditional. This is the
+  one place in the model that can produce a confidently wrong number.
 - **R21** Every identifier a provenance names MUST resolve within the record
   that carries the term (§12).
 - **R22** An `Estimated` term MUST name the estimator **version**. Two
@@ -223,17 +250,26 @@ representable (R10).
   conditions it was performed under, and the number of repetitions.
 - **R24** Conditions MUST be recorded as structured key/value pairs, not prose.
   A display latency measured at 1920×1080 and 60 Hz says nothing about the same
-  panel at 144 Hz.
+  panel at 144 Hz. **A device's firmware version is a condition**, and is the
+  one most likely to invalidate a device-delay measurement without anything
+  visible changing.
+- **R24a** The absence of a calibration for a span is a claim that the span's
+  contribution is unknown (R10), not a gap to be skipped. A reader MUST be able
+  to distinguish "no calibration exists for this device" from "this device
+  contributes nothing".
 - **R25** Applying a calibration outside its recorded conditions MUST be an
   error. It MUST NOT be silently skipped, and it MUST NOT be silently applied.
 - **R26** A calibration with an expiry MUST NOT be applied past it. A
   calibration with no expiry is a claim that nothing changed, which is a claim
   nobody checked; the record MUST make the absence of an expiry visible rather
   than treating it as permanence.
-- **R27** Two calibrations whose spans intersect MUST NOT both apply to one
-  budget. The composer refuses rather than summing. A trigger-based alignment
-  already contains the device delay; applying both corrects twice, by exactly
-  the size of the term the calibration exists to capture.
+- **R27** **At most one term covering a given span may carry a correction.**
+  Two terms MAY share a span when at most one of them corrects. The hazard is
+  correcting twice — a trigger-based alignment already contains the device
+  delay, and applying both subtracts it twice, by exactly the size of the term
+  the calibration exists to capture. Two bias bounds over one span are
+  conservative rather than wrong, and forbidding them would make R17's case
+  unrepresentable.
 - **R28** A refusal under R25, R26 or R27 MUST name the calibrations involved
   and the overlapping or violated span.
 
@@ -245,8 +281,9 @@ representable (R10).
   chain of the earlier stamp and those covering the chain of the later one.
 - **R30** Composition MUST be deterministic: a documented, stable ordering over
   terms, so that two runs over the same inputs produce bit-identical totals.
-- **R31** The composer MUST detect and refuse span overlap (R27), and MUST
-  detect chain links covered by no term and mark the total unbounded (R11).
+- **R31** The composer MUST detect and refuse two corrections over intersecting
+  spans (R27), and MUST detect chain links covered by no term and mark the total
+  unbounded (R11).
 - **R32** Corrections apply to the value before bias composition. The order is:
   resolve each stamp's value with its corrections applied, subtract, then
   compose biases crosswise (R3).
@@ -329,6 +366,29 @@ offset.
   the default tolerance, and the record MUST show that this is what happened.
   *(Implemented — `tolerance_for_rate`.)*
 
+### 10.1 Data that never arrived
+
+A driver that stops reading while an instrument's own buffer discards produces
+loss with no sequence number and no record of itself. It is the term that most
+often invalidates a timing claim in practice, and it is not a delay — so the
+model treats it explicitly rather than leaving its absence to read as an
+oversight.
+
+- **R48a** **Loss is not an uncertainty term and MUST NOT be expressed as one.**
+  A term says where in an interval the true instant lies. Data that never
+  arrived shifts every later sample's index, which is a different failure: not a
+  wider bound, but a wrong answer with a narrow one.
+- **R48b** A gap MUST be representable as a discontinuity in a stream's sample
+  index, carried in the record (§12) alongside the observations.
+- **R48c** **A sample clock MUST refuse to map an index across a known gap.**
+  Index-to-time mapping assumes contiguity; across a gap that assumption is
+  false and the mapping is wrong rather than uncertain. Refusing is the only
+  answer that does not produce a confident wrong number.
+- **R48d** An unknown gap cannot be refused, only bounded. Where a stream
+  carries no sequence number, the record MUST say so, because "no gap was
+  detected" and "gaps could not be detected" are different statements about the
+  same file.
+
 ---
 
 ## 11. Requirements, and refusal as policy
@@ -407,6 +467,17 @@ someone who has none of this software.
 ---
 
 ## 14. What this specification does not require
+
+**It does not model how good a mapping is.** A verdict like "this fit is usable"
+is a predicate over a dispersion and a tolerance — typically whether a residual
+spread fits within one sample period of the stream being compared against. It is
+not a provenance: provenance says *how a number was arrived at*, and a usability
+verdict says *how well it turned out*, computed after the fact. The right
+tolerance also depends on the stream you are comparing against rather than on
+the stream the mapping describes, so the verdict belongs to the consumer and is
+recomputable from what the record already carries. **The model therefore carries
+no field for it, and MUST NOT grow one.** A recorder that stores such a verdict
+is storing a derived value, which R56 already discourages.
 
 It does not require a minimum fidelity. It does not require PTP, a photodiode, a
 trigger box, or a hardware timestamp. It does not require a calibration to
