@@ -1,0 +1,175 @@
+{
+  "shared_rule_vector": "0",
+  "id": "0001-enumeration-short-names-strip-one-shared-prefix",
+  "about": "The short name a binding gives each member of an enumeration, and when it refuses to give one. The prefix is the longest run every name shares, cut back to just past its last underscore: ORIGIN_UNSPECIFIED and ORIGIN_RAW share ORIGIN_, and REFUSE_REASON_PORTS and REFUSE_REASON_PROTOCOL share REFUSE_REASON_ rather than REFUSE_REASON_P, because half a word is not a prefix. A shared run with no underscore in it strips nothing, and so does an empty list of names. One name is its own list, so STAMP_UNDATED strips to UNDATED and ONLY strips to nothing. A member whose short name would be empty, or would start with a digit (RATE_50HZ becoming 50HZ, which is not an identifier in either language), keeps the contract's full spelling. That fallback is what lets two short names collide in a table whose contract names are all distinct, and a collision is refused rather than resolved: the contract is ambiguous at that point, and binding one name to two values is the worse failure because it is silent. The prefix is derived from the names rather than written down, because a family's C constant prefix and its contract prefix can differ; a header spelling a family EXAMPLE_ASSERTED_BY_* may have a contract calling the same members ASSERTION_METHOD_*. Encoding: input.call is shared_prefix (input.names, expect the prefix as text, empty string for none), short_name (input.name and input.prefix, expect the short name) or short_names (input.members, each a value as a decimal string and the contract's name; expect an object from each contract name to its short name, or the string refused:short_name_collision). Rust computes the prefix as a byte count and TypeScript as a string, so the rows hold the string and the Rust runner takes its length. The rows do not pin short_name for a name that does not begin with the given prefix: the two implementations disagree there, and no caller reaches it, because the prefix is always common to every name in the table.",
+  "function": "enumeration_short_names",
+  "implementations": [
+    "crates/pyo3/src/lib.rs",
+    "npm/binding-runtime/src/enums.ts"
+  ],
+  "rows": {
+    "a_shared_prefix_is_cut_back_to_its_last_underscore": {
+      "input": {
+        "call": "shared_prefix",
+        "names": ["ORIGIN_UNSPECIFIED", "ORIGIN_RAW"]
+      },
+      "expect": "ORIGIN_"
+    },
+    "half_a_word_is_not_a_prefix": {
+      "input": {
+        "call": "shared_prefix",
+        "names": ["REFUSE_REASON_PORTS", "REFUSE_REASON_PROTOCOL"]
+      },
+      "expect": "REFUSE_REASON_"
+    },
+    "names_with_nothing_in_common_share_no_prefix": {
+      "input": {
+        "call": "shared_prefix",
+        "names": ["ALPHA", "BETA"]
+      },
+      "expect": ""
+    },
+    "a_shared_run_with_no_underscore_is_no_prefix": {
+      "input": {
+        "call": "shared_prefix",
+        "names": ["AB_X", "AC_Y"]
+      },
+      "expect": ""
+    },
+    "an_empty_list_of_names_has_no_prefix": {
+      "input": {
+        "call": "shared_prefix",
+        "names": []
+      },
+      "expect": ""
+    },
+    "one_name_is_its_own_list": {
+      "input": {
+        "call": "shared_prefix",
+        "names": ["STAMP_UNDATED"]
+      },
+      "expect": "STAMP_"
+    },
+    "one_name_with_no_underscore_has_no_prefix": {
+      "input": {
+        "call": "shared_prefix",
+        "names": ["ONLY"]
+      },
+      "expect": ""
+    },
+    "the_prefix_is_removed": {
+      "input": {
+        "call": "short_name",
+        "name": "ORIGIN_RAW",
+        "prefix": "ORIGIN_"
+      },
+      "expect": "RAW"
+    },
+    "a_leading_digit_keeps_the_full_name": {
+      "input": {
+        "call": "short_name",
+        "name": "RATE_50HZ",
+        "prefix": "RATE_"
+      },
+      "expect": "RATE_50HZ"
+    },
+    "an_empty_short_name_keeps_the_full_name": {
+      "input": {
+        "call": "short_name",
+        "name": "RATE_",
+        "prefix": "RATE_"
+      },
+      "expect": "RATE_"
+    },
+    "an_empty_prefix_removes_nothing": {
+      "input": {
+        "call": "short_name",
+        "name": "ALPHA",
+        "prefix": ""
+      },
+      "expect": "ALPHA"
+    },
+    "every_member_loses_the_shared_prefix": {
+      "input": {
+        "call": "short_names",
+        "members": [
+          { "value": "0", "name": "ORIGIN_UNSPECIFIED" },
+          { "value": "1", "name": "ORIGIN_RAW" },
+          { "value": "2", "name": "ORIGIN_DERIVED" }
+        ]
+      },
+      "expect": {
+        "ORIGIN_UNSPECIFIED": "UNSPECIFIED",
+        "ORIGIN_RAW": "RAW",
+        "ORIGIN_DERIVED": "DERIVED"
+      }
+    },
+    "a_digit_fallback_sits_beside_a_stripped_name": {
+      "input": {
+        "call": "short_names",
+        "members": [
+          { "value": "0", "name": "RATE_UNSPECIFIED" },
+          { "value": "50", "name": "RATE_50HZ" }
+        ]
+      },
+      "expect": {
+        "RATE_UNSPECIFIED": "UNSPECIFIED",
+        "RATE_50HZ": "RATE_50HZ"
+      }
+    },
+    "one_member_strips_to_its_last_segment": {
+      "input": {
+        "call": "short_names",
+        "members": [{ "value": "7", "name": "STAMP_UNDATED" }]
+      },
+      "expect": {
+        "STAMP_UNDATED": "UNDATED"
+      }
+    },
+    "one_member_with_no_underscore_keeps_its_name": {
+      "input": {
+        "call": "short_names",
+        "members": [{ "value": "7", "name": "ONLY" }]
+      },
+      "expect": {
+        "ONLY": "ONLY"
+      }
+    },
+    "members_with_nothing_in_common_keep_their_names": {
+      "input": {
+        "call": "short_names",
+        "members": [
+          { "value": "0", "name": "ALPHA" },
+          { "value": "1", "name": "BETA" }
+        ]
+      },
+      "expect": {
+        "ALPHA": "ALPHA",
+        "BETA": "BETA"
+      }
+    },
+    "an_empty_short_name_and_a_stripped_one_coexist": {
+      "input": {
+        "call": "short_names",
+        "members": [
+          { "value": "0", "name": "RATE_" },
+          { "value": "1", "name": "RATE_FAST" }
+        ]
+      },
+      "expect": {
+        "RATE_": "RATE_",
+        "RATE_FAST": "FAST"
+      }
+    },
+    "two_members_that_would_share_a_short_name_refuse": {
+      "input": {
+        "call": "short_names",
+        "members": [
+          { "value": "0", "name": "RATE_RATE_50HZ" },
+          { "value": "1", "name": "RATE_50HZ" }
+        ]
+      },
+      "expect": "refused:short_name_collision"
+    }
+  }
+}

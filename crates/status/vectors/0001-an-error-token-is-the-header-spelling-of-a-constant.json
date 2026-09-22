@@ -1,0 +1,164 @@
+{
+  "shared_rule_vector": "0",
+  "id": "0001-an-error-token-is-the-header-spelling-of-a-constant",
+  "about": "The token a binding puts in front of a failure's sentence: the package header's own spelling of the constant, as docs/conventions/error-tokens.md states the grammar. A boundary code is named from the table every library on these conventions shares, unprefixed at the source (ERR_NULL) because the crate that names it cannot know one package's prefix; the header declares it prefixed (EXAMPLE_ERR_NULL) because a C header has one flat namespace. A domain code is named from what the package registered. The one step between either name and the token is the same: a name that already carries the prefix followed by an underscore comes back unchanged, and every other name gains the prefix and an underscore. The step is therefore idempotent, correct for both kinds of name, and applies to a domain name a package registered without its prefix, which is the case the two implementations disagreed on before this vector. A name that merely starts with the same letters is not the prefix: EXAMPLE0_ERR_X becomes EXAMPLE_EXAMPLE0_ERR_X, which the Rust doctest already covered and which is deliberately ugly, because a package that produces it has named a constant no header declares. A code with no name on either side is <PREFIX>_ERR_UNKNOWN, which is the same grammar applied to ERR_UNKNOWN and is not in any header. Encoding: input.call is token (input.prefix and input.name, expect the token) or name_of (input.prefix, input.code as a decimal string, and input.domain, the package's registration from decimal code to declared name; expect the token). A row's expectation is the token as text.",
+  "function": "error_token",
+  "implementations": [
+    "crates/status/src/codes.rs",
+    "dotnet/Interop/AbiErrors.cs"
+  ],
+  "rows": {
+    "a_boundary_name_gains_the_prefix": {
+      "input": { "call": "token", "prefix": "EXAMPLE", "name": "ERR_NULL" },
+      "expect": "EXAMPLE_ERR_NULL"
+    },
+    "another_package_uses_its_own_prefix": {
+      "input": { "call": "token", "prefix": "WIDGET", "name": "ERR_NULL" },
+      "expect": "WIDGET_ERR_NULL"
+    },
+    "success_is_named_the_same_way": {
+      "input": { "call": "token", "prefix": "EXAMPLE", "name": "OK" },
+      "expect": "EXAMPLE_OK"
+    },
+    "a_domain_name_that_already_carries_the_prefix_is_unchanged": {
+      "input": {
+        "call": "token",
+        "prefix": "EXAMPLE",
+        "name": "EXAMPLE_ERR_TRUNCATED"
+      },
+      "expect": "EXAMPLE_ERR_TRUNCATED"
+    },
+    "applying_the_step_twice_changes_nothing": {
+      "input": {
+        "call": "token",
+        "prefix": "EXAMPLE",
+        "name": "EXAMPLE_ERR_NULL"
+      },
+      "expect": "EXAMPLE_ERR_NULL"
+    },
+    "the_same_letters_without_an_underscore_are_not_the_prefix": {
+      "input": {
+        "call": "token",
+        "prefix": "EXAMPLE",
+        "name": "EXAMPLE0_ERR_X"
+      },
+      "expect": "EXAMPLE_EXAMPLE0_ERR_X"
+    },
+    "a_name_equal_to_the_prefix_gains_it": {
+      "input": { "call": "token", "prefix": "EXAMPLE", "name": "EXAMPLE" },
+      "expect": "EXAMPLE_EXAMPLE"
+    },
+    "a_name_that_is_the_prefix_and_an_underscore_is_unchanged": {
+      "input": { "call": "token", "prefix": "EXAMPLE", "name": "EXAMPLE_" },
+      "expect": "EXAMPLE_"
+    },
+    "err_null_is_named_from_the_shared_table": {
+      "input": {
+        "call": "name_of",
+        "prefix": "EXAMPLE",
+        "code": "-1",
+        "domain": {}
+      },
+      "expect": "EXAMPLE_ERR_NULL"
+    },
+    "err_range_is_named_from_the_shared_table": {
+      "input": {
+        "call": "name_of",
+        "prefix": "EXAMPLE",
+        "code": "-2",
+        "domain": {}
+      },
+      "expect": "EXAMPLE_ERR_RANGE"
+    },
+    "err_utf8_is_named_from_the_shared_table": {
+      "input": {
+        "call": "name_of",
+        "prefix": "EXAMPLE",
+        "code": "-3",
+        "domain": {}
+      },
+      "expect": "EXAMPLE_ERR_UTF8"
+    },
+    "err_panic_is_named_from_the_shared_table": {
+      "input": {
+        "call": "name_of",
+        "prefix": "EXAMPLE",
+        "code": "-4",
+        "domain": {}
+      },
+      "expect": "EXAMPLE_ERR_PANIC"
+    },
+    "err_state_is_named_from_the_shared_table": {
+      "input": {
+        "call": "name_of",
+        "prefix": "EXAMPLE",
+        "code": "-5",
+        "domain": {}
+      },
+      "expect": "EXAMPLE_ERR_STATE"
+    },
+    "zero_is_named_too": {
+      "input": {
+        "call": "name_of",
+        "prefix": "EXAMPLE",
+        "code": "0",
+        "domain": {}
+      },
+      "expect": "EXAMPLE_OK"
+    },
+    "a_domain_code_registered_with_its_declared_name": {
+      "input": {
+        "call": "name_of",
+        "prefix": "EXAMPLE",
+        "code": "-16",
+        "domain": { "-16": "EXAMPLE_ERR_TRUNCATED" }
+      },
+      "expect": "EXAMPLE_ERR_TRUNCATED"
+    },
+    "a_domain_code_registered_under_a_bare_name_gains_the_prefix": {
+      "input": {
+        "call": "name_of",
+        "prefix": "EXAMPLE",
+        "code": "-17",
+        "domain": { "-17": "ERR_TIMEOUT" }
+      },
+      "expect": "EXAMPLE_ERR_TIMEOUT"
+    },
+    "a_domain_name_that_merely_starts_with_the_prefix_letters": {
+      "input": {
+        "call": "name_of",
+        "prefix": "EXAMPLE",
+        "code": "-18",
+        "domain": { "-18": "EXAMPLE0_ERR_X" }
+      },
+      "expect": "EXAMPLE_EXAMPLE0_ERR_X"
+    },
+    "a_registration_names_only_its_own_code": {
+      "input": {
+        "call": "name_of",
+        "prefix": "EXAMPLE",
+        "code": "-16",
+        "domain": { "-16": "EXAMPLE_ERR_TRUNCATED", "-17": "ERR_TIMEOUT" }
+      },
+      "expect": "EXAMPLE_ERR_TRUNCATED"
+    },
+    "a_boundary_range_code_with_no_name_is_unknown": {
+      "input": {
+        "call": "name_of",
+        "prefix": "EXAMPLE",
+        "code": "-6",
+        "domain": {}
+      },
+      "expect": "EXAMPLE_ERR_UNKNOWN"
+    },
+    "a_domain_code_the_package_never_registered_is_unknown": {
+      "input": {
+        "call": "name_of",
+        "prefix": "EXAMPLE",
+        "code": "-99",
+        "domain": {}
+      },
+      "expect": "EXAMPLE_ERR_UNKNOWN"
+    }
+  }
+}

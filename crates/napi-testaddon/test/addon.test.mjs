@@ -195,3 +195,78 @@ test("two members sharing a short name are refused", () => {
     /share the short name/,
   );
 });
+
+// The shared-rule vector for the short-name rule. `extendedresearch-pyo3`
+// implements the same rule in Rust and `crates/pyo3/tests/vectors.rs` runs it
+// against this same file; neither implementation depends on the other, and the
+// rule is registered as a `[[shared_rule]]` in `ecosystem/PACKAGES.toml`. A row
+// is never edited to match an implementation: when one fails, either the
+// implementation is wrong or the rule the vector states changed.
+const SHORT_NAME_VECTOR = join(
+  ROOT,
+  "crates",
+  "pyo3",
+  "vectors",
+  "0001-enumeration-short-names-strip-one-shared-prefix.json",
+);
+
+function observe(input) {
+  switch (input.call) {
+    // The vector holds the prefix as text. This side computes a string and the
+    // Rust side a byte count off the front of the first name.
+    case "shared_prefix":
+      return sharedPrefix(input.names);
+    case "short_name":
+      return shortName(input.name, input.prefix);
+    case "short_names": {
+      const members = input.members.map((one) => ({
+        value: Number(one.value),
+        name: one.name,
+      }));
+      let built;
+      try {
+        built = contract(members);
+      } catch {
+        return "refused:short_name_collision";
+      }
+      // The keys of `byName` are the short names, in the order the members
+      // were reported.
+      const short = Object.keys(built.byName);
+      return Object.fromEntries(
+        members.map((one, at) => [one.name, short[at]]),
+      );
+    }
+    default:
+      throw new Error(`no runner for call ${input.call}`);
+  }
+}
+
+test("the short-name rule matches the shared vector", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const vector = JSON.parse(await readFile(SHORT_NAME_VECTOR, "utf8"));
+  assert.equal(vector.shared_rule_vector, "0");
+  assert.equal(vector.function, "enumeration_short_names");
+
+  const failures = [];
+  let checked = 0;
+  for (const [name, row] of Object.entries(vector.rows)) {
+    const got = observe(row.input);
+    if (typeof row.expect === "string") {
+      checked += 1;
+      if (got !== row.expect) {
+        failures.push(`${name}: expected ${row.expect}, got ${got}`);
+      }
+      continue;
+    }
+    for (const [field, want] of Object.entries(row.expect)) {
+      checked += 1;
+      const one = typeof got === "string" ? got : got[field];
+      if (one !== want) {
+        failures.push(`${name}.${field}: expected ${want}, got ${one}`);
+      }
+    }
+  }
+  assert.deepEqual(failures, [], `${failures.length} of ${checked} rows failed`);
+  // Guards against a runner that silently reads nothing.
+  assert.ok(checked >= 20, `only ${checked} rows checked`);
+});

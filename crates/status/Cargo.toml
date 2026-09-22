@@ -25,7 +25,7 @@ description = "The codes an int32_t C boundary answers, the AbiError trait behin
 readme = "README.md"
 categories = ["api-bindings", "development-tools::ffi", "no-std"]
 keywords = ["ffi", "abi", "bindings", "error-codes"]
-include = ["src/**", "tests/**", "Cargo.toml", "README.md", "LICENSE", "NOTICE"]
+include = ["src/**", "tests/**", "vectors/**", "Cargo.toml", "README.md", "LICENSE", "NOTICE"]
 
 [features]
 default = ["std"]

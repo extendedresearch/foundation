@@ -6,7 +6,7 @@
 #![allow(clippy::expect_used, clippy::unwrap_used, clippy::indexing_slicing)]
 
 use extendedresearch_abi::enumeration::Enumeration;
-use extendedresearch_pyo3::{member_names, shared_prefix, short_name};
+use extendedresearch_pyo3::{ShortNameCollision, member_names, shared_prefix, short_name};
 
 #[test]
 fn the_prefix_is_cut_back_to_an_underscore() {
@@ -44,8 +44,24 @@ fn a_short_name_that_is_empty_or_starts_with_a_digit_falls_back() {
 fn member_names_put_the_short_name_first_and_skip_a_redundant_alias() {
     static TABLE: Enumeration = Enumeration::new(&[(0, "ONE_A"), (1, "ONE_9")]);
     assert_eq!(
-        member_names(&TABLE),
+        member_names(&TABLE).unwrap(),
         [("A", 0), ("ONE_A", 0), ("ONE_9", 1)],
         "ONE_9 keeps its full name and is bound once"
+    );
+}
+
+/// The vector covers a collision between two short names. This is the other
+/// way one arrives, and it is this crate's alone: TypeScript binds no alias, so
+/// a short name equal to another member's full name collides only here.
+#[test]
+fn an_alias_that_is_another_members_short_name_is_refused() {
+    static TABLE: Enumeration = Enumeration::new(&[(0, "A_B"), (1, "A_A_B")]);
+    assert_eq!(
+        member_names(&TABLE),
+        Err(ShortNameCollision {
+            name: "A_B",
+            first: "A_B",
+            second: "A_A_B",
+        })
     );
 }

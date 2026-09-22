@@ -270,3 +270,23 @@ fn a_single_member_keeps_its_full_name() {
         assert_eq!(lone.len().unwrap(), 1);
     });
 }
+
+static COLLIDING: Enumeration = Enumeration::new(&[(0, "RATE_RATE_50HZ"), (1, "RATE_50HZ")]);
+
+/// `IntEnum` cannot catch this. The members arrive as a mapping, so the second
+/// `RATE_50HZ` would overwrite the first and the class would come out with one
+/// member where the contract has two, raising nothing. The vector row is
+/// `two_members_that_would_share_a_short_name_refuse`.
+#[test]
+fn a_table_whose_short_names_collide_is_refused() {
+    Python::attach(|py| {
+        let refused = int_enum(py, "Colliding", "thing", "", &COLLIDING).unwrap_err();
+        assert!(refused.is_instance_of::<pyo3::exceptions::PyValueError>(py));
+        assert!(
+            refused
+                .to_string()
+                .contains("share the short name RATE_50HZ"),
+            "{refused}"
+        );
+    });
+}

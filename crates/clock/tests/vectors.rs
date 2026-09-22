@@ -54,7 +54,12 @@ const VECTORS: &[&str] = &[
     "0020-a-tolerance-is-one-sample-period",
     "0021-a-session-subsample-halves-and-doubles-its-stride",
     "0022-a-sliding-window-keeps-a-span-of-source-time",
+    "0023-monotonic-sources-include-or-exclude-suspend",
 ];
+
+/// The two vectors that hold the monotonic-source literal set between them.
+const LITERALS: &str = "0017-monotonic-source-literals-are-bare-identifiers";
+const CLASSIFICATION: &str = "0023-monotonic-sources-include-or-exclude-suspend";
 
 /// The fixture strings a vector does not carry.
 const FIXTURE_SOURCE: &str = "CLOCK_MONOTONIC";
@@ -685,18 +690,98 @@ fn suspend_vector(vector: &Json) -> Observed {
     out
 }
 
+/// Vector 0017's test for a bare identifier. Both vectors over the literal set
+/// apply it, and it is written once so they cannot apply different ones.
+fn is_bare(literal: &str) -> bool {
+    !literal.is_empty()
+        && !literal
+            .chars()
+            .any(|c| c.is_whitespace() || matches!(c, '(' | ')' | ':' | ';' | ','))
+}
+
 fn monotonic_source_vector(vector: &Json) -> Observed {
     let mut out = Observed::new();
     for (name, row) in rows(vector) {
         let literal = text(input(row), "monotonic_source");
-        let bare = !literal.is_empty()
-            && !literal
-                .chars()
-                .any(|c| c.is_whitespace() || matches!(c, '(' | ')' | ':' | ';' | ','));
         put(
             &mut out,
             name,
-            if bare { "bare_identifier" } else { "not_bare" },
+            if is_bare(literal) {
+                "bare_identifier"
+            } else {
+                "not_bare"
+            },
+        );
+    }
+    out
+}
+
+/// Every literal vector 0017 declares.
+///
+/// Reading the other file is the point rather than an accident: the
+/// suspend-behaviour rule is split across repositories, and inside this one it
+/// is split across two vectors. Deciding `declared` in 0023 from 0017's rows is
+/// what stops the two sets drifting apart the way this repository's set and the
+/// consumer's tables already had.
+fn declared_literals() -> Vec<String> {
+    let vector = load(&vectors_dir().join(format!("{LITERALS}.json")));
+    rows(&vector)
+        .iter()
+        .filter(|(_, row)| field(row, "expect").as_str() == Some("bare_identifier"))
+        .map(|(_, row)| text(input(row), "monotonic_source").to_owned())
+        .collect()
+}
+
+/// The literals vector 0023 classifies, which is every row it marks declared.
+fn classified_literals() -> Vec<String> {
+    let vector = load(&vectors_dir().join(format!("{CLASSIFICATION}.json")));
+    rows(&vector)
+        .iter()
+        .filter(|(_, row)| text(field(row, "expect"), "declared") == "yes")
+        .map(|(_, row)| text(input(row), "monotonic_source").to_owned())
+        .collect()
+}
+
+fn suspend_classification_vector(vector: &Json) -> Observed {
+    let declared = declared_literals();
+    let mut out = Observed::new();
+    for (name, row) in rows(vector) {
+        let literal = text(input(row), "monotonic_source");
+        put(
+            &mut out,
+            format!("{name}.declared"),
+            if declared.iter().any(|one| one == literal) {
+                "yes"
+            } else {
+                "no"
+            },
+        );
+        put(
+            &mut out,
+            format!("{name}.literal"),
+            if is_bare(literal) {
+                "bare_identifier"
+            } else {
+                "not_bare"
+            },
+        );
+        // This repository owns the enumeration and the literal set; the
+        // platform table that says which call advances across a suspend lives
+        // in a consumer, and nothing here can run it. So the classification is
+        // the vector's to state rather than an implementation's to produce, and
+        // what is checkable here is that every behaviour it names is a variant
+        // this crate declares — a vector naming a fourth one fails the run.
+        let want = text(field(row, "expect"), "suspend_behaviour");
+        let behaviour = match want {
+            "0" => SuspendBehaviour::Unspecified,
+            "1" => SuspendBehaviour::Included,
+            "2" => SuspendBehaviour::Excluded,
+            other => panic!("{name}: {other:?} is no SuspendBehaviour this crate declares"),
+        };
+        put(
+            &mut out,
+            format!("{name}.suspend_behaviour"),
+            behaviour as u8,
         );
     }
     out
@@ -911,6 +996,7 @@ fn run(vector: &Json) -> Observed {
         "Basis" => basis_vector(vector),
         "SuspendBehaviour" => suspend_vector(vector),
         "monotonic_source" => monotonic_source_vector(vector),
+        "suspend_classification" => suspend_classification_vector(vector),
         "mapping" => mapping_vector(vector),
         "fit_one_way" => fit_vector(vector),
         "tolerance_for_rate" => tolerance_vector(vector),
@@ -1006,6 +1092,25 @@ fn every_vector_passes() {
     );
     // Guards against a runner that silently reads nothing.
     assert!(rows_checked >= 150, "only {rows_checked} rows checked");
+}
+
+/// The literal set is written down twice here — 0017 asks which strings a face
+/// may emit, 0023 asks what each one does across a suspend — and one of those
+/// questions gaining a literal the other lacks is the defect this pair exists to
+/// stop. It is exactly how this repository's set and the consumer's platform
+/// tables came apart: four literals shared, one each way, and nothing comparing
+/// them.
+#[test]
+fn both_vectors_name_the_same_literals() {
+    let mut declared = declared_literals();
+    let mut classified = classified_literals();
+    declared.sort();
+    classified.sort();
+    assert_eq!(
+        declared, classified,
+        "{LITERALS} and {CLASSIFICATION} declare different literals"
+    );
+    assert_eq!(declared.len(), 6, "the literal set is six strings");
 }
 
 #[test]
