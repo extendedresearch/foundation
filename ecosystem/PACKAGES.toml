@@ -284,7 +284,7 @@ implementations = [
 # One implementation listed, and the gap is the point: the platform table and
 # the classifier that joins it to these literals live in consuming
 # repositories, where nothing runs them against this file. That is what
-# decision 0002's merge closes.
+# foundation decision 0002's merge closes.
 [[shared_rule]]
 name = "suspend behaviour classification"
 vectors = "crates/clock/vectors/0023-monotonic-sources-include-or-exclude-suspend.json"
