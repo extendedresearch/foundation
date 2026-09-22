@@ -44,7 +44,7 @@ guide says which wins and why. It never leaves the conflict unstated.
 | C# public member, type | `PascalCase` | `SampleRate` |
 | C# private field | `_camelCase` | `_sampleRate` |
 | C# local, parameter | `camelCase` | `sampleRate` |
-| C ABI symbol | `<prefix>_snake_case` | `ranvier_sample_rate` |
+| C ABI symbol | `<prefix>_snake_case` | `example_sample_rate` |
 
 - **S2** **Acronyms are words.** `HttpClient`, `abiVersion`, `AbiVersion`,
   `parse_url`, never `HTTPClient`, `ABIVersion` or `parseURL`. In
