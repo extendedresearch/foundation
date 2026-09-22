@@ -368,7 +368,37 @@ def check_documents(declaration: dict, strict: bool) -> bool:
             absent = [h for h in headings if h not in found]
             order.add(package["name"], "SOFT", f"missing {absent}" if absent else "out of order")
 
-    return documents_ok and order.report(soft=set() if strict else {"SOFT"})
+    order_ok = order.report(soft=set() if strict else {"SOFT"})
+
+    # Decision records are per package, numbered locally, so that a package
+    # carries the history explaining its shape and two packages never collide.
+    # Repository-level records — about how packages relate — live at the root.
+    records = Table("Decision records are numbered uniquely within their package")
+    seen_any = False
+    for package in [*declaration["package"], {"name": "(repository)", "path": "."}]:
+        directory = ROOT / package["path"] / "docs" / "decisions"
+        if not directory.is_dir():
+            continue
+        seen_any = True
+        numbers: dict[str, list[str]] = defaultdict(list)
+        malformed: list[str] = []
+        for record in sorted(directory.glob("*.md")):
+            match = re.match(r"^(\d{4})-[a-z0-9]+(-[a-z0-9]+)*\.md$", record.name)
+            if match:
+                numbers[match.group(1)].append(record.name)
+            else:
+                malformed.append(record.name)
+        collisions = {n: f for n, f in numbers.items() if len(f) > 1}
+        if malformed:
+            records.add(package["name"], "MALFORMED", f"not NNNN-kebab-case.md: {malformed[:3]}")
+        elif collisions:
+            records.add(package["name"], "COLLISION", f"number reused: {sorted(collisions)}")
+        else:
+            records.add(package["name"], "ok", f"{len(numbers)} record(s), numbers unique")
+    if not seen_any:
+        records.add("(none)", "ok", "no package carries decision records yet")
+
+    return documents_ok and order_ok and records.report()
 
 
 def main() -> int:
