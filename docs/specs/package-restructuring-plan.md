@@ -1,7 +1,7 @@
 # Package restructuring plan
 
 Status: **in progress**, 2026-09-22. Authorised by
-`docs/decisions/0001-foundation-is-a-set-of-independent-packages.md`. Step 1 of
+`foundation/docs/decisions/0001-foundation-is-a-set-of-independent-packages.md`. Step 1 of
 section 4 has landed: `crates/status` exists, `codes` and `guard` live in it,
 and `check` sits beside `status`. Steps 2 to 7 have not.
 

@@ -9,7 +9,14 @@
 # change, which is the point — the edge becomes reviewable instead of arriving
 # as a manifest line nobody read.
 
-schema = 1
+schema = 2
+
+# The repository this file describes. A declaration describes one repository's
+# packages and never another's, and until now it never said which one — which
+# left `check.py` guessing from the root's directory name. That guess is wrong
+# in a git worktree, where the directory is named for the worktree, and it is
+# the name `citations` needs in order to know which citations it can resolve.
+repository = "foundation"
 
 # ---------------------------------------------------------------------------
 # The documents every published package carries, so that a reader who has used
@@ -40,6 +47,38 @@ forbidden_paths = ["vendor/", "third_party/", "node_modules/", "target/"]
 
 # ---------------------------------------------------------------------------
 # Packages
+#
+# Two optional fields describe what a manifest cannot say. Both are declared
+# now, before four repositories write their declarations, because a schema
+# field added afterwards is four edits and added now it is one.
+#
+#   namespaces = ["Company.Thing"]
+#
+# The namespaces a package owns. A source-only .NET package compiles its files
+# into the consumer, where its types are `internal` to that assembly and
+# indistinguishable from the consumer's own; there is no import to read because
+# there was no import. The namespace is the only attributable signal there is.
+# `check.py boundaries` checks the direction it can: a namespace declared here
+# and used by no `.cs` file in the tree.
+#
+#   seams = [
+#       { kind = "path", target = "../sibling/proto", reason = "..." },
+#       { kind = "process", target = "protoc", reason = "..." },
+#   ]
+#
+# The filesystem paths and child processes a package may reach at run time. A
+# package can depend on a sibling with no manifest edge and no import — by
+# reading a path into a sibling working tree, or by spawning a sibling's
+# binary — and neither appears in any manifest in any language. `kind` is
+# `path` or `process`; `target` is relative to the package's own `path` for a
+# `path` seam and is the executable's name for a `process` one; `reason` says
+# why the reach cannot be a dependency, as a `[[copy]]` says why a copy cannot
+# be one. `check.py boundaries` refuses an entry whose path resolves back
+# inside the declaring package, an unknown `kind`, and a seam with no reason.
+#
+# Nothing in this repository declares a seam today. That is a claim about this
+# tree, and the check prints a row per package saying so, rather than printing
+# nothing and letting an empty table read as a pass.
 # ---------------------------------------------------------------------------
 
 # The vocabulary of an integer crossing a C boundary: the codes, the AbiError
@@ -118,12 +157,17 @@ depends = []
 external = []
 external_dev = ["typescript"]
 
+# The package directory holds the .nupkg project; the C# it ships lives in
+# `dotnet/Interop/` and is carried in as content files, so a consumer compiles
+# it rather than referencing an assembly. `namespaces` is therefore the only
+# thing that says which of a consumer's types came from here.
 [[package]]
 name = "ExtendedResearch.Interop"
 kind = "dotnet"
 path = "dotnet/Interop.Package"
 depends = []
 external = []
+namespaces = ["ExtendedResearch.Interop"]
 
 [[package]]
 name = "extendedresearch-conformance"
