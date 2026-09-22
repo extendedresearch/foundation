@@ -71,8 +71,8 @@ a comment explaining its dependency policy.
 So there are two tiers:
 
 - **Package-level** — `<package>/docs/decisions/NNNN-*.md`. Numbering is local
-  to the package. `ranvier/docs/decisions/0049-*.md` keeps its number and every
-  existing citation keeps resolving.
+  to the package, so a record keeps its number and every existing citation keeps
+  resolving.
 - **Repository-level** — `docs/decisions/NNNN-*.md` at the root, for decisions
   about how packages relate. This record and 0001 are the first two.
 

@@ -220,8 +220,9 @@ collected, and it deletes more than it adds:
 
 - Replace the four `git` dependencies on `extendedresearch-*` with path
   dependencies. The `rev` skew disappears by construction.
-- Delete `ranvier/scripts/fetch-foundation-nuget.sh` and the `nuget.config`
-  local-folder source; `dotnet/Interop` is now a path away.
+- Delete each consumer's script that downloads foundation's `.nupkg` from a
+  release and verifies it against that release's `SHA256SUMS`, along with the
+  `nuget.config` local-folder source it feeds; `dotnet/Interop` is a path away.
 - Delete the release-asset round trip for internal consumption. The assets still
   exist for external consumers at v1; nothing internal downloads them.
 - Delete the re-export scaffolding in `extendedresearch-abi` that exists only so

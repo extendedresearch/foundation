@@ -57,9 +57,9 @@ depends on. Renaming them is a **breaking change to a consumer**, not a rename:
 
 - **C ABI symbol prefixes** — `ranvier_*`, `ca3_*`. Every `extern "C"` export.
   A C or .NET caller links against these by name.
-- **Error tokens** — `RANVIER_ERR_*`, `CA3_ERR_*`. `docs/conventions/error-tokens.md`
-  makes these a wire contract, and every binding in three languages reports the
-  header's spelling.
+- **Error tokens** — every `<PREFIX>_ERR_*` a package declares.
+  `docs/conventions/error-tokens.md` makes these a wire contract, and every
+  binding in three languages reports the header's spelling.
 - **The C library artefact name** — `<package>_abi` by
   `docs/conventions/c-library-naming.md`, so the artefact renames with the
   package or the convention breaks.
